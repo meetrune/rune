@@ -15,14 +15,14 @@
 
 ## Project Overview
 
-Rune is your car's companion -- a Tron-style 3D visualization + health scoring + fuel intelligence system for a 2026 Honda Accord SE. He lives on a Raspberry Pi 4B inside the armrest, and shows himself on a Pixel 6 Pro via a React PWA over local WiFi. Zero cloud dependency. GitHub: [meetrune/rune](https://github.com/meetrune/rune).
+Rune is the car -- a 2026 Honda Accord SE. What we're building is the translation layer: the bond between Rune and the human who drives him. A Pi 4B in the armrest listens to Rune's signals and translates them into a Tron-style 3D visualization, health scoring, and fuel intelligence on a Pixel 6 Pro via React PWA. Zero cloud dependency. GitHub: [meetrune/rune](https://github.com/meetrune/rune).
 
 See `PRD.md` for full specifications, data contracts, OBD PID tables, build timeline, and hardware installation guide.
 
 ```
-CURRENT PHASE: v1 -- Rune learns to see (Desktop Development, Simulated Data)
+CURRENT PHASE: v1 -- First words (Desktop Development, Simulated Data)
 ```
-Update this line as phases progress: v1 Rune sees -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks (open source launch).
+Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).
 
 ---
 

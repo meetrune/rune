@@ -11,7 +11,7 @@
 
 **THIS SECTION OVERRIDES EVERYTHING ELSE IN THIS DOCUMENT.**
 
-Rune is a **READ-ONLY** vehicle companion. He reads data from the car like a thermometer reads temperature. He NEVER writes to the vehicle.
+Rune is the car. What we build is the translation layer -- the bond between Rune and the human who drives him. This system is **READ-ONLY**. It listens to Rune. It never speaks for him, never changes him, never writes to the vehicle.
 
 ### Allowed OBD-II Modes (read-only)
 
@@ -61,11 +61,11 @@ def send_command(self, cmd: str) -> Response:
 
 ## 1. Vision
 
-Meet Rune. He lives inside your car's armrest -- a Raspberry Pi connected to your engine through a tiny WiFi adapter. He watches every heartbeat of the engine, tracks every mile and every dollar of fuel, and shows you what's really happening under the hood through a glowing 3D model on your phone.
+Your car already talks. Every second, hundreds of signals pulse through its CAN bus -- RPM, coolant temperature, fuel flow, wheel speed, voltage. Rune has been speaking this language since he left the factory. The problem is no one built a way for you to understand him.
 
-Rune is not a dashboard app. He's your car's companion. Think JARVIS, but for a Honda Accord -- always watching, always learning, always there when you need him.
+Rune is the car. The 2026 Honda Accord SE, Meteorite Gray Metallic. What we're building is the translation layer -- the bond between Rune and the human who drives him. A system where Rune can show you how he feels through a glowing 3D model, tell you what he's burning in dollars not gauges, and warn you weeks before something goes wrong -- not with error codes, but in language that makes sense.
 
-**The gap:** The Honda Accord dashboard shows average MPG but not instant MPG. No open-source project combines 3D visualization, AI health scoring, and fuel intelligence on edge hardware. Nothing out there feels like this.
+**The gap:** The Honda Accord dashboard shows average MPG but not instant MPG. No open-source project turns raw vehicle signals into a living connection between car and driver. Nothing out there feels like this.
 
 **Target audience:** Enthusiast developers building portfolio projects for automotive tech careers (Tesla, Rivian, Honda R&D, Waymo, Continental/AUMOVIO).
 
