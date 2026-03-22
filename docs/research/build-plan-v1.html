@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AccordOS // Build Plan v1.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #050810;
+  --bg-panel: #0A0E17;
+  --bg-card: #0D1117;
+  --bg-elevated: #161B22;
+  --accent-cyan: #00D4FF;
+  --accent-cyan-dim: rgba(0,212,255,0.15);
+  --accent-cyan-glow: rgba(0,212,255,0.4);
+  --green: #00E676;
+  --green-dim: rgba(0,230,118,0.15);
+  --amber: #FFB300;
+  --amber-dim: rgba(255,179,0,0.15);
+  --red: #FF1744;
+  --red-dim: rgba(255,23,68,0.15);
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-dim: #484F58;
+  --border: rgba(0,212,255,0.12);
+  --border-bright: rgba(0,212,255,0.3);
+  --temp-cold: #1D4877;
+  --temp-normal: #FBB021;
+  --temp-hot: #EE3E32;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 400;
+  line-height: 1.7;
+  font-size: 16px;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ===== HERO ===== */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 800px; height: 800px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  opacity: 0.7;
+  margin-bottom: 24px;
+}
+
+.hero h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 900;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent-cyan), #00E676, var(--accent-cyan));
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s ease infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.hero-sub {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin-bottom: 40px;
+}
+
+.hero-specs {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.spec-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  background: var(--accent-cyan-dim);
+  color: var(--accent-cyan);
+  letter-spacing: 1px;
+}
+
+/* ===== SECTION STYLING ===== */
+section {
+  padding: 80px 0;
+  border-top: 1px solid var(--border);
+  position: relative;
+}
+
+section::before {
+  content: attr(data-num);
+  position: absolute;
+  top: 80px;
+  right: 0;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 120px;
+  font-weight: 900;
+  color: rgba(0,212,255,0.03);
+  pointer-events: none;
+  line-height: 1;
+}
+
+h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+h2 .dim { color: var(--text-dim); font-weight: 400; }
+
+h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 32px 0 12px;
+  padding-left: 16px;
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.section-lead {
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  font-weight: 300;
+}
+
+p { margin-bottom: 16px; }
+
+strong, b { color: var(--text-primary); font-weight: 600; }
+
+.highlight { color: var(--accent-cyan); font-weight: 600; }
+.green { color: var(--green); }
+.amber { color: var(--amber); }
+.red { color: var(--red); }
+
+/* ===== TABLES ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 14px;
+}
+
+thead th {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 2px solid var(--accent-cyan);
+  background: var(--bg-panel);
+}
+
+tbody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+}
+
+tbody tr:hover { background: var(--accent-cyan-dim); }
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--accent-cyan);
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin: 16px 0;
+}
+
+.card-green { border-left: 3px solid var(--green); }
+.card-amber { border-left: 3px solid var(--amber); }
+.card-red { border-left: 3px solid var(--red); }
+.card-cyan { border-left: 3px solid var(--accent-cyan); }
+
+.card h4 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+/* ===== CODE BLOCKS ===== */
+pre {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  background: var(--accent-cyan-dim);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+}
+
+pre code { background: none; padding: 0; }
+
+/* ===== SHOPPING LIST ===== */
+.shop-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 8px 0;
+  transition: border-color 0.2s;
+}
+
+.shop-item:hover { border-color: var(--accent-cyan); }
+
+.shop-item .name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.shop-item .price {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.shop-item .desc {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.shop-item .source {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ===== TIMELINE ===== */
+.week {
+  position: relative;
+  padding-left: 40px;
+  margin-bottom: 48px;
+}
+
+.week::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: -48px;
+  width: 2px;
+  background: var(--border);
+}
+
+.week:last-child::before { display: none; }
+
+.week-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg-deep);
+  border: 2px solid var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  z-index: 1;
+}
+
+.week-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.week-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.task-list {
+  list-style: none;
+}
+
+.task-list li {
+  padding: 6px 0 6px 20px;
+  position: relative;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.task-list li::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: var(--accent-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+}
+
+/* ===== SAFETY BOX ===== */
+.safety-box {
+  background: linear-gradient(135deg, rgba(0,230,118,0.05), rgba(0,212,255,0.05));
+  border: 1px solid rgba(0,230,118,0.3);
+  border-radius: 8px;
+  padding: 32px;
+  margin: 24px 0;
+}
+
+.safety-box h3 {
+  border-left-color: var(--green);
+  color: var(--green);
+}
+
+/* ===== PHASE HEADER ===== */
+.phase-header {
+  text-align: center;
+  padding: 48px 0;
+  margin: 48px 0 0;
+}
+
+.phase-header .phase-num {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 6px;
+  color: var(--accent-cyan);
+  opacity: 0.5;
+  text-transform: uppercase;
+}
+
+.phase-header h2 {
+  font-size: 24px;
+  margin-top: 8px;
+}
+
+.phase-header .phase-desc {
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 300;
+  max-width: 500px;
+  margin: 8px auto 0;
+}
+
+/* ===== TOTAL BAR ===== */
+.total-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(90deg, var(--accent-cyan-dim), transparent);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 8px;
+  margin: 24px 0;
+}
+
+.total-bar .label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+}
+
+.total-bar .amount {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+}
+
+/* ===== FOOTER ===== */
+footer {
+  text-align: center;
+  padding: 80px 0 40px;
+  border-top: 1px solid var(--border);
+}
+
+footer p {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.glow-text {
+  text-shadow: 0 0 20px var(--accent-cyan-glow);
+}
+
+ul.clean {
+  list-style: none;
+  padding: 0;
+}
+
+ul.clean li {
+  padding: 4px 0 4px 20px;
+  position: relative;
+}
+
+ul.clean li::before {
+  content: '//';
+  position: absolute;
+  left: 0;
+  color: var(--accent-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .hero-specs { flex-direction: column; align-items: center; }
+  h2 { font-size: 22px; }
+  section::before { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-tag">// build plan v1.0 &mdash; march 2026</div>
+  <h1>NervousSystem<br>+ AccordMind</h1>
+  <p class="hero-sub">A multi-modal AI vehicle intelligence platform for the <strong>2026 Honda Accord SE</strong>. Raspberry Pi 4B + Flutter on Pixel 6 Pro + WiCAN OBD-II. Open source. Zero cloud dependency. MIT license.</p>
+  <div class="hero-specs">
+    <span class="spec-chip">2026 ACCORD SE // L15BE 1.5T</span>
+    <span class="spec-chip">RASPBERRY PI 4B // 4GB</span>
+    <span class="spec-chip">PIXEL 6 PRO // TENSOR</span>
+    <span class="spec-chip">WICAN // ESP32-C3</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ===== WHAT YOU'RE BUILDING ===== -->
+<section data-num="00">
+<h2>What you are building</h2>
+<p class="section-lead">Your car becomes a living digital organism. Seven intelligence layers, running entirely on $35 hardware and your spare phone.</p>
+
+<div class="card card-cyan">
+<h4>The Core Vision</h4>
+<p>A Tron-style 3D model of your Honda Accord on the Pixel 6 Pro where every subsystem glows, pulses, and changes color based on <strong>live vehicle data</strong>. Behind it, machine learning models detect anomalies, predict maintenance, and coach your driving. When something is wrong, a professional PDF report generates with charts and plain-English explanations you can hand to any mechanic.</p>
+</div>
+
+<h3>The Seven Intelligence Layers</h3>
+<p><strong>1. NervousSystem 3D Visualization:</strong> Tron-style dark scene (#0A0E17 background) with neon bloom. Engine pulses with RPM like a heartbeat. Coolant flows as animated particles. Electrical system propagates sparks. 40+ OBD-II parameters mapped to visual effects in real-time.</p>
+<p><strong>2. AccordMind Health Scoring:</strong> 0-100 composite score with subsystem breakdowns (Engine 30%, Transmission 20%, Fuel 15%, Cooling 15%, Exhaust 10%, Electrical 10%). Three-layer detection: EWMA statistical (&lt;1ms), Isolation Forest every 30s (~5ms), trend regression every 5min. Learns YOUR car's baseline over 500 miles / 14 days.</p>
+<p><strong>3. Vibration Intelligence:</strong> Pixel 6 Pro's LSM6DSO IMU at 400 Hz + chassis-mounted MPU-6050 at 8 kHz. STFT and wavelet transforms detect tire imbalance (10-15 Hz), suspension degradation (1-15 Hz), engine misfire (RPM/60 Hz), and road quality. Convolutional autoencoder trained on "normal" driving flags deviations with AUROC near 1.0.</p>
+<p><strong>4. Engine Acoustic Diagnostics:</strong> $5 INMP441 MEMS microphone captures engine audio at 44.1 kHz. MFCC feature extraction + CNN classification detects misfires, belt wear, bearing noise, exhaust leaks, knock, and injector faults at 92%+ accuracy. Fused with OBD-II and vibration data through multi-modal autoencoder.</p>
+<p><strong>5. AI Driving Coach:</strong> Random Forest classifies driving style at 99-100% accuracy on OBD features. Spatial stereo audio cues through phone speakers (max 1 per 30s, suppressed during hard braking). Post-trip efficiency scoring. Route-specific learning with GPS geofencing. Financial savings tracking. 5-12% fuel savings proven by published research.</p>
+<p><strong>6. Digital Mechanic Reports:</strong> Professional PDF reports matching Snap-on/Autel format. Two-tier structure: customer-friendly summary with traffic-light indicators + detailed technical section with DTCs, freeze frames, trend charts, and spectrograms. Gemini Nano on Pixel 6 Pro generates natural language diagnostic summaries. Optional RAG with Honda service manual via ChromaDB + all-MiniLM-L6-v2.</p>
+<p><strong>7. Graph Neural Network:</strong> Car modeled as 8-node graph (Engine, Transmission, Exhaust, Cooling, Fuel, Electrical, Brakes, HVAC). 2-3 layer GCN with 64-dim embeddings (~200KB model, &lt;10ms inference) detects cascading failures across subsystems that per-sensor detection misses. Visualized as interactive graph overlay on the 3D model.</p>
+</section>
+
+<!-- ===== VEHICLE DATA ===== -->
+<section data-num="01">
+<h2>Every signal your 2026 Accord provides</h2>
+<p class="section-lead">40-60 standard OBD-II PIDs + Honda Mode 22 proprietary data + 100+ decoded CAN bus signals via comma.ai's opendbc project.</p>
+
+<h3>Core Engine PIDs</h3>
+<table>
+<thead><tr><th>PID</th><th>Parameter</th><th>Formula</th><th>Units</th><th>3D Visual</th></tr></thead>
+<tbody>
+<tr><td class="mono">0104</td><td>Engine load</td><td>A&times;100/255</td><td>%</td><td>Engine glow intensity</td></tr>
+<tr><td class="mono">0105</td><td>Coolant temperature</td><td>A-40</td><td>&deg;C</td><td>Engine block color gradient</td></tr>
+<tr><td class="mono">0106</td><td>Short-term fuel trim B1</td><td>(A-128)&times;100/128</td><td>%</td><td>Fuel system health color</td></tr>
+<tr><td class="mono">0107</td><td>Long-term fuel trim B1</td><td>(A-128)&times;100/128</td><td>%</td><td>Fuel system trend arrow</td></tr>
+<tr><td class="mono">010B</td><td>Intake manifold pressure</td><td>A</td><td>kPa</td><td>Intake animation</td></tr>
+<tr><td class="mono">010C</td><td>Engine RPM</td><td>(A&times;256+B)/4</td><td>rpm</td><td>Engine pulse rate</td></tr>
+<tr><td class="mono">010D</td><td>Vehicle speed</td><td>A</td><td>km/h</td><td>Wheel rotation speed</td></tr>
+<tr><td class="mono">010F</td><td>Intake air temperature</td><td>A-40</td><td>&deg;C</td><td>Temperature bin selection</td></tr>
+<tr><td class="mono">0110</td><td>MAF air flow rate</td><td>(A&times;256+B)/100</td><td>g/s</td><td>Air intake particles</td></tr>
+<tr><td class="mono">0111</td><td>Throttle position</td><td>A&times;100/255</td><td>%</td><td>Throttle body animation</td></tr>
+<tr><td class="mono">012F</td><td>Fuel tank level</td><td>A&times;100/255</td><td>%</td><td>Fuel gauge overlay</td></tr>
+<tr><td class="mono">013C</td><td>Catalyst temp B1S1</td><td>(A&times;256+B)/10-40</td><td>&deg;C</td><td>Exhaust system color</td></tr>
+<tr><td class="mono">0142</td><td>Control module voltage</td><td>(A&times;256+B)/1000</td><td>V</td><td>Wire glow intensity</td></tr>
+<tr><td class="mono">015C</td><td>Engine oil temperature</td><td>A-40</td><td>&deg;C</td><td>Oil system visualization</td></tr>
+<tr><td class="mono">015E</td><td>Engine fuel rate</td><td>(A&times;256+B)&times;0.05</td><td>L/h</td><td>Fuel consumption overlay</td></tr>
+</tbody>
+</table>
+
+<h3>Honda Mode 22 Proprietary</h3>
+<p><strong>Transmission fluid temperature:</strong> PID <code>22 2201</code> at byte position 27. Formula: <code>byte_value - 40 = &deg;C</code>. The 2026 Accord 1.5T uses Honda's CVT. Send raw ELM327 command <code>22 22 01</code> with header <code>7E0</code>.</p>
+<p><strong>Extended coolant data:</strong> PID <code>01 67</code> returns dual sensor readings (engine block and radiator) at bytes 2 and 3, each using <code>byte - 40</code>.</p>
+
+<h3>CAN Bus Signals (via opendbc, 100 Hz)</h3>
+<table>
+<thead><tr><th>CAN ID</th><th>Signal</th><th>Resolution</th><th>Visual Use</th></tr></thead>
+<tbody>
+<tr><td class="mono">0x1D0</td><td>Individual wheel speeds (FL, FR, RL, RR)</td><td>0.01 km/h</td><td>Differential wheel rotation</td></tr>
+<tr><td class="mono">0x0E4</td><td>Steering angle and rate</td><td>deg, deg/s</td><td>Steering wheel animation</td></tr>
+<tr><td class="mono">0x094, 0x1B0</td><td>Lateral + longitudinal acceleration</td><td>m/s&sup2;</td><td>Vehicle dynamics viz</td></tr>
+<tr><td class="mono">0x1A4</td><td>Brake pedal pressure</td><td>%</td><td>Brake system monitoring</td></tr>
+<tr><td class="mono">0x17C</td><td>Engine torque estimate</td><td>Nm</td><td>Power output visualization</td></tr>
+<tr><td class="mono">0x35E</td><td>Door status</td><td>boolean</td><td>Door open/closed overlay</td></tr>
+<tr><td class="mono">0x255, 0x296</td><td>Turn signals, seatbelt, cruise</td><td>binary</td><td>Status indicators</td></tr>
+</tbody>
+</table>
+
+<div class="card card-amber">
+<h4>Honda Sensing ADAS Limitation</h4>
+<p>ADAS data (adaptive cruise set speed, lead vehicle distance, LKAS status, collision mitigation) lives on a <strong>separate ADAS CAN bus</strong> that is NOT accessible through the OBD-II port. This requires a comma panda with a car harness to physically intercept the camera connection. Beyond scope for this project, but OBD-II reads ALL mechanical data regardless of whether Honda Sensing is controlling the car.</p>
+</div>
+</section>
+
+<!-- ===== SHOPPING LIST ===== -->
+<section data-num="02">
+<h2>Shopping List</h2>
+<p class="section-lead">Everything you need to buy. Order by end of Week 3 so hardware arrives before Week 5.</p>
+
+<h3>Must Buy</h3>
+
+<div class="shop-item">
+  <span class="name">WiCAN OBD-II Adapter</span>
+  <span class="price">$42</span>
+  <span class="desc">ESP32-C3, open-source firmware (meatpiHQ/wican-fw, 582+ stars). WiFi + BLE. Raw CAN bus access + ELM327 emulation. Sleep mode &lt;1 mA. The non-negotiable core adapter. Change default WiFi password immediately (default: @meatpi#).</span>
+  <span class="source">Tindie // meatpiHQ</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">INMP441 I2S MEMS Microphone (&times;2)</span>
+  <span class="price">$6-10</span>
+  <span class="desc">Engine acoustic diagnostics. Connects directly to Pi GPIO via I2S digital interface (no ADC needed). 44.1 kHz sample rate, 61 dB SNR, 60 Hz-15 kHz response. Two for stereo/redundancy. Mount near firewall in waterproof enclosure.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">MPU-6050 IMU Module</span>
+  <span class="price">$3-5</span>
+  <span class="desc">Chassis-mounted vibration sensor. I2C to Pi. Up to 8 kHz sample rate. Mount under seat or on floor pan with industrial Velcro. Provides consistent coupling unaffected by phone removal or orientation changes.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">BME280 Environmental Sensor</span>
+  <span class="price">$5-8</span>
+  <span class="desc">Cabin temperature, humidity, barometric pressure. Environmental context for seasonal baseline adjustments. Prevents false positives from temperature variation.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">u-blox NEO-M8N GPS Module</span>
+  <span class="price">$12-20</span>
+  <span class="desc">Independent GPS positioning. Speed validation vs OBD. Route-specific driving coach data. Geo-fenced diagnostics. Tire pressure inference via GPS-vs-OBD speed delta.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">SanDisk Industrial MicroSD 64GB</span>
+  <span class="price">$15</span>
+  <span class="desc">Rated -40&deg;C to +85&deg;C. Essential for car interior temperatures (60-80&deg;C in summer). Do NOT use consumer cards. Pair with OverlayFS for crash-safe operation.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">Witty Pi 4 (Power Management)</span>
+  <span class="price">$25-30</span>
+  <span class="desc">Safe 6-30V DC input with built-in DC/DC converter. RTC clock. Graceful shutdown on ignition off. The L3V7 variant adds LiPo UPS during shutdown. Ignition detection via voltage divider (10k&Omega;/4.7k&Omega; resistors) from 12V accessory line to GPIO.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">OBD-II Y-Splitter Cable</span>
+  <span class="price">$8-10</span>
+  <span class="desc">Keeps stock Honda diagnostics accessible while WiCAN is plugged in. Important for dealer service visits.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">Jumper Wires + Breadboard</span>
+  <span class="price">$8</span>
+  <span class="desc">Female-to-female and male-to-female for connecting INMP441, MPU-6050, BME280, GPS to Pi GPIO.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">Phone Vent-Clip Mount</span>
+  <span class="price">$12-15</span>
+  <span class="desc">For Pixel 6 Pro. Vent-clip type (NOT suction mount, projectile risk in crash). Strong mechanical grip. Pixel 6 Pro weighs 210g, minimal crash-force risk when properly mounted.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="total-bar">
+  <span class="label">TOTAL NEW SPEND</span>
+  <span class="amount">$137 - $171</span>
+</div>
+
+<h3>Already Owned</h3>
+<div class="card card-green">
+<p><strong>Raspberry Pi 4B (4GB)</strong> // The brain. Runs FastAPI, OBD polling, ML inference, audio capture, sensor fusion. Uses 15-30% CPU and 300-400MB RAM under full load.</p>
+<p><strong>Google Pixel 6 Pro</strong> // The face. Flutter app with 3D visualization. LSM6DSO IMU at 400 Hz. Google Tensor chip for Gemini Nano LLM. 12GB RAM. Mali-G78 MP20 GPU at 30-45 fps. 6.7" OLED. Stereo speakers for spatial audio coaching.</p>
+</div>
+
+<h3>DO NOT BUY</h3>
+<div class="card card-red">
+<p><strong>ELM327 clones ($5-25):</strong> Counterfeit chips truncate commands beyond 2 bytes. Fail on Honda's CAN protocol auto-detection. Draw 45-100+ mA continuously with no sleep. Can keep ECUs awake, multiplying drain. Documented overnight battery kills.</p>
+<p><strong>Veepeak BLE+ ($30):</strong> No raw CAN access. Notoriously poor Bluetooth pairing with Pi. python-obd documentation explicitly warns about Pi Bluetooth issues.</p>
+<p><strong>Hailo AI Accelerator:</strong> Incompatible with Pi 4B. Requires Pi 5's PCIe interface.</p>
+<p><strong>Google Coral USB:</strong> Works on Pi 4B but approaching end-of-life. Pixel 6 Pro's Tensor chip handles heavier inference more capably for free.</p>
+</div>
+
+<h3>Optional Phase 2 Upgrades</h3>
+<div class="shop-item">
+  <span class="name">PiCAN FD GPS HAT</span>
+  <span class="price">$80-100</span>
+  <span class="desc">Raw CAN-FD bus access + built-in u-blox GPS + 3A SMPS power supply (7-24V input). Replaces WiCAN + GPS + Witty Pi in one board. Buy only if you want deeper CAN access beyond standard OBD-II.</span>
+  <span class="source">Copperhill Technologies</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">CANable 2.0 Clone (Innomaker)</span>
+  <span class="price">$25</span>
+  <span class="desc">High-speed USB SocketCAN development. Pair with WiCAN for dual-adapter strategy: WiCAN for wireless + CANable for USB raw CAN.</span>
+  <span class="source">Amazon</span>
+</div>
+
+<div class="shop-item">
+  <span class="name">Aluminum Heatsink Case (Flirc/Argon NEO)</span>
+  <span class="price">$12-15</span>
+  <span class="desc">Passive cooling. Pi SoC rated to 85&deg;C with auto-throttling. A Pi 2 survived 3-4 months in an Australian car at 44&deg;C+ ambient with CPU at 95&deg;C. Recommended for summer but not strictly essential.</span>
+  <span class="source">Amazon</span>
+</div>
+</section>
+
+<!-- ===== SAFETY ===== -->
+<section data-num="03">
+<h2>Safety & Warranty <span class="dim">// read-only guaranteed</span></h2>
+
+<div class="safety-box">
+<h3>OBD-II Reading is 100% Safe</h3>
+<p>Standard Mode 01 PID queries are <strong>read-only by design</strong> in the ISO 15031-5 standard. Writing to the ECU requires specific UDS services (WriteDataByIdentifier <code>0x2E</code>, RoutineControl <code>0x31</code>) that demand authenticated security access via seed/key exchange. This is impossible to trigger accidentally through a standard OBD adapter. In 10+ years of consumer OBD adapter usage, <strong>no documented case exists</strong> of a read-only adapter damaging a Honda ECU.</p>
+</div>
+
+<h3>SafeOBDConnection Code Guard</h3>
+<p>The very first code written for this project is a command whitelist. Every byte that reaches the car passes through this gate. Even if Claude Code accidentally generates a write command, the safety filter blocks it:</p>
+
+<pre><code>ALLOWED_COMMANDS = {
+    '01',  # Mode 01: Current data (read-only)
+    '02',  # Mode 02: Freeze frame (read-only)
+    '03',  # Mode 03: Read DTCs (read-only)
+    '09',  # Mode 09: Vehicle info/VIN (read-only)
+}
+
+BLOCKED_COMMANDS = {
+    '04',  # Clear DTCs (writes!)
+    '08',  # Control onboard systems (writes!)
+    '10',  # UDS diagnostic session
+    '27',  # Security access
+    '2E',  # Write data
+    '31',  # Routine control
+    '3E',  # Tester present
+}
+
+def send_command(self, cmd: str) -> Response:
+    mode = cmd[:2]
+    if mode not in ALLOWED_COMMANDS:
+        raise BlockedCommandError(f"BLOCKED: {cmd}")
+    return self._connection.query(cmd)</code></pre>
+
+<h3>Battery Drain</h3>
+<p>WiCAN draws <strong>&lt;1 mA</strong> in sleep mode. On a 50 Ah battery: 0.024 Ah per day. The car's own parasitic draw (25-50 mA) is 25-50x higher. WiCAN detects alternator voltage dropping below 13.5V and enters sleep automatically.</p>
+
+<h3>Warranty Protection</h3>
+<p>The <strong>Magnuson-Moss Warranty Act</strong> (15 U.S.C. &sect;2301) explicitly protects consumers. Honda's own documentation states they cannot void a warranty solely because an aftermarket part has been used. They must prove the adapter caused the specific damage, which a read-only adapter cannot.</p>
+
+<h3>Physical Installation</h3>
+<p>No permanent modifications. OBD adapter plugs into port under dashboard. Pi secured with zip ties or industrial Velcro, away from airbag deployment zones. Phone on vent-clip mount. All cables routed with zip ties to prevent interference with pedals or steering. Everything unplugs in 2 minutes with zero trace.</p>
+
+<h3>CAN Bus Security</h3>
+<p>CAN has no authentication or encryption. <strong>Change WiCAN's default WiFi password immediately</strong> (default: <code>@meatpi#</code>). Use WPA2-PSK minimum on Pi's hotspot. Disable BLE when not configuring. Consider disabling WiCAN's AP entirely in production, using station mode exclusively.</p>
+
+<h3>SD Card Protection</h3>
+<p><strong>OverlayFS</strong> enabled via <code>raspi-config &rarr; Performance Options &rarr; Overlay Filesystem</code>. Makes root filesystem read-only with in-RAM overlay. An automated test of 2,100+ power cuts across four Pi units showed zero corruption. Industrial SD card handles temps up to 85&deg;C.</p>
+</section>
+
+<!-- ===== TECH STACK ===== -->
+<section data-num="04">
+<h2>Tech Stack</h2>
+
+<h3>Raspberry Pi 4B (The Brain)</h3>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>OS</td><td class="mono">RPi OS Lite 64-bit (Bookworm)</td><td>100-150MB RAM at idle. 8-15s boot. OverlayFS enabled.</td></tr>
+<tr><td>Web Framework</td><td class="mono">FastAPI 0.115+</td><td>Async Python. Native WebSocket. Serves API + static files.</td></tr>
+<tr><td>OBD-II</td><td class="mono">python-obd 0.7.2</td><td>Async mode with fast=True. 7 responses/sec across 2 watched commands.</td></tr>
+<tr><td>Database</td><td class="mono">SQLite + WAL mode</td><td>&lt;10MB RAM. No daemon. Handles 100s of inserts/sec.</td></tr>
+<tr><td>ML: Anomaly</td><td class="mono">scikit-learn 1.3+</td><td>Isolation Forest (100 trees, ~30MB). Random Forest for driving style.</td></tr>
+<tr><td>ML: Deep</td><td class="mono">TFLite Runtime 2.14+</td><td>Convolutional autoencoder for vibration/audio anomaly detection.</td></tr>
+<tr><td>Signal Processing</td><td class="mono">scipy.signal + PyWavelets</td><td>STFT, CWT (Morlet/Daubechies-4), Butterworth filtering.</td></tr>
+<tr><td>Audio</td><td class="mono">librosa 0.10+ / pyaudio</td><td>MFCC extraction from INMP441. Engine sound classification.</td></tr>
+<tr><td>GNN</td><td class="mono">PyG/DGL &rarr; ONNX/TFLite</td><td>Graph neural network. ~200KB model. Sub-10ms inference.</td></tr>
+<tr><td>Reports</td><td class="mono">Jinja2 + matplotlib + WeasyPrint</td><td>Professional PDF diagnostic reports.</td></tr>
+<tr><td>Real-time</td><td class="mono">WebSocket (10 Hz)</td><td>~200-400 bytes/msg. 10-20 KB/sec total bandwidth.</td></tr>
+</tbody>
+</table>
+
+<h3>Pixel 6 Pro (The Face)</h3>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Framework</td><td class="mono">Flutter 3.x (Dart)</td><td>Native ARM compilation. Hot reload. Full sensor access.</td></tr>
+<tr><td>3D Engine</td><td class="mono">Three.js r183 via WebView</td><td>155 KB gzipped. 20-50K triangle car model. Selective bloom.</td></tr>
+<tr><td>Sensors</td><td class="mono">sensors_plus</td><td>400 Hz accelerometer + gyroscope. Streams to Pi via WebSocket.</td></tr>
+<tr><td>On-device LLM</td><td class="mono">Gemini Nano</td><td>Natural language diagnostic summaries. Runs on Tensor chip.</td></tr>
+<tr><td>Audio Coach</td><td class="mono">Native AudioTrack</td><td>Spatial stereo cues. Left/right panning for directional feedback.</td></tr>
+<tr><td>State</td><td class="mono">Riverpod or BLoC</td><td>Reactive state from WebSocket data stream.</td></tr>
+</tbody>
+</table>
+
+<h3>Network Topology</h3>
+<pre><code>Pi creates WiFi AP "CarPi" (192.168.4.1)
+  |
+  |-- WiCAN connects in station mode (sends OBD/CAN data)
+  |-- Pixel 6 Pro connects (receives viz data, sends IMU data)
+  
+Phone accesses Flutter app  
+Pi receives phone sensor data on second WebSocket channel
+All ML processing stays on Pi (bidirectional architecture)</code></pre>
+
+<h3>End-to-End Latency</h3>
+<table>
+<thead><tr><th>Stage</th><th>Latency</th></tr></thead>
+<tbody>
+<tr><td>ECU &rarr; ELM327 response</td><td>5-50ms per PID</td></tr>
+<tr><td>ELM327 &rarr; Pi via WiFi</td><td>2-10ms</td></tr>
+<tr><td>Python parsing + health scoring</td><td>1-50ms</td></tr>
+<tr><td>Pi &rarr; WebSocket JSON push</td><td>1-2ms</td></tr>
+<tr><td>WiFi AP &rarr; Phone</td><td>2-5ms</td></tr>
+<tr><td>Flutter render (Three.js frame)</td><td>16ms at 60fps</td></tr>
+<tr><td><strong>Total end-to-end</strong></td><td><strong>40-140ms</strong></td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ===== VISUAL DESIGN ===== -->
+<section data-num="05">
+<h2>Visual Design System</h2>
+<p class="section-lead">Tron-style dark aesthetic. Communicates through color and motion, not text. NHTSA compliant: individual glances under 2 seconds, max 30 characters visible.</p>
+
+<h3>Color Palette</h3>
+<table>
+<thead><tr><th>Element</th><th>Hex</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Scene background</td><td class="mono">#0A0E17</td><td>3D scene</td></tr>
+<tr><td>Panel surface</td><td class="mono">#0D1117</td><td>UI panels</td></tr>
+<tr><td>Primary accent</td><td class="mono" style="color:var(--accent-cyan)">#00D4FF</td><td>Interactive elements</td></tr>
+<tr><td>Healthy</td><td class="mono" style="color:var(--green)">#00E676</td><td>Score 90-100</td></tr>
+<tr><td>Warning</td><td class="mono" style="color:var(--amber)">#FFB300</td><td>Score 40-69</td></tr>
+<tr><td>Critical</td><td class="mono" style="color:var(--red)">#FF1744</td><td>Score &lt;20</td></tr>
+<tr><td>Primary text</td><td class="mono">#E6EDF3</td><td>Headings</td></tr>
+<tr><td>Secondary text</td><td class="mono">#8B949E</td><td>Labels</td></tr>
+<tr><td>Temperature cold</td><td class="mono" style="color:var(--temp-cold)">#1D4877</td><td>&lt;60&deg;C</td></tr>
+<tr><td>Temperature normal</td><td class="mono" style="color:var(--temp-normal)">#FBB021</td><td>80-95&deg;C</td></tr>
+<tr><td>Temperature hot</td><td class="mono" style="color:var(--temp-hot)">#EE3E32</td><td>&gt;105&deg;C</td></tr>
+</tbody>
+</table>
+
+<h3>Biological Metaphor</h3>
+<p><strong>Engine = Heart:</strong> Pulses red synchronized to RPM. 60 BPM at idle, faster at high RPM. <code>engine.position.y = Math.sin(time * rpm/1000) * 0.002</code></p>
+<p><strong>Coolant = Circulatory:</strong> Animated particles along coolant paths. Blue-to-red gradient based on temperature. Speed proportional to flow rate.</p>
+<p><strong>Electrical = Nervous System:</strong> Propagating spark/pulse animations along wire-like paths. Brighter with higher voltage.</p>
+<p><strong>Transitions:</strong> 200-400ms ease-out curves. Idle ambient animations cycle at 2000-4000ms. Only critical alerts use dramatic animation.</p>
+<p><strong>Typography:</strong> 9mm+ for critical data (speed, RPM, health score). Max 5 visible data elements at any time. Use preattentive cues (color, size, motion) over text.</p>
+</section>
+
+<!-- ===== HEALTH SCORING ===== -->
+<section data-num="06">
+<h2>AccordMind Health Engine</h2>
+<p class="section-lead">Three-layer architecture. Total memory: ~100-130 MB on Pi 4B.</p>
+
+<h3>Honda Accord Normal Operating Ranges</h3>
+<table>
+<thead><tr><th>Parameter</th><th><span class="green">Normal</span></th><th><span class="amber">Warning</span></th><th><span class="red">Critical</span></th></tr></thead>
+<tbody>
+<tr><td>Coolant temp</td><td>82-96&deg;C</td><td>96-104&deg;C</td><td>&gt;110&deg;C</td></tr>
+<tr><td>Idle RPM</td><td>650-750</td><td>500-650 / 750-900</td><td>&lt;500 / &gt;1000</td></tr>
+<tr><td>STFT</td><td>&plusmn;5%</td><td>&plusmn;5-10%</td><td>&gt;&plusmn;10%</td></tr>
+<tr><td>LTFT</td><td>&plusmn;5%</td><td>&plusmn;5-10%</td><td>&gt;&plusmn;15%</td></tr>
+<tr><td>Battery voltage</td><td>13.5-14.5V</td><td>13.0-13.5V</td><td>&lt;12.8V / &gt;15.2V</td></tr>
+<tr><td>Engine load (idle)</td><td>15-30%</td><td>30-45%</td><td>&gt;50%</td></tr>
+<tr><td>O2 response time</td><td>&lt;100ms</td><td>200ms</td><td>&gt;400ms</td></tr>
+</tbody>
+</table>
+
+<h3>What AccordMind Can Predict</h3>
+<p><span class="green">HIGH CONFIDENCE:</span> Catalyst degradation (2-4 weeks lead). Fuel system issues from LTFT drift (1-4 weeks). Thermostat failure from warmup time analysis (should reach 82&deg;C in 5-8 min). O2 sensor aging (2-8 weeks).</p>
+<p><span class="amber">MODERATE:</span> Alternator degradation from battery voltage under load trending down (days-weeks).</p>
+<p><span class="red">REQUIRES ADDITIONAL SENSORS:</span> Brake pad wear, suspension degradation, tire condition. These need the vibration and audio layers.</p>
+
+<h3>Calibration</h3>
+<p><strong>500 miles or 14 days</strong>, whichever comes first. Baselines maintained per ambient temperature bin using intake air temp PID: cold (&lt;5&deg;C), cool (5-15&deg;C), mild (15-25&deg;C), warm (25-35&deg;C), hot (&gt;35&deg;C). This prevents false positives from seasonal variation.</p>
+</section>
+
+<!-- ===== BUILD TIMELINE ===== -->
+<section data-num="07">
+<h2>Build Plan <span class="dim">// 10 weeks</span></h2>
+<p class="section-lead">Each week produces a working, testable increment. Weeks 1-4 are pure desktop development with simulated data. Weeks 5+ connect to the real vehicle.</p>
+
+<!-- PHASE 1 -->
+<div class="phase-header">
+<div class="phase-num">Phase 01</div>
+<h2>Foundation</h2>
+<p class="phase-desc">Desktop development. No car needed. Simulated data.</p>
+</div>
+
+<div class="week">
+<div class="week-marker">1</div>
+<div class="week-title">Pi Backend + SafeOBD + Simulator</div>
+<div class="week-subtitle">The safety layer and data backbone</div>
+<ul class="task-list">
+<li>Set up Raspberry Pi OS Lite 64-bit (Bookworm). Configure WiFi AP, SSH, Python 3.11+ venv.</li>
+<li>Build FastAPI project structure: <code>backend/main.py</code>, <code>obd_manager/</code>, <code>health/</code>, <code>database/</code></li>
+<li><strong>FIRST CODE WRITTEN:</strong> SafeOBDConnection wrapper with command whitelist (Modes 01, 02, 03, 09 ONLY). All other modes blocked.</li>
+<li>Create OBD Simulator that generates realistic Honda Accord PID values: RPM cycles, temperature warmup curves, throttle patterns, with configurable anomaly injection.</li>
+<li>Implement WebSocket endpoint at <code>/ws/vehicle-data</code> streaming JSON at 10 Hz.</li>
+<li>Set up SQLite with WAL mode. Schema: trips, sensor_readings (timestamp, pid, value), health_scores.</li>
+<li><strong>Deliverable:</strong> Pi serves mock OBD data over WebSocket. Verify from laptop browser.</li>
+</ul>
+</div>
+
+<div class="week">
+<div class="week-marker">2</div>
+<div class="week-title">Flutter App + 3D Visualization</div>
+<div class="week-subtitle">The Tron-style digital twin comes alive</div>
+<ul class="task-list">
+<li>Set up Flutter project. Install Flutter SDK on dev machine.</li>
+<li>Build WebSocket client service connecting to Pi at <code>192.168.4.1:8080</code>.</li>
+<li>Download Honda Accord 3D model from Sketchfab (CC license). Decimate to 20-50K triangles in Blender. Segment into named groups: <code>body_shell</code>, <code>engine_block</code>, <code>wheel_FL/FR/RL/RR</code>, <code>exhaust_system</code>, <code>coolant_lines</code>, <code>wiring_harness</code>. Export as GLB with Draco compression.</li>
+<li>Embed Three.js r183 in Flutter WebView. Build scene: background #0A0E17, semi-transparent body with edge glow, selective bloom via UnrealBloomPass (luminanceThreshold: 1.0, emissiveIntensity &gt;1.0 for bloom parts).</li>
+<li>Implement data-to-visual bindings: engine color maps to coolant temp, wheels rotate at individual speeds, engine pulses with RPM.</li>
+<li>Build health score dashboard UI: overall 0-100 score + subsystem cards.</li>
+<li><strong>Deliverable:</strong> Flutter app on Pixel 6 Pro shows animated 3D car responding to simulated data.</li>
+</ul>
+</div>
+
+<div class="week">
+<div class="week-marker">3</div>
+<div class="week-title">AccordMind Health Scoring Engine</div>
+<div class="week-subtitle">The intelligence behind the visualization</div>
+<ul class="task-list">
+<li>Implement dual-timescale EWMA: fast (&alpha;=0.3) for current state, slow (&alpha;=0.01) for long-term baseline. Anomaly when divergence exceeds threshold.</li>
+<li>Build Isolation Forest (100 trees) for multivariate anomaly detection every 30 seconds.</li>
+<li>Implement per-subsystem scoring with Honda Accord-specific thresholds (coolant 82-96&deg;C, STFT &plusmn;5%, battery 13.5-14.5V, etc.).</li>
+<li>Build composite score with weights: Engine 30%, Transmission 20%, Fuel 15%, Cooling 15%, Exhaust 10%, Electrical 10%.</li>
+<li>Implement calibration mode: first 500 miles / 14 days builds per-temperature-bin baselines.</li>
+<li>Add linear regression trend analysis (7-30 day windows) for degradation prediction.</li>
+<li><strong>Deliverable:</strong> Health scores update real-time on Flutter app. Inject anomalies in simulator, verify detection.</li>
+</ul>
+</div>
+
+<div class="week">
+<div class="week-marker">4</div>
+<div class="week-title">Vibration + Audio Pipelines (Simulated)</div>
+<div class="week-subtitle">Signal processing foundation</div>
+<ul class="task-list">
+<li>Build phone sensor streaming: Flutter <code>sensors_plus</code> captures 400 Hz accelerometer, sends to Pi via WebSocket.</li>
+<li>Implement vibration processing: STFT (256-point windows), Butterworth bandpass filters, statistical feature extraction (RMS, peak, kurtosis, crest factor).</li>
+<li>Build MFCC audio pipeline: 13 coefficients, 20ms windows, 10ms hop. Test with recorded Honda 1.5T engine audio samples.</li>
+<li>Train initial convolutional autoencoder on synthetic vibration data. Export to TFLite.</li>
+<li><strong>ORDER ALL HARDWARE THIS WEEK</strong> so it arrives before Week 5.</li>
+<li><strong>Deliverable:</strong> Vibration and audio pipelines process simulated data. Spectrograms visible in debug UI.</li>
+</ul>
+</div>
+
+<!-- PHASE 2 -->
+<div class="phase-header">
+<div class="phase-num">Phase 02</div>
+<h2>Real Vehicle Integration</h2>
+<p class="phase-desc">Hardware arrives. Connect to the 2026 Accord.</p>
+</div>
+
+<div class="week">
+<div class="week-marker">5</div>
+<div class="week-title">Hardware Setup + First Real Data</div>
+<div class="week-subtitle">The moment it becomes real</div>
+<ul class="task-list">
+<li>Wire INMP441 mic, MPU-6050, BME280, GPS to Pi GPIO. Test each sensor individually.</li>
+<li>Configure WiCAN: change default WiFi password. Set to station mode joining Pi's CarPi network.</li>
+<li>Plug WiCAN into Honda OBD-II port. <strong>Manually select CAN protocol</strong> (ISO 15765-4, 11-bit, 500 kbaud) to avoid 2026 Honda auto-detect issues.</li>
+<li>Switch backend from simulator to real python-obd connection. Verify all standard PIDs. Test Honda Mode 22 PIDs (transmission temp: <code>22 2201</code> byte 27).</li>
+<li>First real drive with system running. 3D model responding to actual engine data.</li>
+<li><strong>Deliverable:</strong> NervousSystem running on real vehicle data. Health scoring begins calibration.</li>
+</ul>
+</div>
+
+<div class="week">
+<div class="week-marker">6</div>
+<div class="week-title">Sensor Fusion + Real Baselines</div>
+<div class="week-subtitle">Multi-modal data collection begins</div>
+<ul class="task-list">
+<li>Mount MPU-6050 on chassis (under seat, industrial Velcro). Run mount quality validation: check coherence between phone vibration and OBD-derived engine frequency.</li>
+<li>Mount INMP441 mic near firewall in waterproof enclosure. Configure I2S overlay in <code>/boot/config.txt</code>.</li>
+<li>Drive normally for the week. Collect baselines: OBD parameters, vibration profiles, engine audio fingerprint, correlated with GPS routes and weather.</li>
+<li>Implement sensor fusion: cross-reference vibration events with OBD speed/RPM to classify road vs vehicle-origin. Compute orientation-independent magnitude &radic;(x&sup2;+y&sup2;+z&sup2;).</li>
+<li><strong>Deliverable:</strong> One week of real baseline data. Vibration and audio baselines established.</li>
+</ul>
+</div>
+
+<div class="week">
+<div class="week-marker">7</div>
+<div class="week-title">Driving Coach + Diagnostic Reports</div>
+<div class="week-subtitle">Daily value features</div>
+<ul class="task-list">
+<li>Implement driving style classification (Random Forest on: acceleration RMS, speed variance, jerk, throttle change rate, engine load). Three classes: Eco, Normal, Aggressive.</li>
+<li>Build eco-score: 0-100 across 5 dimensions (throttle smoothness, braking anticipation, cruising steadiness, load optimization, cold-start behavior).</li>
+<li>Implement spatial audio coaching in Flutter: subtle stereo tones (max 1 per 30s, suppressed during hard braking/cornering &gt;7 m/s&sup2;).</li>
+<li>Build fuel savings ledger: baseline vs current consumption &times; local gas prices.</li>
+<li>Route-specific learning: GPS geofencing (50m radius) + braking event logging. After 5+ hard brakes at same location, generate insight.</li>
+<li>Build PDF report generator: Jinja2 HTML template + matplotlib charts + WeasyPrint. Vehicle ID, system health summary, DTCs, freeze frame analysis, trend charts.</li>
+<li>Integrate Gemini Nano on Pixel 6 Pro for natural language diagnostic summaries.</li>
+<li><strong>Deliverable:</strong> Post-trip efficiency scores. Spatial audio coaching. First diagnostic PDF report.</li>
+</ul>
+</div>
+
+<div class="week">
+<div class="week-marker">8</div>
+<div class="week-title">GNN Health Graph + Full Integration</div>
+<div class="week-subtitle">The intelligence layer nobody else has</div>
+<ul class="task-list">
+<li>Build vehicle graph: 8 nodes (Engine, Transmission, Exhaust, Cooling, Fuel, Electrical, Brakes, HVAC) with physical connection edges.</li>
+<li>Train 2-3 layer Graph Convolutional Network on accumulated baseline data. Export to ONNX/TFLite (~200KB).</li>
+<li>Visualize GNN as interactive graph overlay on 3D model: green/yellow/red nodes, highlighted fault propagation edges.</li>
+<li>Full integration test: drive with ALL systems active (OBD + vibration + audio + GPS + weather + GNN).</li>
+<li><strong>Deliverable:</strong> Complete NervousSystem + AccordMind with all seven intelligence layers active.</li>
+</ul>
+</div>
+
+<!-- PHASE 3 -->
+<div class="phase-header">
+<div class="phase-num">Phase 03</div>
+<h2>Open Source Launch</h2>
+<p class="phase-desc">Documentation, plugin system, community.</p>
+</div>
+
+<div class="week">
+<div class="week-marker">9</div>
+<div class="week-title">Plugin Architecture + Vehicle Profiles</div>
+<div class="week-subtitle">Engineering that separates professionals from students</div>
+<ul class="task-list">
+<li>Build plugin system: <code>BasePlugin</code> ABC with <code>initialize()</code>, <code>process(data_frame)</code>, <code>shutdown()</code>. Dynamic discovery via <code>importlib</code> scanning <code>plugins/</code> directory. Pub/sub data bus.</li>
+<li>Vehicle profile system: YAML files keyed by VIN prefix. Honda Accord profile with supported PIDs, normal ranges, engine specs. Auto-detect via OBD VIN query.</li>
+<li>Implement circuit breaker pattern for sensor failures (graceful degradation when OBD disconnects).</li>
+<li>Structured JSON logging with configurable rotation. Pydantic schema validation for hierarchical config (defaults &rarr; vehicle profile &rarr; user overrides).</li>
+<li>Record-replay testing: capture real sensor data, replay for regression tests.</li>
+<li>Write comprehensive README with architecture diagram, hardware BOM, safety section.</li>
+<li>Record 2-minute demo video: real car footage alongside 3D visualization.</li>
+</ul>
+</div>
+
+<div class="week">
+<div class="week-marker">10</div>
+<div class="week-title">GitHub Launch</div>
+<div class="week-subtitle">Ship it</div>
+<ul class="task-list">
+<li>Create GitHub repository. MIT license. CI/CD via GitHub Actions (linting, mypy, unit tests with mocked sensors).</li>
+<li>Submit to awesome-canbus GitHub list (exact target audience, thousands of stars).</li>
+<li>Post to r/raspberry_pi, r/Honda, r/CarHacking, r/selfhosted.</li>
+<li>Show HN post on a Tuesday morning with demo video.</li>
+<li>First blog post: "How I Built a Vehicle Intelligence Platform for My Honda Accord with a Raspberry Pi"</li>
+</ul>
+</div>
+</section>
+
+<!-- ===== PROJECT STRUCTURE ===== -->
+<section data-num="08">
+<h2>Project Structure</h2>
+<pre><code>accordos/
+├── backend/
+│   ├── main.py              # FastAPI entry + WebSocket handler
+│   ├── obd_manager/
+│   │   ├── connection.py    # OBD connect/reconnect + SafeOBDConnection
+│   │   ├── collector.py     # Async data collector
+│   │   └── simulator.py     # Mock data for development
+│   ├── health/
+│   │   ├── scorer.py        # AccordMind scoring engine
+│   │   ├── rules.py         # Per-subsystem rule definitions
+│   │   └── thresholds.py    # Normal/warning/critical ranges
+│   ├── vibration/
+│   │   ├── processor.py     # STFT, CWT, feature extraction
+│   │   └── anomaly.py       # Convolutional autoencoder inference
+│   ├── audio/
+│   │   ├── capture.py       # INMP441 I2S recording
+│   │   └── classifier.py    # MFCC + CNN engine sound analysis
+│   ├── coach/
+│   │   ├── driver_style.py  # Random Forest classification
+│   │   ├── eco_score.py     # Multi-dimensional efficiency scoring
+│   │   └── route_learner.py # GPS geofencing + braking patterns
+│   ├── gnn/
+│   │   ├── vehicle_graph.py # 8-node subsystem graph definition
+│   │   └── inference.py     # GCN fault propagation detection
+│   ├── reports/
+│   │   ├── generator.py     # Jinja2 + WeasyPrint PDF generation
+│   │   └── templates/       # HTML report templates
+│   └── database/
+│       └── db.py            # SQLite WAL setup + queries
+├── flutter_app/
+│   ├── lib/
+│   │   ├── services/        # WebSocket, sensor streaming
+│   │   ├── models/          # Data models
+│   │   ├── views/           # UI screens
+│   │   └── three_bridge/    # Three.js WebView integration
+│   └── assets/models/       # GLB car model files
+├── plugins/                  # Community analysis modules
+├── profiles/                 # Vehicle YAML profiles (keyed by VIN)
+├── deploy/
+│   └── accordos.service     # systemd auto-start
+└── tests/
+    ├── replay_data/          # Captured real sensor data
+    └── test_*.py             # Unit tests with mocked sensors</code></pre>
+</section>
+
+<!-- ===== MARKET GAP ===== -->
+<section data-num="09">
+<h2>Nothing else combines these capabilities</h2>
+<p class="section-lead">We searched. Extensively.</p>
+
+<table>
+<thead><tr><th>Product</th><th>What It Does</th><th>What It Lacks</th></tr></thead>
+<tbody>
+<tr><td><strong>RealDash</strong></td><td>Beautiful 2D customizable dashboards</td><td>No 3D model, no health scoring, no predictive analytics</td></tr>
+<tr><td><strong>Torque Pro</strong></td><td>Broad PID support</td><td>Appears abandoned. Dated UI. No intelligence layer.</td></tr>
+<tr><td><strong>FIXD</strong></td><td>Plain-English DTC explanations</td><td>Basic severity indicators only. No visualization.</td></tr>
+<tr><td><strong>Carly</strong></td><td>ECU coding capabilities</td><td>No visualization. No predictive maintenance.</td></tr>
+<tr><td><strong>OnBoardPi / PyOBD-Dashboard</strong></td><td>Pi OBD dashboards with 2D gauges</td><td>No 3D. No ML. No multi-modal sensing.</td></tr>
+<tr><td><strong>openpilot</strong></td><td>Driving assistance (60K+ stars)</td><td>Different category entirely. No diagnostics.</td></tr>
+<tr><td><strong>obdViz</strong></td><td>A-Frame/WebVR OBD viz (WIP)</td><td>Limited scope. No health scoring.</td></tr>
+</tbody>
+</table>
+
+<p style="margin-top:24px">AccordOS is the first open-source project to combine: 3D vehicle model with real-time OBD-II data mapping, composite health scoring with subsystem breakdowns, multi-modal sensor fusion (OBD + vibration + audio + GPS + weather), graph neural network fault propagation, AI driving coach, and professional diagnostic reports. This creates a new category: <strong class="highlight">Automotive Biometric Visualization</strong>.</p>
+</section>
+
+<!-- ===== CAREER ===== -->
+<section data-num="10">
+<h2>Portfolio & Career Value</h2>
+
+<h3>Skills Demonstrated</h3>
+<p>Embedded Linux + edge computing. Real-time data streaming + WebSocket architecture. 3D web visualization (Three.js/WebGL). CAN bus + automotive protocols (SAE J1979, ISO 15765, ISO 14229/UDS). ML inference at the edge. IoT system design. Signal processing (FFT, STFT, CWT, MFCC). Mobile development (Flutter). Reliability engineering (OverlayFS, circuit breaker). Safety compliance (NHTSA guidelines). Network security (CAN bus hardening).</p>
+
+<h3>Target Roles</h3>
+<table>
+<thead><tr><th>Company</th><th>Role</th><th>Match</th></tr></thead>
+<tbody>
+<tr><td>Tesla</td><td>Vehicle Software Engineer ($137-767K TC)</td><td>Sensor fusion, edge ML, real-time systems</td></tr>
+<tr><td>Rivian</td><td>Diagnostic Systems Dev ($185-207K)</td><td>OBD/CAN protocols, predictive maintenance</td></tr>
+<tr><td>Continental/AUMOVIO</td><td>Visualization Functions Engineer</td><td>Exact match: real-time 3D surround-view</td></tr>
+<tr><td>Honda R&D</td><td>Connected Vehicle Engineer</td><td>Built on their car, uses opendbc data</td></tr>
+<tr><td>Waymo</td><td>Perception/Diagnostics Engineer</td><td>Multi-modal sensing, edge inference, GNN</td></tr>
+</tbody>
+</table>
+
+<h3>Maximum Impact Strategy</h3>
+<p>2-minute demo video showing synchronized real-car footage alongside 3D visualization. Open-source with excellent docs. 4-part blog series: "Why I built a vehicle digital twin," "Deep dive into CAN bus protocol engineering," "Reliable embedded systems for automotive," "3D visualization at the edge with Three.js." Get listed on awesome-canbus GitHub list.</p>
+</section>
+
+<!-- ===== ADAPTER COMPARISON ===== -->
+<section data-num="11">
+<h2>OBD Adapter Comparison</h2>
+<p class="section-lead">Why WiCAN wins decisively for this project.</p>
+<table>
+<thead><tr><th>Adapter</th><th>Price</th><th>Raw CAN</th><th>Mode 22</th><th>Pi Rating</th><th>Sleep</th></tr></thead>
+<tbody>
+<tr><td><strong class="highlight">WiCAN</strong></td><td>$42</td><td class="green">Yes</td><td class="green">Yes</td><td>5/5</td><td>&lt;1 mA</td></tr>
+<tr><td>OBDLink MX+</td><td>$100</td><td>Limited</td><td class="green">Yes</td><td>3/5</td><td>2 mA</td></tr>
+<tr><td>CANable 2.0</td><td>$36</td><td class="green">Yes</td><td class="green">Yes</td><td>5/5</td><td>N/A (USB)</td></tr>
+<tr><td>Veepeak BLE+</td><td>$30</td><td class="red">No</td><td>Limited</td><td>2/5</td><td>45 mA</td></tr>
+<tr><td>ELM327 clone</td><td>$15</td><td class="red">No</td><td class="red">No</td><td>1/5</td><td>45-100 mA</td></tr>
+</tbody>
+</table>
+
+<div class="card card-amber">
+<h4>2026 Honda Compatibility Note</h4>
+<p>Emerging reports from Honda HR-V forums indicate 2025-2026 Honda vehicles may have enhanced CAN bus security causing "no communication with ECU" errors on adapters using auto protocol detection. <strong>Workaround:</strong> manually select CAN protocol (ISO 15765-4, 11-bit, 500 kbaud). WiCAN's raw CAN access is protocol-agnostic and sidesteps this entirely.</p>
+</div>
+</section>
+
+</div><!-- .container -->
+
+<footer>
+<div class="container">
+<p style="font-family:'Orbitron',sans-serif; font-size:18px; color:var(--accent-cyan); margin-bottom:8px;">AccordOS</p>
+<p>Your car's nervous system. See everything. Know everything. Predict everything.</p>
+<p style="margin-top:16px; font-family:'JetBrains Mono',monospace; font-size:11px;">github.com/[username]/accordos // MIT License // March 2026</p>
+<p style="margin-top:24px; font-size:12px;">Built for the 2026 Honda Accord SE (Meteorite Gray Metallic) // L15BE 1.5T + CVT</p>
+</div>
+</footer>
+
+</body>
+</html>
