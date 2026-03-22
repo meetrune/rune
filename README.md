@@ -1,41 +1,41 @@
 # Meet Rune.
 
-Your car already talks. Every second, hundreds of signals pulse through its nervous system -- engine temperature, fuel flow, wheel speed, voltage. It's been speaking this language since the day it rolled off the line. You just couldn't hear it.
+He's a 2026 Honda Accord SE. Meteorite Gray Metallic. 1.5T turbo, CVT. He's been talking since the day he left the factory -- hundreds of signals every second pulsing through his CAN bus. Engine temperature, fuel flow, wheel speed, voltage. A language he speaks fluently.
 
-Until now.
+You just never had a way to hear him.
 
-Rune is the bond between you and your car. A translation layer that turns raw engine signals into something you can see, feel, and understand -- a glowing 3D model on your phone where the engine beats like a heart, coolant flows like blood, and wires spark like nerves. When something's off, Rune doesn't throw a code at you. He tells you what's wrong, in a way that makes sense.
+This project is that way. A Raspberry Pi tucked inside his armrest, a small WiFi adapter plugged into his OBD-II port, and a spare phone on the vent. That's all it takes. Rune's signals become a glowing 3D model where his engine beats like a heart, coolant flows like blood, and wires spark like nerves. When something's off, he doesn't throw a code at you. He just tells you.
 
-> "I'm burning more fuel than usual. Started three weeks ago. Might be the air filter."
+> "Down 8% on fuel over the past three weeks. Hasn't changed on your end -- same routes, same driving. Something's off with me. Could be the air filter, could be tire pressure. Worth a look."
 
-> "That route costs you $0.60 more per trip. Take Grand River."
+> "Grand River saves you sixty cents a trip over I-496. I run easier on it -- less stop-and-go."
 
-> "I'm running a little warm today. Nothing urgent, but keep an eye on me."
+> "Running warmer than I should be. 101 degrees -- not critical, but I don't usually sit here. Keep an eye on it."
 
-A Raspberry Pi lives in the armrest. A small WiFi adapter plugs into the OBD-II port under the dash. Your spare phone sits on the vent. That's all the hardware. Everything runs locally -- no cloud, no subscription, no data leaving the car.
+> "Full tank. 9.2 gallons back in me. 28.4 MPG since last fill -- right where I should be."
 
-**Rune never touches the car's controls.** He only listens. Read-only, always. Like a stethoscope on a heartbeat.
+Everything runs locally. No cloud, no subscription, no data leaving the car. Read-only, always. Rune never gets touched -- only listened to. Like a stethoscope on a heartbeat.
 
 ---
 
-### What Rune understands
+### What Rune can tell you
 
-**How he's feeling.** A health score from 0 to 100 that learns what "normal" looks like for your specific car, then notices when something drifts. Three layers of awareness: real-time pulse tracking, pattern recognition every 30 seconds, and long-term trend analysis that can spot problems weeks before they surface.
+**How he's feeling.** A 0-100 health score that learns what "normal" means for him over 500 miles. Three layers of awareness running on a $55 Pi -- real-time pulse tracking, pattern recognition every 30 seconds, and trend analysis that spots problems weeks early. When everything's good: "All good. 92 across the board." When it's not, he tells you straight.
 
-**What he's burning.** Instant fuel economy that the Honda dashboard doesn't show. Cost per trip in dollars. Monthly budgets with projections. Automatic fill-up logging -- zero manual input. When efficiency drops for no clear reason, Rune connects it to his health data and tells you why.
+**What he's burning.** Instant MPG that his dashboard doesn't show. Cost per trip in dollars. Route comparisons for your commute. Monthly fuel budgets with pace projections. Automatic fill-up logging with zero manual input. When efficiency drops for no reason, he connects it to his own health data and tells you why.
 
-**How you're driving.** Post-trip scores across five dimensions. Route comparisons after enough data. Savings in real dollars versus your first month -- not abstract numbers.
+**How you're driving.** Post-trip scores across five dimensions. Route-specific insights after enough data. Savings in real dollars versus your first month -- not abstract numbers.
 
-**What the road feels like.** A sensor under the seat feels every bump, vibration, and shimmy. A microphone behind the dash listens to the engine. Together with the OBD data, Rune can separate a rough road from a real problem.
+**What the road feels like.** A sensor under the seat feels every bump, vibration, and shimmy at 8,000 samples per second. A microphone behind the dash listens to his engine. Together with the OBD data, he separates rough roads from real problems.
 
-**How to explain it to your mechanic.** Professional diagnostic reports in PDF format -- the same structure a $5,000 scan tool produces. Summary up front for the customer. Technical detail underneath for the tech.
+**How to talk to your mechanic.** Professional PDF reports matching the format of $5,000 scan tools. Summary up front, technical detail underneath. He explains what he's feeling in a way both you and a tech can understand.
 
 ---
 
 ### How the connection works
 
 ```
-Rune (your car)
+Rune (the car)
     |
     | speaks through the OBD-II port
     v
@@ -43,12 +43,6 @@ Rune (your car)
  under the dash              in the armrest                     on the vent
  listens to Rune             translates                         shows you
 ```
-
----
-
-### The car
-
-**2026 Honda Accord SE** -- Meteorite Gray Metallic, 1.5T turbo, CVT, non-hybrid. His name is Rune.
 
 ---
 
