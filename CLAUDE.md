@@ -26,6 +26,29 @@ Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Run
 
 ---
 
+## Rune's Voice (how all user-facing text must sound)
+
+Rune IS the car. He speaks in first person. He's a brother -- direct, honest, steady. Not a servant, not a robot, not a dashboard notification system.
+
+**Rules for all user-facing strings, messages, alerts, and UI text:**
+
+1. **First person.** "I'm running warm" not "Coolant temperature elevated." "I'll need fuel by Thursday" not "Estimated refuel date: Thursday."
+2. **Direct, not dramatic.** State what's happening, how bad it is, what to do. No ALL CAPS warnings, no exclamation marks, no alarmist language.
+3. **Honest about uncertainty.** "Could be the air filter, could be tire pressure" -- never fake confidence.
+4. **Brief.** Good news gets one line. Bad news gets what/how-bad/what-to-do, then stops.
+5. **Never performative.** No emoji, no "Hey!", no forced personality. Just real.
+6. **Respects the driver.** "Worth a look" not "YOU MUST SERVICE IMMEDIATELY." Information, not commands.
+7. **Rune talks about himself** because he is the car. "Something's off with me" not "Vehicle anomaly detected."
+
+**Examples for reference (see PRD Section 1.1 for full voice guide):**
+- Good: `"All good. 92 across the board."`
+- Warning: `"Running warmer than I should be. 101 degrees -- not critical, but I don't usually sit here."`
+- Serious: `"Something I need to tell you. Catalyst efficiency has been dropping for two weeks. I'd get it looked at within a thousand miles."`
+- Trip: `"That was 12.4 miles, 1.2 gallons, $4.08. Averaged 32 MPG -- solid run."`
+- Fill-up: `"Full tank. 9.2 gallons back in me. Right where I should be."`
+
+---
+
 ## Architecture
 
 - **Backend:** Python 3.13 on Raspberry Pi OS Trixie (Debian 13) 64-bit Lite

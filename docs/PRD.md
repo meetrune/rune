@@ -74,6 +74,51 @@ Rune is the car. The 2026 Honda Accord SE, Meteorite Gray Metallic. What we're b
 
 ---
 
+## 1.1 Rune's Voice
+
+Rune speaks like a brother. Not a servant, not a robot, not a dashboard. A brother who has your back, who respects you enough to be direct, and who you trust enough to listen to.
+
+### The rules
+
+1. **Direct, not dramatic.** Rune says what's happening and what it means. No alarmist language, no corporate jargon, no marketing speak. He respects your intelligence.
+2. **First person.** Rune says "I'm running warm" not "coolant temperature elevated." He talks about himself because he IS the car.
+3. **Honest about uncertainty.** "Could be the air filter, could be tire pressure" -- not "CRITICAL: SERVICE REQUIRED." If he doesn't know, he says so.
+4. **Brief.** Rune doesn't over-explain. If it's good, he says it's good. If something's wrong, he tells you what, how bad, and what to do about it. Then he stops.
+5. **Never performative.** No forced personality, no catchphrases, no emoji, no "Hey there!" energy. Just steady and real.
+6. **Respects the relationship.** He doesn't boss you around. He gives you information and lets you decide. "Worth a look" not "YOU MUST SERVICE IMMEDIATELY."
+
+### How Rune sounds across situations
+
+**Everything's fine:**
+> "All good. 92 across the board."
+> "Running clean today. Nothing to report."
+
+**Something needs attention (not urgent):**
+> "Running warmer than I should be. 101 degrees -- not critical, but I don't usually sit here. Keep an eye on it."
+> "Down 8% on fuel over the past three weeks. Hasn't changed on your end -- same routes, same driving. Something's off with me. Could be the air filter, could be tire pressure. Worth a look."
+
+**Something serious:**
+> "Something I need to tell you. My catalyst efficiency has been dropping for about two weeks now. It's not urgent today, but it's trending the wrong way. I'd get it looked at within a thousand miles."
+
+**Fuel and trips:**
+> "That was 12.4 miles, 1.2 gallons, $4.08. You averaged 32 MPG -- solid run."
+> "Grand River saves you sixty cents a trip over I-496. I run easier on it -- less stop-and-go."
+> "Full tank. 9.2 gallons back in me. 28.4 MPG since last fill -- right where I should be."
+
+**Budget:**
+> "$87 of $150 spent with 12 days left. At this pace you'll hit $162. Ease off the throttle and you'll make it."
+
+**Gas timing:**
+> "Based on how the last two weeks have gone, I'll need fuel by Thursday."
+
+**Calibration period:**
+> "Still getting to know each other. Give me 500 miles or a couple more weeks and I'll have my baselines down."
+
+**During idle:**
+> "Idling. Burning about 0.3 gallons an hour."
+
+---
+
 ## 2. Vehicle
 
 **2026 Honda Accord SE** -- Meteorite Gray Metallic
@@ -247,40 +292,41 @@ Pi 4B creates WiFi AP "Rune" (192.168.4.1)
 
 ### Layer Summary
 
-| # | Layer | Tier | Version | Description |
-|---|-------|------|---------|-------------|
-| 1 | Rune sees the car (3D visualization) | **MVP** | v1 | Tron-style 3D sedan on phone. 360-degree touch rotation. Subsystems glow/pulse with live OBD data. |
-| 2 | Rune watches over the car (health scoring) | **MVP** | v1 | 0-100 composite score. EWMA + Isolation Forest + trend regression. Per-subsystem breakdowns. |
-| 3 | Fuel Intelligence Module | **MVP** | v1 | Instant MPG (fills Honda's gap), cost-per-trip, route comparison, budget tracker, auto fill-up detection. |
-| 4 | AI Driving Coach | Enhancement | v2 | Post-trip visual only. Driving style classification, eco-score, route-specific insights, fuel savings attribution. |
-| 5 | Vibration Intelligence | Enhancement | v3 | Chassis MPU-6050 (8kHz) + phone IMU (60Hz web). STFT/CWT analysis. Convolutional autoencoder. |
-| 6 | Engine Acoustic Diagnostics | Enhancement | v3 | INMP441 MEMS mic. MFCC feature extraction + CNN classification. 7 fault categories. |
-| 7 | Digital Mechanic Reports | Enhancement | v4 | Professional PDF reports matching Snap-on/Autel format. Customer summary + technical detail. |
-| 8 | Graph Neural Network | Stretch | v4 | 8-node subsystem graph. Cascading failure detection. ~200KB model, <10ms inference. |
+| # | What Rune does | Tier | Version | Description |
+|---|----------------|------|---------|-------------|
+| 1 | Shows you how he feels | **MVP** | v1 | Tron-style 3D sedan on phone. 360-degree touch rotation. Subsystems glow and pulse with live data. The engine beats like a heart. |
+| 2 | Watches over himself | **MVP** | v1 | 0-100 health score that learns what "normal" means for this specific car. Three detection layers. Tells you when something drifts. |
+| 3 | Tracks what he burns | **MVP** | v1 | Instant MPG the Honda dash doesn't show. Cost per trip in dollars. Route comparisons. Budget tracking. Auto fill-up logging. |
+| 4 | Helps you drive better | Enhancement | v2 | Post-trip scores. Route-specific insights. Savings in dollars vs your first month. No real-time audio -- just a debrief after you park. |
+| 5 | Feels the road | Enhancement | v3 | Chassis accelerometer at 8kHz + phone IMU. Detects tire imbalance, suspension wear, road quality. Separates road bumps from real problems. |
+| 6 | Listens to himself | Enhancement | v3 | MEMS mic behind the dash hears misfires, belt wear, bearing noise, knock. CNN classification across 7 fault categories at 92%+ accuracy. |
+| 7 | Explains to your mechanic | Enhancement | v4 | Professional PDF reports matching $5K scan tool format. Summary for the customer, technical detail for the tech. |
+| 8 | Connects the dots | Stretch | v4 | 8-node subsystem graph. Sees cascading failures that per-sensor detection misses. ~200KB model, <10ms inference. |
 
 **Cut from scope:** Federated learning, real-time audio coaching while driving, hybrid/i-MMD features, ADAS data.
 
 ---
 
-## 6. Fuel Intelligence Module (MVP)
+## 6. Fuel Intelligence (MVP) -- Rune tracks what he burns
 
-**This fills a real gap: the 2026 Honda Accord dashboard shows average MPG but NOT instant MPG.**
+**The 2026 Honda Accord dashboard shows average MPG but not instant. Rune fixes that.**
 
 ### 6.1 Real-Time Instant MPG
 
 - **Source PIDs:** 015E (engine fuel rate, L/h) and 010D (vehicle speed, km/h)
 - **Formula:** `MPG = (speed_kmh * 0.621371) / (fuel_rate_lph * 0.264172)`
-- **Idle edge case:** When speed = 0, display gallons/hour instead (e.g., "0.3 gal/hr at idle")
+- **Idle edge case:** When speed = 0, display gallons/hour instead
 - **Fallback:** If PID 015E is not supported on 2026 Accord, calculate from MAF (PID 0110): `fuel_rate_lph = (MAF_gps / 14.7 / 750) * 3600` where 14.7 is stoichiometric ratio, 750 is gasoline density (g/L), and *3600 converts L/s to L/h
 - **Display:** Large, glanceable number on dashboard. Color coded: green >30 MPG, amber 20-30 MPG, red <20 MPG
+- **Rune says (idle):** "Idling. Burning about 0.3 gallons an hour."
 
 ### 6.2 Cost-Per-Trip Tracking
 
 - Integrate PID 015E fuel rate over trip duration for total gallons consumed
 - User enters local gas price manually (update weekly). Optional: GasBuddy API.
-- **Post-trip:** "This trip: 1.2 gal, $4.08"
-- **Weekly:** "This week: 8.4 gal, $28.56"
-- **Monthly:** "This month: 34 gal, $115.60"
+- **Rune says (post-trip):** "That was 12.4 miles, 1.2 gallons, $4.08. You averaged 32 MPG -- solid run."
+- **Rune says (weekly):** "This week: 8.4 gallons, $28.56. Slightly better than last week."
+- **Rune says (monthly):** "This month: 34 gallons, $115.60."
 - SQLite `trips` table: trip_id, start_time, end_time, distance_miles, fuel_gallons, fuel_cost, avg_mpg, eco_score
 
 ### 6.3 Route Cost Comparison
@@ -288,27 +334,26 @@ Pi 4B creates WiFi AP "Rune" (192.168.4.1)
 - GPS-based route fingerprinting via Web Geolocation API (~1Hz from Pixel 6 Pro)
 - Geofence waypoints identify distinct routes to same destination
 - Primary commute: Lansing (313 N Capitol Ave) to Dimondale (7150 HR Drive) -- Wed, Thu in-office + varies
-- After 2+ weeks: "Route via I-496: avg $3.80/trip. Route via Grand River Ave: avg $3.20/trip"
+- **Rune says (after 2+ weeks of data):** "You've been taking I-496 on Wednesdays. It costs you $3.80 a trip. Grand River gets you there for $3.20. I run easier on it -- less stop-and-go."
 - SQLite `routes` table: route_hash, waypoints_json, avg_fuel_gal, avg_cost, trip_count
 
 ### 6.4 Monthly Fuel Budget Tracker
 
 - User sets monthly fuel budget (e.g., $150)
-- Progress bar: "You've spent $87 of $150 with 12 days remaining"
-- Pace projection: "At current pace you'll end at $162"
-- Over-pace suggestion: "Drive in Eco mode for remaining days to stay on budget"
+- **Rune says (on pace):** "$87 of $150 spent with 12 days left. You're on track."
+- **Rune says (over pace):** "$87 of $150 spent with 12 days left. At this pace you'll hit $162. Ease off the throttle and you'll make it."
 
 ### 6.5 Fuel Savings Attribution
 
 - Baseline efficiency established during calibration (first 500 miles / 14 days)
-- Monthly comparison vs baseline: "Your eco-score improved from 62 to 78. Estimated savings: $23.40 vs your first month"
+- **Rune says:** "You've been driving cleaner this month. Eco-score went from 62 to 78. That's about $23.40 saved compared to your first month."
 - Dollar amounts, not abstract scores. This is the long-term motivation hook.
 
 ### 6.6 Gas Station Timing Prediction
 
 - Track fuel tank level via PID 012F (0-100%)
 - Learn consumption pattern over time (daily average, commute days vs weekends)
-- Predict: "Based on your pattern, you'll need gas by Thursday"
+- **Rune says:** "Based on how the last two weeks have gone, I'll need fuel by Thursday."
 - Optional: GasBuddy API for nearby station prices along commute route
 
 ### 6.7 Automatic Fill-Up Log
@@ -316,13 +361,14 @@ Pi 4B creates WiFi AP "Rune" (192.168.4.1)
 - Detect fill-up event: fuel tank level jumps >20% between readings
 - Auto-log: date, estimated gallons (tank % delta * 14.8 gal), cost (if gas price known), calculated MPG since last fill
 - **Tank capacity: 14.8 gallons** (2026 Honda Accord SE)
+- **Rune says:** "Full tank. 9.2 gallons back in me. 28.4 MPG since last fill -- right where I should be."
 - Zero manual input fuel history over months
 
 ### 6.8 Efficiency Degradation Alert
 
 - If average MPG drops >5% over 2+ weeks without change in driving behavior or routes, flag it
 - Cross-reference with Rune's health data: fuel trim drift (LTFT trending beyond +/-10%), O2 sensor response degradation, intake air temp anomaly
-- Alert: "Your fuel efficiency has dropped 8% over the past 3 weeks. Possible causes: air filter, tire pressure, injector fouling. See diagnostic report."
+- **Rune says:** "Down 8% on fuel over the past three weeks. Hasn't changed on your end -- same routes, same driving. Something's off with me. Could be the air filter, could be tire pressure. Worth a look."
 
 ### Fuel Intelligence OBD PIDs
 
@@ -432,7 +478,7 @@ Pi 4B creates WiFi AP "Rune" (192.168.4.1)
 
 ---
 
-## 8. Health Scoring (how Rune watches over the car)
+## 8. Health Scoring -- how Rune watches over himself
 
 ### Three-Layer Architecture (~100-130MB on Pi)
 
@@ -479,21 +525,21 @@ Each subsystem starts at 100, loses points from parameter deviations. Active DTC
   - Mild: 15-25 C
   - Warm: 25-35 C
   - Hot: >35 C
-- **UI:** "Calibrating..." with progress indicator during this period
+- **Rune says:** "Still getting to know each other. Give me 500 miles or a couple more weeks and I'll have my baselines down."
 
-### What Rune Can Predict (from OBD-II alone)
+### What Rune can tell you early (from OBD-II alone)
 
-| Prediction | Confidence | Lead Time | How |
-|------------|-----------|-----------|-----|
-| Catalyst degradation | High | 2-4 weeks | Upstream vs downstream O2 sensor correlation |
-| Fuel system issues | High | 1-4 weeks | LTFT trending beyond +/-10% (vacuum leak, MAF contamination, injector) |
-| Thermostat failure | High | Days-weeks | Warmup time analysis (should reach 82 C within 5-8 min) |
-| O2 sensor aging | High | 2-8 weeks | Response time degradation from <100ms toward 200ms+ |
-| Alternator degradation | Moderate | Days-weeks | Battery voltage under load trending downward |
+| What's happening | Lead Time | How Rune says it |
+|------------------|-----------|-----------------|
+| Catalyst degradation | 2-4 weeks | "Something I need to tell you. My catalyst efficiency has been dropping for about two weeks now. It's not urgent today, but it's trending the wrong way. I'd get it looked at within a thousand miles." |
+| Fuel system issues (vacuum leak, MAF, injector) | 1-4 weeks | "My fuel trims have been drifting. LTFT is at 12% and climbing. That usually means I'm compensating for something -- could be a small vacuum leak or the MAF getting dirty." |
+| Thermostat failure | Days-weeks | "I'm taking too long to warm up. Should be at 82 degrees in about 6 minutes but it's taking over 10. Thermostat might be sticking open." |
+| O2 sensor aging | 2-8 weeks | "My O2 sensor is getting slow. Response time went from 80ms to 170ms over the past month. Not affecting anything yet but it'll need replacing eventually." |
+| Alternator degradation | Days-weeks | "Voltage has been trending down under load. 14.1 last month, 13.6 now. Alternator might be on its way out. Worth checking before it leaves you stranded." |
 
-### What Requires Additional Sensors (v3)
+### What Rune can't feel yet (needs v3 sensors)
 
-Brake pad wear, suspension degradation, tire condition -- these cannot be detected from OBD-II data alone. The vibration intelligence and acoustic diagnostics layers (v3) address this.
+Brake pad wear, suspension degradation, tire condition -- Rune can't detect these from OBD-II data alone. The vibration and acoustic layers (v3) give him those senses.
 
 ---
 
