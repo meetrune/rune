@@ -7,58 +7,72 @@
   "model_faces": 37101,
   "model_file": "rune_sedan.glb",
   "license": "CC Attribution - assetfactory (Sketchfab)",
+  "verified_sources": "Honda TechInfo, DriveAccord, PRL Motorsports, Honda owner's manual, AccordXClub",
+  "component_locations": {
+    "engine_L15BE": "Transverse mount, center-right, exhaust side faces firewall, intake faces radiator",
+    "cvt_BMMA": "Driver side (left), bolted to left end of engine",
+    "battery_12v": "Passenger side (right), front engine bay",
+    "fuse_box_underhood": "Passenger side (right), near battery, engine bay",
+    "fuse_box_interior": "Under driver's dash, left of steering column",
+    "alternator": "Lower rear of engine, firewall side, accessed via passenger wheel well",
+    "radiator": "Front center, full width behind grille",
+    "airbox_maf": "Rear-center of engine bay, against firewall (NOT front-right)",
+    "turbo": "Rear of engine, facing firewall, integrated exhaust manifold in cylinder head",
+    "catalytic_converter": "Close-coupled near turbo outlet, front-center underbody",
+    "exhaust_pipe": "Center undercarriage, front to rear",
+    "muffler": "Rear center, dual tips through rear bumper",
+    "fuel_tank": "Center under rear seat floor, 14.8 gallons",
+    "fuel_filler": "DRIVER side (LEFT) rear quarter panel, capless",
+    "obd_port": "Under driver's dash, left of steering column, above kick panel",
+    "ecu_pcm": "Driver side (left) front engine bay, near firewall"
+  },
   "body_zones": {
     "zone_hood_left_cvt": {
       "position": "front-left (driver side)",
-      "honda_components": "CVT transmission",
-      "subsystem": "transmission"
+      "honda_components": ["CVT transmission", "ECU/PCM (near firewall)"],
+      "subsystems": ["transmission"]
     },
     "zone_hood_right_engine": {
       "position": "front-right (passenger side)",
-      "honda_components": "Engine (L15BE), battery, airbox, MAF sensor, fuse box, alternator at firewall",
-      "subsystem": "engine"
+      "honda_components": ["Engine block (L15BE, center-right)", "12V battery", "Under-hood fuse box"],
+      "subsystems": ["engine", "electrical"]
     },
     "zone_cabin_left": {
-      "position": "middle-left (driver side doors)",
-      "honda_components": "Driver door, cabin",
-      "subsystem": "neutral"
+      "position": "middle-left (driver side)",
+      "honda_components": ["Interior fuse box (under dash)", "OBD-II port"],
+      "subsystems": ["neutral"]
     },
     "zone_cabin_right": {
-      "position": "middle-right (passenger side doors)",
-      "honda_components": "Passenger door, cabin",
-      "subsystem": "neutral"
+      "position": "middle-right (passenger side)",
+      "honda_components": ["Passenger cabin"],
+      "subsystems": ["neutral"]
     },
     "zone_trunk_left_fuel": {
-      "position": "rear-left",
-      "honda_components": "Fuel filler (capless, right-rear quarter panel), fuel tank (center under rear seats)",
-      "subsystem": "fuel"
+      "position": "rear-left (driver side)",
+      "honda_components": ["Fuel filler (capless, LEFT rear)", "Fuel tank (center under seats)"],
+      "subsystems": ["fuel"]
     },
     "zone_trunk_right_exhaust": {
-      "position": "rear-right",
-      "honda_components": "Exhaust pipe (center-right underfloor), muffler (center rear), catalytic converter",
-      "subsystem": "exhaust"
+      "position": "rear-right (passenger side)",
+      "honda_components": ["Exhaust pipe routing (center)", "Muffler (center rear)"],
+      "subsystems": ["exhaust"]
     }
   },
   "additional_parts": {
-    "grille_front": {
+    "grille": {
       "mesh_name": "ELANTRA_BODY_BlackPlastic_0",
       "subsystem": "cooling",
-      "reason": "Radiator sits directly behind the front grille"
+      "reason": "Radiator sits full-width directly behind the front grille"
     },
-    "headlights": {
-      "mesh_names": ["Plane.006_Metal_0", "Plane.006_BlackPlastic_0"],
-      "subsystem": "electrical",
-      "reason": "Battery and fuse box are front-right near headlights"
-    },
-    "taillights": {
+    "rear_lights": {
       "mesh_names": ["ELANTRA_BODY.004_RedLight_0", "ELANTRA_BODY.006_RedLight_0"],
       "subsystem": "exhaust",
-      "reason": "Muffler and exhaust exit at rear"
+      "reason": "Muffler and exhaust tips exit at rear center"
     },
     "underbody": {
       "mesh_name": "Cube.006_Metal_0",
       "subsystem": "exhaust",
-      "reason": "Exhaust pipe runs center-right underfloor"
+      "reason": "Exhaust pipe runs center underfloor, catalytic converter under front"
     }
   },
   "subsystem_to_zones": {
@@ -66,7 +80,14 @@
     "transmission": ["zone_hood_left_cvt"],
     "cooling": ["zone_hood_right_engine", "zone_hood_left_cvt", "ELANTRA_BODY_BlackPlastic_0"],
     "fuel": ["zone_trunk_left_fuel"],
-    "exhaust": ["zone_trunk_right_exhaust", "Cube.006_Metal_0"],
-    "electrical": ["zone_hood_right_engine", "Plane.006_Metal_0"]
-  }
+    "exhaust": ["zone_trunk_right_exhaust", "Cube.006_Metal_0", "ELANTRA_BODY.004_RedLight_0"],
+    "electrical": ["zone_hood_right_engine"]
+  },
+  "notes": [
+    "Fuel filler is on the DRIVER side (left), not passenger side. Verified via Honda Info Center.",
+    "Airbox/MAF is rear-center against firewall, NOT front-right as previously assumed. Verified via PRL Motorsports.",
+    "Non-hybrid 1.5T has exactly TWO fuse boxes (not three). Third box is hybrid-only.",
+    "Alternator is at lower rear of engine (firewall side), accessed through passenger wheel well.",
+    "ECU/PCM is driver's side front engine bay, near firewall/strut tower."
+  ]
 }
