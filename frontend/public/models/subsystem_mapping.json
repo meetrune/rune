@@ -4,73 +4,69 @@
   "engine": "L15BE 1.5L VTEC Turbo",
   "transmission": "CVT (BMMA)",
   "drivetrain": "FWD",
-  "model_faces": 38537,
+  "model_faces": 37101,
   "model_file": "rune_sedan.glb",
   "license": "CC Attribution - assetfactory (Sketchfab)",
-  "subsystems": {
-    "engine": {
-      "description": "L15BE 1.5T mounted transversely, slightly right of center. Exhaust side faces firewall, intake faces radiator.",
-      "location": "front center-right, 400-500mm from ground",
-      "mesh_parts": ["body_hood", "grille_front", "underbody_metal"],
-      "health_color_normal": "#22c55e",
-      "health_color_warning": "#eab308",
-      "health_color_critical": "#ef4444"
+  "body_zones": {
+    "zone_hood_left_cvt": {
+      "position": "front-left (driver side)",
+      "honda_components": "CVT transmission",
+      "subsystem": "transmission"
     },
-    "transmission": {
-      "description": "CVT bolted to driver's side of engine. Spans left portion of engine bay.",
-      "location": "front-left (driver side), 300-500mm from ground",
-      "mesh_parts": ["body_shell"],
-      "health_color_normal": "#22c55e",
-      "health_color_warning": "#eab308",
-      "health_color_critical": "#ef4444"
+    "zone_hood_right_engine": {
+      "position": "front-right (passenger side)",
+      "honda_components": "Engine (L15BE), battery, airbox, MAF sensor, fuse box, alternator at firewall",
+      "subsystem": "engine"
     },
-    "cooling": {
-      "description": "Radiator at extreme front behind grille. Coolant flows through engine block. Thermostat front-right.",
-      "location": "front-center, 400-900mm from ground",
-      "mesh_parts": ["grille_front", "body_hood"],
-      "health_color_normal": "#22c55e",
-      "health_color_warning": "#eab308",
-      "health_color_critical": "#ef4444"
+    "zone_cabin_left": {
+      "position": "middle-left (driver side doors)",
+      "honda_components": "Driver door, cabin",
+      "subsystem": "neutral"
     },
-    "exhaust": {
-      "description": "Integrated exhaust manifold in cylinder head. Turbo at firewall. Close-coupled cat under engine. Pipe runs center-right underfloor to rear muffler.",
-      "location": "starts firewall center, runs underfloor center-right to rear",
-      "mesh_parts": ["underbody_metal", "trim_exhaust_tip", "lights_rear", "lights_rear_inner"],
-      "health_color_normal": "#22c55e",
-      "health_color_warning": "#eab308",
-      "health_color_critical": "#ef4444"
+    "zone_cabin_right": {
+      "position": "middle-right (passenger side doors)",
+      "honda_components": "Passenger door, cabin",
+      "subsystem": "neutral"
     },
-    "electrical": {
-      "description": "12V battery front-right (passenger side). Alternator at firewall rear. Fuse box front-right.",
-      "location": "front-right (passenger side), 700-800mm from ground",
-      "mesh_parts": ["trim_headlight_chrome", "trim_headlight_black", "lights_turn_signal", "trim_body_chrome"],
-      "health_color_normal": "#22c55e",
-      "health_color_warning": "#eab308",
-      "health_color_critical": "#ef4444"
+    "zone_trunk_left_fuel": {
+      "position": "rear-left",
+      "honda_components": "Fuel filler (capless, right-rear quarter panel), fuel tank (center under rear seats)",
+      "subsystem": "fuel"
     },
-    "fuel": {
-      "description": "14.8 gal tank centered under rear seats. Fuel filler right-rear quarter panel. Capless filler.",
-      "location": "center underfloor, under rear seats",
-      "mesh_parts": ["body_bottom", "body_shell"],
-      "health_color_normal": "#22c55e",
-      "health_color_warning": "#eab308",
-      "health_color_critical": "#ef4444"
+    "zone_trunk_right_exhaust": {
+      "position": "rear-right",
+      "honda_components": "Exhaust pipe (center-right underfloor), muffler (center rear), catalytic converter",
+      "subsystem": "exhaust"
     }
   },
-  "cosmetic_groups": {
-    "wheels": {
-      "mesh_parts": ["wheels_tires", "wheels_rims", "wheel_arch_left", "wheel_arch_right"],
-      "animation": "rotation proportional to speed_kph"
+  "additional_parts": {
+    "grille_front": {
+      "mesh_name": "ELANTRA_BODY_BlackPlastic_0",
+      "subsystem": "cooling",
+      "reason": "Radiator sits directly behind the front grille"
     },
-    "glass": {
-      "mesh_parts": ["glass_front", "glass_rear", "glass_side", "glass_quarter"],
-      "material": "semi-transparent, slight blue tint"
+    "headlights": {
+      "mesh_names": ["Plane.006_Metal_0", "Plane.006_BlackPlastic_0"],
+      "subsystem": "electrical",
+      "reason": "Battery and fuse box are front-right near headlights"
     },
-    "mirrors": {
-      "mesh_parts": ["mirror_left", "mirror_right"]
+    "taillights": {
+      "mesh_names": ["ELANTRA_BODY.004_RedLight_0", "ELANTRA_BODY.006_RedLight_0"],
+      "subsystem": "exhaust",
+      "reason": "Muffler and exhaust exit at rear"
     },
-    "trim": {
-      "mesh_parts": ["trim_chrome", "trim_detail", "trim_window_black", "trim_rear_black", "trim_rear_detail"]
+    "underbody": {
+      "mesh_name": "Cube.006_Metal_0",
+      "subsystem": "exhaust",
+      "reason": "Exhaust pipe runs center-right underfloor"
     }
+  },
+  "subsystem_to_zones": {
+    "engine": ["zone_hood_right_engine"],
+    "transmission": ["zone_hood_left_cvt"],
+    "cooling": ["zone_hood_right_engine", "zone_hood_left_cvt", "ELANTRA_BODY_BlackPlastic_0"],
+    "fuel": ["zone_trunk_left_fuel"],
+    "exhaust": ["zone_trunk_right_exhaust", "Cube.006_Metal_0"],
+    "electrical": ["zone_hood_right_engine", "Plane.006_Metal_0"]
   }
 }
