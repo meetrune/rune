@@ -18,6 +18,7 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.config import settings
 from backend.database.db import RuneDatabase
@@ -254,11 +255,24 @@ app.add_middleware(
 )
 
 
+# Serve static frontend files (models, assets)
+_frontend_dir = Path(__file__).parent.parent / "frontend" / "public"
+if _frontend_dir.exists():
+    app.mount("/frontend/public", StaticFiles(directory=str(_frontend_dir)), name="frontend-static")
+
+
 @app.get("/debug")
 async def serve_debug() -> FileResponse:
     """Serve the debug dashboard HTML."""
     debug_path = Path(__file__).parent.parent / "debug.html"
     return FileResponse(debug_path, media_type="text/html")
+
+
+@app.get("/preview")
+async def serve_preview() -> FileResponse:
+    """Serve the 3D design exploration page."""
+    preview_path = Path(__file__).parent.parent / "design_exploration.html"
+    return FileResponse(preview_path, media_type="text/html")
 
 
 @app.get("/api/health")

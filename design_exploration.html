@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rune</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; font-family: 'Space Grotesk', sans-serif; color: #e8e4df; }
+        #c { width: 100vw; height: 100vh; display: block; }
+        .ui { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+        .ui > * { pointer-events: auto; }
+        .tag { position: absolute; top: 24px; left: 24px; }
+        .tag .t1 { font: 300 11px/1 'DM Mono', monospace; color: #555; letter-spacing: 5px; text-transform: uppercase; }
+        .tag .t2 { font: 300 12px/1.4 'Space Grotesk'; color: #444; margin-top: 5px; }
+        .hd { position: absolute; top: 20px; right: 24px; text-align: right; }
+        .hd .n { font: 700 58px/1 'Space Grotesk'; letter-spacing: -3px; transition: color 1s; }
+        .hd .l { font: 300 9px/1 'DM Mono'; color: #555; letter-spacing: 4px; text-transform: uppercase; margin-top: 6px; }
+        .subs { position: absolute; right: 24px; top: 108px; display: flex; flex-direction: column; gap: 8px; }
+        .sr { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+        .sn { font: 300 12px/1 'Space Grotesk'; color: #555; transition: color 0.5s; }
+        .sd { width: 6px; height: 6px; border-radius: 50%; background: #444; transition: all 0.8s; }
+        .vp { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); text-align: center; width: 90%; max-width: 400px; background: rgba(8,8,8,0.85); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 14px 20px; backdrop-filter: blur(16px); transition: border-color 0.8s; }
+        .vp .vt { font: 300 14px/1.6 'Space Grotesk'; color: #666; transition: color 0.6s; }
+        .ctrls { position: absolute; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 6px; }
+        .cb { padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); background: rgba(8,8,8,0.85); backdrop-filter: blur(12px); font: 400 10px/1 'DM Mono'; color: #666; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: all 0.3s; }
+        .cb:hover { color: #aaa; border-color: rgba(255,255,255,0.12); }
+        .cb.on { color: #D4843A; border-color: rgba(212,132,58,0.3); background: rgba(212,132,58,0.05); }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="ui">
+    <div class="tag"><div class="t1">Rune</div><div class="t2">2026 Accord SE</div></div>
+    <div class="hd"><div class="n" id="hs">96</div><div class="l">Health</div></div>
+    <div class="subs">
+        <div class="sr"><span class="sn">Engine</span><span class="sd" data-s="engine"></span></div>
+        <div class="sr"><span class="sn">CVT</span><span class="sd" data-s="transmission"></span></div>
+        <div class="sr"><span class="sn">Cooling</span><span class="sd" data-s="cooling"></span></div>
+        <div class="sr"><span class="sn">Fuel</span><span class="sd" data-s="fuel"></span></div>
+        <div class="sr"><span class="sn">Exhaust</span><span class="sd" data-s="exhaust"></span></div>
+        <div class="sr"><span class="sn">Electrical</span><span class="sd" data-s="electrical"></span></div>
+    </div>
+    <div class="vp" id="vp"><div class="vt" id="vt">All good. Running clean today.</div></div>
+    <div class="ctrls">
+        <div class="cb" onclick="fault('engine')">Engine</div>
+        <div class="cb" onclick="fault('cooling')">Cooling</div>
+        <div class="cb" onclick="fault('fuel')">Fuel</div>
+        <div class="cb" onclick="fault('exhaust')">Exhaust</div>
+        <div class="cb" onclick="fault('electrical')">Electrical</div>
+        <div class="cb" onclick="reset()">Reset</div>
+    </div>
+</div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const R=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));
+R.setClearColor(0x000000,1);
+
+const S=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,0.1,100);
+cam.position.set(7,3.2,5);
+
+const ctrl=new OrbitControls(cam,R.domElement);
+ctrl.enableDamping=true;ctrl.dampingFactor=0.04;ctrl.target.set(0,0.5,0);
+ctrl.minDistance=4;ctrl.maxDistance=14;ctrl.maxPolarAngle=Math.PI/2.1;
+ctrl.autoRotate=true;ctrl.autoRotateSpeed=0.15;ctrl.enablePan=false;
+
+const comp=new EffectComposer(R);
+comp.addPass(new RenderPass(S,cam));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.5,0.3,0.5);
+comp.addPass(bloom);
+
+// Brighter healthy color for visibility
+const HEALTHY=0xbbbbaa;
+const DIM=0x333330;
+const ALERT={engine:0xD4843A,transmission:0xD4843A,cooling:0xD4843A,fuel:0xC4441A,exhaust:0xC4441A,electrical:0xD4843A};
+const MSGS={
+    engine:"Something I need to tell you. RPM instability at idle.",
+    cooling:"Running warmer than I should be. 103 degrees.",
+    fuel:"My fuel trims have been drifting. LTFT at 12%.",
+    exhaust:"Catalyst efficiency dropping for two weeks now.",
+    electrical:"Voltage trending down. 13.2 now.",
+};
+
+const draco=new DRACOLoader();
+draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+const loader=new GLTFLoader();loader.setDRACOLoader(draco);
+
+let car=null;
+const edgeObjects={};
+// Build name-to-zone lookup AFTER we see what the GLB actually exports
+const nameToZone={};
+
+loader.load('frontend/public/models/rune_sedan.glb',gltf=>{
+    car=new THREE.Group();
+    const raw=gltf.scene;
+    const box=new THREE.Box3().setFromObject(raw);
+    const center=box.getCenter(new THREE.Vector3());
+
+    // First pass: log all mesh names and build zone lookup
+    const allNames=[];
+    raw.traverse(ch=>{
+        if(!ch.isMesh)return;
+        allNames.push(ch.name);
+    });
+    console.log('All mesh names in GLB:', allNames);
+
+    // Map mesh names to subsystems using EXACT name matching
+    // The GLB may export zone names differently -- handle both cases
+    raw.traverse(ch=>{
+        if(!ch.isMesh)return;
+        const n=ch.name;
+
+        // Determine which subsystem this mesh belongs to
+        let zone='neutral';
+
+        // Body zones (our custom splits)
+        if(n==='zone_hood_right_engine'||n.includes('zone_hood_right')) zone='engine';
+        else if(n==='zone_hood_left_cvt'||n.includes('zone_hood_left')) zone='transmission';
+        else if(n==='zone_trunk_left_fuel'||n.includes('zone_trunk_left')) zone='fuel';
+        else if(n==='zone_trunk_right_exhaust'||n.includes('zone_trunk_right')) zone='exhaust';
+        else if(n.includes('zone_cabin')) zone='neutral';
+
+        // If the zone names got mangled by glTF export, use the Car_0 suffix pattern
+        // The body was split into: Car_0 (original remainder), Car_0.001-.005 (splits)
+        // We need to check which ones correspond to which zones by their geometry position
+        else if(n.includes('ELANTRA_BODY_Car_0')&&!n.includes('ELANTRA_BODY_Car_0.')) {
+            // This might be the remaining cabin piece
+            zone='neutral';
+        }
+
+        // Non-zone parts mapped to subsystems
+        else if(n.includes('BlackPlastic_0')&&!n.includes('Plane')&&!n.includes('Cylinder')) zone='cooling'; // grille = radiator
+        else if(n==='Cube.006_Metal_0') zone='exhaust'; // underbody metal = exhaust pipe
+        else if(n.includes('RedLight')) zone='exhaust'; // taillights near muffler
+        else if(n.includes('OrangeLight')) zone='electrical'; // turn signals
+        else if(n.includes('Glass')||n.includes('Windows')) zone='neutral';
+        else if(n.includes('Wheels')||n.includes('wheel_arch')) zone='neutral';
+
+        nameToZone[n]=zone;
+
+        // Create edge lines
+        const edges=new THREE.EdgesGeometry(ch.geometry,12);
+        const mat=new THREE.LineBasicMaterial({color:HEALTHY,transparent:true,opacity:0.85});
+        const line=new THREE.LineSegments(edges,mat);
+        line.name=n;
+
+        // Apply world transform
+        ch.parent.updateWorldMatrix(true,false);
+        line.applyMatrix4(ch.matrixWorld);
+
+        edgeObjects[n]=line;
+        car.add(line);
+    });
+
+    car.position.set(-center.x,0,-center.z);
+    S.add(car);
+
+    console.log('Zone assignments:', nameToZone);
+});
+
+let activeFault=null,t=0;
+
+// Map subsystem faults to which zones light up
+const FAULT_ZONES={
+    engine:['engine'],
+    transmission:['transmission'],
+    cooling:['engine','transmission','cooling'], // radiator + both hood sides
+    fuel:['fuel'],
+    exhaust:['exhaust'],
+    electrical:['engine'], // battery is front-right = engine zone
+};
+
+window.fault=function(sub){
+    activeFault=sub;
+    document.querySelectorAll('.cb').forEach(b=>b.classList.remove('on'));
+    event.target.classList.add('on');
+
+    const col=ALERT[sub];
+    const colHex='#'+col.toString(16).padStart(6,'0');
+    const score=sub==='cooling'?84:sub==='fuel'?72:sub==='exhaust'?78:80;
+    document.getElementById('hs').textContent=score;
+    document.getElementById('hs').style.color=colHex;
+    document.getElementById('vt').textContent=MSGS[sub]||'Something needs attention.';
+    document.getElementById('vt').style.color=colHex;
+    document.getElementById('vp').style.borderColor=colHex+'26';
+
+    document.querySelectorAll('.sd').forEach(d=>{d.style.background='#444';d.style.boxShadow='none';});
+    document.querySelectorAll('.sn').forEach(s=>s.style.color='#555');
+    const dot=document.querySelector('[data-s="'+sub+'"]');
+    if(dot){dot.style.background=colHex;dot.style.boxShadow='0 0 8px '+colHex+'88';if(dot.previousElementSibling)dot.previousElementSibling.style.color='#aaa';}
+
+    // Light up only the correct zones
+    const activeZones=FAULT_ZONES[sub]||[];
+    const alertColor=new THREE.Color(col);
+    const dimColor=new THREE.Color(DIM);
+    const healthyColor=new THREE.Color(HEALTHY);
+
+    for(const[name,line]of Object.entries(edgeObjects)){
+        const meshZone=nameToZone[name]||'neutral';
+        const isAffected=activeZones.includes(meshZone);
+
+        if(isAffected){
+            line.material.color.copy(alertColor);
+            line.material.opacity=1.0;
+        } else {
+            line.material.color.copy(dimColor);
+            line.material.opacity=0.15;
+        }
+    }
+};
+
+window.reset=function(){
+    activeFault=null;
+    document.querySelectorAll('.cb').forEach(b=>b.classList.remove('on'));
+    document.getElementById('hs').textContent='96';
+    document.getElementById('hs').style.color='#e8e4df';
+    document.getElementById('vt').textContent='All good. Running clean today.';
+    document.getElementById('vt').style.color='#666';
+    document.getElementById('vp').style.borderColor='rgba(255,255,255,0.05)';
+    document.querySelectorAll('.sd').forEach(d=>{d.style.background='#444';d.style.boxShadow='none';});
+    document.querySelectorAll('.sn').forEach(s=>s.style.color='#555');
+
+    const healthyColor=new THREE.Color(HEALTHY);
+    for(const line of Object.values(edgeObjects)){
+        line.material.color.copy(healthyColor);
+        line.material.opacity=0.85;
+    }
+};
+
+function animate(){
+    requestAnimationFrame(animate);
+    t+=0.016;ctrl.update();
+    if(car)car.position.y=Math.sin(t*0.35)*0.002;
+
+    // Gentle pulse on affected zone
+    if(activeFault){
+        const activeZones=FAULT_ZONES[activeFault]||[];
+        const pulse=0.7+Math.sin(t*1.5)*0.3;
+        for(const[name,line]of Object.entries(edgeObjects)){
+            const meshZone=nameToZone[name]||'neutral';
+            if(activeZones.includes(meshZone)){
+                line.material.opacity=pulse;
+            }
+        }
+    }
+
+    comp.render();
+}
+animate();
+
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);comp.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>
