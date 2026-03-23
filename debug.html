@@ -423,7 +423,8 @@
 
     // WebSocket
     function connect(){
-        var ws=new WebSocket('ws://localhost:8080/ws/vehicle-data');
+        var wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        var ws=new WebSocket(wsProto + '//' + location.host + '/ws/vehicle-data');
         ws.onopen=function(){$('dot').className='dot dot-on';$('conn-txt').textContent='live';addLog('ws','connected');};
         ws.onclose=function(){$('dot').className='dot dot-off';$('conn-txt').textContent='offline';addLog('ws','disconnected');setTimeout(connect,2000);};
         ws.onerror=function(){addLog('err','websocket error');};

@@ -13,9 +13,11 @@ import time
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+from pathlib import Path
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from backend.config import settings
 from backend.database.db import RuneDatabase
@@ -207,6 +209,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/debug")
+async def serve_debug() -> FileResponse:
+    """Serve the debug dashboard HTML."""
+    debug_path = Path(__file__).parent.parent / "debug.html"
+    return FileResponse(debug_path, media_type="text/html")
 
 
 @app.get("/api/health")
