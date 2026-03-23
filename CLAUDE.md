@@ -21,6 +21,7 @@ See `PRD.md` for full specifications, data contracts, OBD PID tables, build time
 
 ```
 CURRENT PHASE: v1 -- First words (Desktop Development, Simulated Data)
+STATUS: Sessions 1-3 complete (138 tests). Next: Session 4 (health scoring engine).
 ```
 Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).
 
@@ -65,6 +66,39 @@ Rune IS the car. He speaks in first person. He's a brother -- direct, honest, st
 - **Data validation:** pydantic 2.12.5
 - **Data flow:** All sensor data flows through Pi (central hub). WebSocket at 10Hz to phone. Phone is display + secondary sensor source.
 - **Static frontend serving:** `app.mount("/", StaticFiles(directory="frontend/dist", html=True))`
+
+---
+
+## Build-and-Explain Workflow
+
+Every build step must be followed by an explanation before moving on. Deepu needs to understand every component to feel safe about Rune. Never just build and say "done."
+
+**After writing code for any component, explain:**
+
+1. **What it does** -- plain language with a real-world analogy (bouncer at a door, recipe card, heartbeat)
+2. **Why it exists** -- what problem does it solve, what would happen without it
+3. **How it connects** -- where it fits in the system, what talks to it, what depends on it
+4. **How to test it** -- exact terminal commands to verify it works yourself
+
+**After explaining, provide a verification block:**
+
+```
+HOW TO VERIFY:
+  cd /path/to/repo
+  source .venv/bin/activate
+  [exact commands to run]
+  [what the expected output looks like]
+```
+
+The whole purpose of Rune is safety. If the builder doesn't understand how something was built, there's no safety. Rune's driver must be able to diagnose issues independently.
+
+---
+
+## Dependency Versions
+
+PRD version numbers are **minimum guidelines, not hard pins**. Use the latest stable version of any tool or library when it's better. Pin with `>=` minimum constraints in `pyproject.toml`, not exact `==` versions.
+
+Current dev environment: **Python 3.14** (Mac), will target Pi-compatible Python on deployment.
 
 ---
 
@@ -128,12 +162,27 @@ Rune IS the car. He speaks in first person. He's a brother -- direct, honest, st
 - **Fuel tank:** 14.8 gallons
 - **EPA fuel economy:** 28 city / 36 highway / 31 combined MPG
 - **OBD modes:** 01 (current data), 02 (freeze frame), 03 (DTCs), 09 (VIN/calibration). All read-only.
-- **Honda Mode 22:** `22 2201` byte 27 = CVT fluid temp (`byte - 40 = C`). Send `22 22 01` with header `7E0`. Needs testing on 2026 model.
+- **PID 015E (fuel rate): NOT SUPPORTED on Honda Accords.** Use MAF-based calculation: `fuel_rate_lph = (MAF_gps / 14.7 / 750) * 3600`
+- **Confirmed supported PIDs:** 0104 (load), 0105 (coolant), 0106/0107 (fuel trims B1 only), 010B (MAP), 010C (RPM), 010D (speed), 010F (intake temp), 0110 (MAF), 0111 (throttle), 012F (fuel level), 013C (catalyst temp), 0142 (voltage), 015C (oil temp)
+- **NOT supported:** Bank 2 fuel trims (single-bank 4-cyl), PID 015B (not hybrid), PID 015E (fuel rate)
+- **Honda Mode 22:** `22 2201` byte 27 = CVT fluid temp (`byte - 40 = C`). Send `22 22 01` with header `7E0`. **Byte offset confirmed on 10th gen only. Needs verification on 11th gen (2026).**
 - **Extended coolant:** PID `01 67` bytes 2+3 = engine block + radiator temps, each `byte - 40`.
-- **CAN protocol:** ISO 15765-4, 11-bit addressing, 500 kbaud. **ALWAYS manually select protocol. NEVER use auto-detect.** 2025-2026 Hondas have enhanced CAN bus security causing auto-detect failures.
-- **CAN signals (opendbc):** github.com/commaai/opendbc -- Honda Accord DBC files with 100+ decoded signals (wheel speeds 0x1D0, steering 0x0E4, torque 0x17C, doors 0x35E). Requires WiCAN Pro raw CAN mode.
+- **CAN protocol:** ISO 15765-4, 11-bit addressing, 500 kbaud. **ALWAYS manually select protocol (ATSP6). NEVER use auto-detect.** 2025-2026 Hondas have enhanced CAN bus security causing auto-detect failures.
+- **CAN-FD:** Internal powertrain bus uses CAN-FD. OBD-II port is standard CAN. WiCAN Pro handles this fine.
+- **CAN signals (opendbc):** github.com/commaai/opendbc -- Honda Accord DBC files. `TRIP_FUEL_CONSUMED` at CAN ID 0x324 is a fuel counter (unknown units, needs calibration). Wheel speeds 0x1D0, steering 0x14A, torque 0x17C, doors 0x405.
 - **ADAS:** Separate CAN bus. NOT accessible through OBD-II port. Out of scope.
 - **Key gap we fill:** Honda dashboard shows average MPG but NOT instant MPG.
+
+---
+
+## WiCAN Pro Connection Details (researched March 22, 2026)
+
+- **ELM327 mode (primary):** TCP port **3333**. ASCII hex responses like `41 0C 0F A0\r\n>`. python-obd connects here.
+- **Raw CAN mode:** TCP port **35000** for SocketCAN via socat. JSON WebSocket for raw frames: `{"bus":"0","type":"rx","frame":[{"id":2024,"dlc":8,"data":[...]}]}`. CAN IDs are **decimal**.
+- **AutoPID HTTP:** `GET http://<wican_ip>/autopid_data` returns pre-parsed JSON with configurable vehicle profile.
+- **Init sequence:** `ATSP6` (mandatory), `ATSH7E0`, `ATCRA7E8`
+- **Default WiFi password:** `@meatpi#` -- **CHANGE THIS** on first setup.
+- **First connection checklist:** Send `0100`/`0120`/`0140`/`0160` for PID bitmasks. Test 015E (expect unsupported). Test Mode 22 CVT temp. Log `TRIP_FUEL_CONSUMED` counter.
 
 ---
 

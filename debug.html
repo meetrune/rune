@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rune / Debug</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #09090b;
+            --bg-card: #0c0c0f;
+            --bg-hover: #111114;
+            --bg-muted: #18181b;
+            --border: #1e1e22;
+            --border-hover: #2a2a2f;
+            --ring: #27272a;
+
+            --foreground: #fafafa;
+            --muted: #a1a1aa;
+            --dim: #52525b;
+            --ghost: #27272a;
+
+            --green: #22c55e;
+            --amber: #eab308;
+            --red: #ef4444;
+            --blue: #3b82f6;
+
+            --radius: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--foreground);
+            font-family: 'Inter', -apple-system, sans-serif;
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Header --- */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .title {
+            font-family: 'Geist Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--foreground);
+        }
+        .title span { color: var(--dim); }
+        .badge {
+            font-family: 'Geist Mono', monospace;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .badge-live { color: var(--green); background: #22c55e12; border: 1px solid #22c55e20; }
+        .badge-off { color: var(--red); background: #ef444412; border: 1px solid #ef444420; }
+
+        .header-right {
+            display: flex; align-items: center; gap: 16px;
+            font-family: 'Geist Mono', monospace;
+            font-size: 11px;
+            color: var(--dim);
+        }
+        .header-right .val { color: var(--muted); }
+
+        /* --- Voice --- */
+        .voice {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--muted);
+            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        /* --- Layout --- */
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            min-height: calc(100vh - 90px);
+        }
+
+        .main { padding: 20px 24px; overflow-y: auto; }
+
+        .sidebar {
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        /* --- Section --- */
+        .section-title {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+            margin-top: 24px;
+        }
+        .section-title:first-child { margin-top: 0; }
+
+        /* --- Metric grid --- */
+        .grid { display: grid; gap: 1px; background: var(--border); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+        .cell {
+            background: var(--bg-card);
+            padding: 14px 16px;
+            min-height: 72px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .cell:hover { background: var(--bg-hover); }
+
+        .cell-label {
+            font-size: 11px;
+            color: var(--dim);
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        .cell-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+        .cell-value {
+            font-family: 'Geist Mono', monospace;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--foreground);
+            line-height: 1;
+        }
+        .cell-unit {
+            font-family: 'Geist Mono', monospace;
+            font-size: 11px;
+            color: var(--dim);
+            font-weight: 400;
+        }
+
+        /* Big cells */
+        .cell-big .cell-value { font-size: 36px; }
+
+        /* Sparkline */
+        .sparkline {
+            width: 64px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        /* Status colors */
+        .s-green .cell-value { color: var(--green); }
+        .s-amber .cell-value { color: var(--amber); }
+        .s-red .cell-value { color: var(--red); }
+
+        /* --- Tank bar --- */
+        .tank {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+        }
+        .tank-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 10px;
+        }
+        .tank-top .cell-label { margin-bottom: 0; }
+        .tank-pct {
+            font-family: 'Geist Mono', monospace;
+            font-size: 13px;
+            color: var(--foreground);
+            font-weight: 500;
+        }
+        .tank-track {
+            height: 6px;
+            background: var(--ghost);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .tank-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: var(--green);
+            transition: width 0.4s ease, background 0.4s ease;
+        }
+
+        /* --- Sidebar --- */
+        .sb-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sb-title {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        /* Health rows */
+        .h-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .h-row:last-child { margin-bottom: 0; }
+        .h-name {
+            font-size: 12px;
+            color: var(--muted);
+            width: 84px;
+            flex-shrink: 0;
+        }
+        .h-track {
+            flex: 1;
+            height: 4px;
+            background: var(--ghost);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .h-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.4s ease;
+        }
+        .h-val {
+            font-family: 'Geist Mono', monospace;
+            font-size: 11px;
+            color: var(--dim);
+            width: 24px;
+            text-align: right;
+        }
+
+        /* Log */
+        .log-item {
+            font-family: 'Geist Mono', monospace;
+            font-size: 11px;
+            color: var(--dim);
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border);
+            line-height: 1.4;
+        }
+        .log-item:last-child { border-bottom: none; }
+        .log-t { color: var(--ghost); margin-right: 6px; }
+        .log-tag { color: var(--muted); margin-right: 4px; }
+
+        /* JSON viewer */
+        .json-toggle {
+            font-size: 11px;
+            color: var(--dim);
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .json-toggle:hover { color: var(--muted); }
+        .json-arrow { display: inline-block; transition: transform 0.15s; font-size: 9px; }
+        .json-arrow.open { transform: rotate(90deg); }
+        .json-body {
+            font-family: 'Geist Mono', monospace;
+            font-size: 10px;
+            color: var(--dim);
+            line-height: 1.5;
+            white-space: pre;
+            overflow: auto;
+            max-height: 260px;
+            margin-top: 8px;
+            padding: 10px;
+            background: var(--bg);
+            border-radius: 6px;
+            display: none;
+        }
+        .json-body.open { display: block; }
+
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { border-left: none; border-top: 1px solid var(--border); }
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <div class="title">rune <span>/</span> debug</div>
+        <div class="badge badge-off" id="badge">offline</div>
+    </div>
+    <div class="header-right">
+        <div><span class="val" id="hz">0</span> hz</div>
+        <div><span class="val" id="ticks">0</span> ticks</div>
+        <div>sim</div>
+    </div>
+</div>
+
+<div class="voice" id="voice">Waiting for connection...</div>
+
+<div class="layout">
+<div class="main">
+
+    <div class="section-title">Engine</div>
+    <div class="grid grid-4">
+        <div class="cell cell-big" id="c-rpm" style="grid-column: span 2;">
+            <div class="cell-label">RPM</div>
+            <div class="cell-row">
+                <div class="cell-value" id="v-rpm">--</div>
+                <canvas class="sparkline" id="sp-rpm" width="64" height="24"></canvas>
+            </div>
+        </div>
+        <div class="cell cell-big" id="c-mpg" style="grid-column: span 2;">
+            <div class="cell-label">Instant MPG</div>
+            <div class="cell-row">
+                <div class="cell-value" id="v-mpg">--</div>
+                <canvas class="sparkline" id="sp-mpg" width="64" height="24"></canvas>
+            </div>
+        </div>
+        <div class="cell" id="c-load"><div class="cell-label">Load</div><div class="cell-row"><div class="cell-value" id="v-load">--</div><div class="cell-unit">%</div></div></div>
+        <div class="cell" id="c-throttle"><div class="cell-label">Throttle</div><div class="cell-row"><div class="cell-value" id="v-throttle">--</div><div class="cell-unit">%</div></div></div>
+        <div class="cell" id="c-maf"><div class="cell-label">MAF</div><div class="cell-row"><div class="cell-value" id="v-maf">--</div><div class="cell-unit">g/s</div></div></div>
+        <div class="cell" id="c-map"><div class="cell-label">MAP</div><div class="cell-row"><div class="cell-value" id="v-map">--</div><div class="cell-unit">kPa</div></div></div>
+    </div>
+
+    <div class="section-title">Thermal</div>
+    <div class="grid grid-4">
+        <div class="cell" id="c-coolant">
+            <div class="cell-label">Coolant</div>
+            <div class="cell-row">
+                <div class="cell-value" id="v-coolant">--</div>
+                <canvas class="sparkline" id="sp-coolant" width="64" height="24"></canvas>
+            </div>
+        </div>
+        <div class="cell" id="c-oil"><div class="cell-label">Oil</div><div class="cell-row"><div class="cell-value" id="v-oil">--</div><div class="cell-unit">C</div></div></div>
+        <div class="cell" id="c-intake"><div class="cell-label">Intake Air</div><div class="cell-row"><div class="cell-value" id="v-intake">--</div><div class="cell-unit">C</div></div></div>
+        <div class="cell" id="c-catalyst"><div class="cell-label">Catalyst</div><div class="cell-row"><div class="cell-value" id="v-catalyst">--</div><div class="cell-unit">C</div></div></div>
+    </div>
+
+    <div class="section-title">Fuel</div>
+    <div class="tank">
+        <div class="tank-top">
+            <div class="cell-label">Tank Level</div>
+            <div class="tank-pct" id="tank-pct">--%</div>
+        </div>
+        <div class="tank-track"><div class="tank-fill" id="tank-fill"></div></div>
+    </div>
+    <div style="height: 8px;"></div>
+    <div class="grid grid-4">
+        <div class="cell" id="c-stft"><div class="cell-label">STFT B1</div><div class="cell-row"><div class="cell-value" id="v-stft">--</div><div class="cell-unit">%</div></div></div>
+        <div class="cell" id="c-ltft"><div class="cell-label">LTFT B1</div><div class="cell-row"><div class="cell-value" id="v-ltft">--</div><div class="cell-unit">%</div></div></div>
+        <div class="cell" id="c-trip"><div class="cell-label">Trip</div><div class="cell-row"><div class="cell-value" id="v-trip">--</div><div class="cell-unit">mi</div></div></div>
+        <div class="cell" id="c-cost"><div class="cell-label">Cost</div><div class="cell-row"><div class="cell-value" id="v-cost">--</div><div class="cell-unit">$</div></div></div>
+    </div>
+
+    <div class="section-title">Electrical</div>
+    <div class="grid grid-3">
+        <div class="cell" id="c-voltage">
+            <div class="cell-label">Battery</div>
+            <div class="cell-row">
+                <div class="cell-value" id="v-voltage">--</div>
+                <canvas class="sparkline" id="sp-volt" width="64" height="24"></canvas>
+            </div>
+        </div>
+        <div class="cell" id="c-speed"><div class="cell-label">Speed</div><div class="cell-row"><div class="cell-value" id="v-speed">--</div><div class="cell-unit">mph</div></div></div>
+        <div class="cell" id="c-idle"><div class="cell-label">Idle Rate</div><div class="cell-row"><div class="cell-value" id="v-idle">--</div><div class="cell-unit">gal/hr</div></div></div>
+    </div>
+
+</div>
+
+<div class="sidebar">
+    <div class="sb-section">
+        <div class="sb-title">Health</div>
+        <div id="health">
+            <div class="h-row"><span class="h-name">Engine</span><div class="h-track"><div class="h-fill" id="h-eng"></div></div><span class="h-val" id="hv-eng">--</span></div>
+            <div class="h-row"><span class="h-name">Trans</span><div class="h-track"><div class="h-fill" id="h-trn"></div></div><span class="h-val" id="hv-trn">--</span></div>
+            <div class="h-row"><span class="h-name">Fuel</span><div class="h-track"><div class="h-fill" id="h-ful"></div></div><span class="h-val" id="hv-ful">--</span></div>
+            <div class="h-row"><span class="h-name">Cooling</span><div class="h-track"><div class="h-fill" id="h-col"></div></div><span class="h-val" id="hv-col">--</span></div>
+            <div class="h-row"><span class="h-name">Exhaust</span><div class="h-track"><div class="h-fill" id="h-exh"></div></div><span class="h-val" id="hv-exh">--</span></div>
+            <div class="h-row"><span class="h-name">Electrical</span><div class="h-track"><div class="h-fill" id="h-elc"></div></div><span class="h-val" id="hv-elc">--</span></div>
+        </div>
+    </div>
+    <div class="sb-section">
+        <div class="sb-title">Log</div>
+        <div id="log"></div>
+    </div>
+    <div class="sb-section">
+        <div class="json-toggle" id="jtoggle"><span class="json-arrow" id="jarrow">&#9654;</span> Raw JSON</div>
+        <div class="json-body" id="jbody"></div>
+    </div>
+</div>
+</div>
+
+<script>
+(function() {
+    var $ = function(id) { return document.getElementById(id); };
+    var totalTicks = 0, secTicks = 0, hz = 0;
+    var jsonOpen = false;
+
+    // Sparkline buffers (last 60 values)
+    var sparks = { rpm: [], mpg: [], coolant: [], volt: [] };
+    var SPARK_LEN = 60;
+
+    function pushSpark(key, val) {
+        if (val === null || val === undefined) return;
+        sparks[key].push(val);
+        if (sparks[key].length > SPARK_LEN) sparks[key].shift();
+    }
+
+    function drawSpark(canvasId, data, color) {
+        var c = $(canvasId);
+        if (!c || data.length < 2) return;
+        var ctx = c.getContext('2d');
+        var w = c.width, h = c.height;
+        ctx.clearRect(0, 0, w, h);
+
+        var mn = Math.min.apply(null, data);
+        var mx = Math.max.apply(null, data);
+        var range = mx - mn || 1;
+
+        ctx.beginPath();
+        ctx.strokeStyle = color || '#3b82f6';
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+
+        for (var i = 0; i < data.length; i++) {
+            var x = (i / (data.length - 1)) * w;
+            var y = h - ((data[i] - mn) / range) * (h - 4) - 2;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    setInterval(function() { hz = secTicks; secTicks = 0; $('hz').textContent = hz; }, 1000);
+
+    $('jtoggle').onclick = function() {
+        jsonOpen = !jsonOpen;
+        $('jbody').className = jsonOpen ? 'json-body open' : 'json-body';
+        $('jarrow').className = jsonOpen ? 'json-arrow open' : 'json-arrow';
+    };
+
+    function coolantSt(v) { return v < 96 ? 's-green' : v < 104 ? 's-amber' : 's-red'; }
+    function voltSt(v) { return v > 13.5 ? 's-green' : v > 13.0 ? 's-amber' : 's-red'; }
+    function trimSt(v) { return Math.abs(v) < 5 ? '' : Math.abs(v) < 10 ? 's-amber' : 's-red'; }
+    function mpgSt(v) { if (!v) return ''; return v > 30 ? 's-green' : v > 20 ? 's-amber' : 's-red'; }
+    function hColor(v) { return v >= 80 ? '#22c55e' : v >= 50 ? '#eab308' : '#ef4444'; }
+    function tankBg(v) { return v > 25 ? '#22c55e' : v > 10 ? '#eab308' : '#ef4444'; }
+
+    function setV(id, val, dec) { $(id).textContent = val == null ? '--' : val.toFixed(dec); }
+    function setC(id, cls) { var el = $(id); el.className = el.className.replace(/s-\w+/g, '').trim() + (cls ? ' ' + cls : ''); }
+    function setH(fid, vid, v) {
+        $(fid).style.width = v + '%';
+        $(fid).style.background = hColor(v);
+        $(vid).textContent = v.toFixed(0);
+        $(vid).style.color = hColor(v);
+    }
+
+    function ts() { return new Date().toTimeString().slice(0, 8); }
+    function addLog(tag, msg) {
+        var d = document.createElement('div');
+        d.className = 'log-item';
+        var t = document.createElement('span'); t.className = 'log-t'; t.textContent = ts();
+        var g = document.createElement('span'); g.className = 'log-tag'; g.textContent = tag;
+        d.appendChild(t); d.appendChild(g); d.appendChild(document.createTextNode(msg));
+        var log = $('log');
+        log.insertBefore(d, log.firstChild);
+        while (log.children.length > 40) log.removeChild(log.lastChild);
+    }
+
+    function speak(d, f) {
+        var cl = d.COOLANT_TEMP.v, sp = d.SPEED.v, mpg = f.instant_mpg, tk = f.tank_pct;
+        if (cl > 104) return 'Running hot. ' + cl.toFixed(0) + ' degrees. Not where I should be.';
+        if (cl > 96) return 'Running warmer than I should be. ' + cl.toFixed(0) + ' degrees -- not critical, but I don\'t usually sit here.';
+        if (tk < 15) return 'Getting low. ' + tk.toFixed(0) + '% left in the tank.';
+        if (sp < 1) return 'Idling. Burning about ' + (f.idle_gph ? f.idle_gph.toFixed(1) : '0.2') + ' gallons an hour.';
+        if (mpg && mpg > 30) return 'All good. ' + mpg.toFixed(0) + ' MPG -- solid run.';
+        if (mpg && mpg > 20) return mpg.toFixed(0) + ' MPG. Normal for city driving.';
+        if (mpg && mpg > 0) return mpg.toFixed(0) + ' MPG. Heavy on the throttle.';
+        return 'All good. Running clean.';
+    }
+
+    function connect() {
+        var ws = new WebSocket('ws://localhost:8080/ws/vehicle-data');
+        ws.onopen = function() {
+            $('badge').className = 'badge badge-live'; $('badge').textContent = 'live';
+            addLog('ws', 'connected');
+        };
+        ws.onclose = function() {
+            $('badge').className = 'badge badge-off'; $('badge').textContent = 'offline';
+            addLog('ws', 'disconnected');
+            setTimeout(connect, 2000);
+        };
+        ws.onerror = function() { addLog('err', 'websocket error'); };
+
+        ws.onmessage = function(e) {
+            var m = JSON.parse(e.data);
+            totalTicks++; secTicks++;
+            $('ticks').textContent = totalTicks;
+            var d = m.d, f = m.fuel, h = m.health;
+
+            // Engine
+            setV('v-rpm', d.RPM.v, 0);
+            pushSpark('rpm', d.RPM.v);
+
+            var mpg = f.instant_mpg;
+            if (mpg && mpg > 0) {
+                setV('v-mpg', mpg, 1);
+                setC('c-mpg', mpgSt(mpg));
+            } else {
+                $('v-mpg').textContent = f.idle_gph ? f.idle_gph.toFixed(2) : '--';
+                setC('c-mpg', '');
+            }
+            pushSpark('mpg', mpg || 0);
+
+            setV('v-load', d.ENGINE_LOAD.v, 0);
+            setV('v-throttle', d.THROTTLE_POS.v, 0);
+            setV('v-maf', d.MAF.v, 1);
+            setV('v-map', d.MAP.v, 0);
+
+            // Thermal
+            setV('v-coolant', d.COOLANT_TEMP.v, 1);
+            setC('c-coolant', coolantSt(d.COOLANT_TEMP.v));
+            pushSpark('coolant', d.COOLANT_TEMP.v);
+            setV('v-oil', d.OIL_TEMP.v, 1);
+            setV('v-intake', d.INTAKE_TEMP.v, 1);
+            setV('v-catalyst', d.CATALYST_TEMP.v, 0);
+
+            // Fuel
+            var tp = f.tank_pct;
+            $('tank-pct').textContent = tp.toFixed(1) + '%';
+            $('tank-fill').style.width = tp + '%';
+            $('tank-fill').style.background = tankBg(tp);
+            setV('v-stft', d.STFT.v, 1); setC('c-stft', trimSt(d.STFT.v));
+            setV('v-ltft', d.LTFT.v, 1); setC('c-ltft', trimSt(d.LTFT.v));
+            setV('v-trip', f.trip_distance_mi, 2);
+            setV('v-cost', f.trip_cost_usd, 2);
+
+            // Electrical
+            setV('v-voltage', d.BATTERY_V.v, 2);
+            setC('c-voltage', voltSt(d.BATTERY_V.v));
+            pushSpark('volt', d.BATTERY_V.v);
+            setV('v-speed', d.SPEED.v * 0.621371, 0);
+            setV('v-idle', f.idle_gph, 2);
+
+            // Health
+            setH('h-eng', 'hv-eng', h.engine);
+            setH('h-trn', 'hv-trn', h.transmission);
+            setH('h-ful', 'hv-ful', h.fuel);
+            setH('h-col', 'hv-col', h.cooling);
+            setH('h-exh', 'hv-exh', h.exhaust);
+            setH('h-elc', 'hv-elc', h.electrical);
+
+            // Voice
+            $('voice').textContent = speak(d, f);
+
+            // Sparklines (every 5th tick for perf)
+            if (totalTicks % 5 === 0) {
+                drawSpark('sp-rpm', sparks.rpm, '#3b82f6');
+                drawSpark('sp-mpg', sparks.mpg, '#22c55e');
+                drawSpark('sp-coolant', sparks.coolant, '#ef4444');
+                drawSpark('sp-volt', sparks.volt, '#eab308');
+            }
+
+            // JSON
+            if (totalTicks % 10 === 0 && jsonOpen) {
+                $('jbody').textContent = JSON.stringify(m, null, 2);
+            }
+        };
+    }
+
+    addLog('sys', 'debug console ready');
+    connect();
+})();
+</script>
+</body>
+</html>

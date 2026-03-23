@@ -1,9 +1,9 @@
 # Rune -- Product Requirements Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** March 22, 2026
 **Author:** Kuladeep Mantri
-**Status:** Pre-development
+**Status:** v1 Week 1 -- Sessions 1-3 complete. Next: Session 4 (health scoring engine)
 
 ---
 
@@ -826,3 +826,194 @@ These are explicitly out of scope for Rune:
 - **Hybrid/i-MMD features** -- Car is non-hybrid 1.5T. No regen braking levels, EV mode tracking, or ICE start counting.
 - **Android Auto integration** -- Separate display ecosystem, not in scope
 - **Photorealistic rendering** -- Tron/neon wireframe aesthetic, not PBR materials
+
+---
+
+## 16. Build Philosophy
+
+### Understand Everything You Build
+
+Rune's purpose is safety and trust. If you don't understand how something was built, you can't feel safe about it. Every component must be explainable in plain language.
+
+**After every build step:**
+
+1. **What it does** -- plain language with a real-world analogy
+2. **Why it exists** -- what problem it solves, what would happen without it
+3. **How it connects** -- where it fits in the system, what depends on it
+4. **How to test it** -- exact terminal commands to verify it works yourself
+
+The driver must be able to diagnose Rune independently. No black boxes.
+
+### Dependency Versions
+
+Version numbers in this PRD are **minimum guidelines, not hard pins**. Use the latest stable version of any tool or library when it improves the project. Pin with `>=` minimum constraints in `pyproject.toml`, not exact `==` versions.
+
+Current dev environment: Python 3.14 (Mac). Will target Pi-compatible Python on deployment.
+
+---
+
+## 17. Build Log
+
+Track what's been built, when, and what it does.
+
+### Session 1 (March 22, 2026) -- Safety-First Foundation
+
+| File | What it does | Analogy |
+|------|-------------|---------|
+| `pyproject.toml` | Lists all dependencies and tool configs | Recipe card -- tells pip what ingredients to grab |
+| `backend/obd_manager/connection.py` | SafeOBDConnection -- whitelist wrapper that blocks all non-read-only OBD modes | Bouncer at the door -- only modes 01, 02, 03, 09, 22 get in |
+| `tests/test_safe_obd.py` | 50 tests proving the safety gate works from every angle | Stress-testing the bouncer -- lowercase, whitespace, unknown modes, empty strings |
+| `backend/config.py` | Pydantic Settings -- all config in one place with env var overrides | Settings screen on your phone |
+| `backend/main.py` | FastAPI server with health check and WebSocket placeholder | The skeleton -- bones with no muscles yet |
+
+**How to verify Session 1:**
+```bash
+cd repo-staging
+source .venv/bin/activate
+python -m pytest tests/test_safe_obd.py -v     # 57 tests, all pass (50 original + 7 public API tests from code review)
+python -m mypy backend/config.py backend/main.py backend/obd_manager/connection.py  # clean
+python -m uvicorn backend.main:app --port 8080  # server starts
+# In another terminal:
+curl http://localhost:8080/api/health            # returns JSON status
+```
+
+### Session 2 (March 22, 2026) -- OBD Simulator + Data Models
+
+**Research conducted before building:** Deep research into WiCAN Pro output formats and Honda Accord 2026 SE OBD-II behavior. Key findings documented in Section 18.
+
+| File | What it does | Analogy |
+|------|-------------|---------|
+| `backend/obd_manager/models.py` | Pydantic data models for all sensor readings, health scores, fuel data, and WebSocket messages. Fuel rate calculated from MAF (PID 015E not supported on Honda). | A form with strict fields -- rejects bad data immediately |
+| `backend/obd_manager/simulator.py` | Honda Accord 1.5T simulator with exponential warmup curves, CVT ratios, correlated sensors, and anomaly injection | Stunt double -- behaves like the real car for testing |
+| `backend/obd_manager/collector.py` | Abstract `DataCollector` interface + `SimulatedCollector`. Rest of app calls `get_snapshot()` without knowing the data source. | Universal remote -- same button whether TV is Samsung or LG |
+| `tests/test_simulator.py` | 31 tests: warmup curves, idle values, sensor correlations, anomaly injection, Pydantic validation, collector interface | Proving the stunt double actually drives like the real car |
+
+**Code review findings fixed (same session):**
+
+| Fix | What was wrong |
+|-----|---------------|
+| Added 7 `TestPublicAPI` tests | Original tests only tested internal `_validate_command()`, not the actual `query()`/`send_raw()` methods. Safety gap: someone could break validation in `query()` and all tests would still pass. |
+| `send_raw()` hex validation | `send_raw("22 GGGG")` would crash with confusing Python error. Now gives clear "Invalid hex" message. |
+| `oil_temp_c` / `cvt_fluid_temp_c` clamping | Simulator crashed at extreme ambient temps (-45C). Now clamped to valid range. |
+| CORS `allow_credentials=False` | `allow_credentials=True` with wildcard origins violates browser CORS spec. |
+| Flaky tests rewritten | Warmup and MAP tests used wall-clock timing, sometimes failed. Now deterministic. |
+| Inline import moved to top-level | `maf_to_fuel_rate_lph` was imported inside `_update_fuel()` (called at 10Hz). Moved to top-level for performance and readability. |
+
+**How to verify Session 2:**
+```bash
+cd repo-staging
+source .venv/bin/activate
+python -m pytest tests/ -v                      # 88 tests, all pass
+python -m mypy backend/                          # clean, 11 files
+# Watch a cold start:
+python -c "
+import asyncio
+from backend.obd_manager.simulator import HondaAccordSimulator
+from backend.obd_manager.models import maf_to_fuel_rate_lph
+async def main():
+    sim = HondaAccordSimulator()
+    sim.start()
+    for i in range(10):
+        s = sim.get_snapshot()
+        fr = maf_to_fuel_rate_lph(s.maf_gps)
+        print(f't={i}s RPM={s.rpm:.0f} coolant={s.coolant_temp_c:.1f}C fuel={fr:.2f}L/h voltage={s.battery_voltage:.2f}V')
+        await asyncio.sleep(1)
+asyncio.run(main())
+"
+```
+
+### Session 3 (March 23, 2026) -- SQLite Database + Fuel Intelligence + WebSocket Streaming
+
+**Research conducted before building:** aiosqlite best practices (single connection, not pooling -- maintainers rejected pooling in issue #163), SQLite WAL on Pi/SD card (synchronous=NORMAL safe with WAL, wal_autocheckpoint=500 for write-heavy), FastAPI WebSocket patterns (single producer, broadcast to all, drift-compensated timing, iter_text() for disconnect detection).
+
+| File | What it does | Analogy |
+|------|-------------|---------|
+| `backend/database/db.py` | SQLite WAL database with 4 tables (sensor_readings, trips, fillups, health_scores). Batch writes with executemany. Single shared connection. | Flight data recorder -- everything gets logged |
+| `backend/fuel/calculator.py` | Trip fuel calculator. Starts trip on movement, ends after 60s idle. Accumulates distance and fuel per tick. | Trip odometer that tracks gas and cost |
+| `backend/fuel/fillup.py` | Fill-up detector. Watches fuel level for >20% jumps. Generates Rune's voice messages. | Rune notices when you fill up without being told |
+| `backend/ws_manager.py` | WebSocket connection manager. Tracks clients, broadcasts to all, removes dead connections. | PA system -- one announcer, many listeners |
+| `backend/main.py` | Fully wired: lifespan initializes all components, background producer at 10Hz, drift-compensated timing, batch DB writes at 1Hz. | The conductor -- keeps all instruments in time |
+| `tests/test_database.py` | 21 tests: WAL mode, schema creation, CRUD, batch insert, trip lifecycle, fillup queries, health trends | |
+| `tests/test_fuel_calculator.py` | 29 tests: trip detection, 60s idle timeout, red light handling, MPG calculations, fill-up detection, Rune's voice messages | |
+| `debug.html` | Live debug dashboard. Shadcn/Vercel aesthetic. Sparkline graphs for RPM, MPG, coolant, voltage. Event log. Collapsible raw JSON. | The window into Rune's mind |
+
+**How to verify Session 3:**
+```bash
+cd repo-staging
+source .venv/bin/activate
+python -m pytest tests/ -v                      # 138 tests, all pass
+python -m mypy backend/                          # clean, 15 files
+RUNE_DB_PATH=/tmp/test.db python -m uvicorn backend.main:app --port 8080 --ws websockets
+open debug.html                                  # live dashboard with sparklines
+sqlite3 /tmp/test.db ".tables"                   # 4 tables
+sqlite3 /tmp/test.db "PRAGMA journal_mode;"      # wal
+```
+
+**Running total: 138 tests, 15 source files, mypy clean.**
+
+---
+
+## 18. Research Findings (March 22, 2026)
+
+### WiCAN Pro Output Formats
+
+Research conducted before Session 2. Multiple sources: meatpiHQ/wican-fw GitHub, official docs, Crowd Supply updates, community discussions.
+
+**ELM327 mode (primary connection method for Rune):**
+- TCP port **3333** (not WebSocket)
+- ASCII hex strings: `41 0C 0F A0\r\n>`
+- Init sequence: `ATSP6` (mandatory, never auto-detect), `ATSH7E0`, `ATCRA7E8`
+- python-obd connects to `<wican_ip>:3333` as portstr
+
+**Raw CAN mode (for opendbc signals, future use):**
+- JSON over WebSocket: `{"bus":"0","type":"rx","ts":21782,"frame":[{"id":2024,"dlc":8,"data":[4,65,12,15,160,0,0,0]}]}`
+- CAN IDs are **decimal integers** (2024 = 0x7E8)
+- TCP port **35000** for SocketCAN via socat/slcand
+
+**AutoPID mode (alternative architecture):**
+- HTTP GET `http://<wican_ip>/autopid_data` returns pre-parsed JSON
+- Vehicle profile JSON configures which PIDs to poll and expressions to decode them
+- Can also push via MQTT or HTTPS POST to Pi
+
+**Connection summary for Rune:**
+
+| Mode | Port | Protocol | Use case |
+|------|------|----------|----------|
+| ELM327 emulation | 3333 | TCP ASCII | python-obd library (primary) |
+| Raw SocketCAN | 35000 | TCP via socat | python-can, opendbc signals |
+| AutoPID HTTP | 80 | HTTP GET | Pre-parsed values (alternative) |
+| AutoPID MQTT | 1883 | MQTT | Push to broker (alternative) |
+
+### Honda Accord 2026 SE OBD-II Findings
+
+**PID 015E (engine fuel rate): NOT SUPPORTED on Honda Accords.**
+No confirmed reports on any Accord model. Use MAF-based calculation instead:
+`fuel_rate_lph = (MAF_gps / 14.7 / 750) * 3600`
+
+**Confirmed supported Mode 01 PIDs:**
+`0104` (load), `0105` (coolant), `0106`/`0107` (fuel trims B1), `010B` (MAP), `010C` (RPM), `010D` (speed), `010F` (intake temp), `0110` (MAF), `0111` (throttle), `012F` (fuel level), `0142` (voltage)
+
+**NOT supported / not applicable:**
+- Bank 2 fuel trims (`0108`/`0109`) -- single-bank 4-cyl engine
+- PID `015B` (hybrid battery) -- not a hybrid
+- ADAS data -- separate CAN bus
+
+**Mode 22 (Honda proprietary):**
+- CVT fluid temp: `22 2201`, byte 27 offset confirmed on 10th gen (2018-2022)
+- **Byte offset needs verification on 11th gen (2026).** Log raw response on first connection.
+
+**CAN bus:**
+- OBD port runs standard CAN at 500 kbaud (not CAN-FD)
+- Internal powertrain bus uses CAN-FD but that's not accessible via OBD port
+- **ATSP6 mandatory** -- never auto-detect on 2025-2026 Hondas
+
+**Hidden fuel source (future use):**
+- opendbc shows `TRIP_FUEL_CONSUMED` at CAN ID 0x324 (message CRUISE)
+- Counter with unknown units, needs empirical calibration against a real fill-up
+- Potentially more accurate than MAF-derived rate
+
+**First connection checklist (Week 5):**
+1. Send `0100`, `0120`, `0140`, `0160` to get PID support bitmasks
+2. Test PID `015E` -- confirm it's unsupported
+3. Test Mode 22 `22 2201` -- log raw response, verify byte offset for CVT temp
+4. Log `TRIP_FUEL_CONSUMED` counter over a known distance for calibration

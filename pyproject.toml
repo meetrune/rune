@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rune"
+version = "0.1.0"
+description = "The translation layer between Rune and the human who drives him"
+requires-python = ">=3.13"
+license = "MIT"
+authors = [
+    { name = "Kuladeep Mantri" },
+]
+dependencies = [
+    "fastapi>=0.135",
+    "uvicorn[standard]>=0.42",
+    "obd>=0.7",
+    "pydantic>=2.12",
+    "pydantic-settings>=2.7",
+    "aiosqlite>=0.22",
+    "scikit-learn>=1.8",
+    "scipy>=1.17",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.25",
+    "mypy>=1.10",
+]
+
+[tool.mypy]
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["obd", "obd.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
