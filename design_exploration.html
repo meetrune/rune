@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rune</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #000; overflow: hidden; font-family: 'Space Grotesk', sans-serif; color: #e8e4df; }
@@ -12,21 +12,21 @@
         .ui { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
         .ui > * { pointer-events: auto; }
         .tag { position: absolute; top: 24px; left: 24px; }
-        .tag .t1 { font: 300 11px/1 'DM Mono', monospace; color: #555; letter-spacing: 5px; text-transform: uppercase; }
-        .tag .t2 { font: 300 12px/1.4 'Space Grotesk'; color: #444; margin-top: 5px; }
+        .tag .t1 { font: 600 22px/1 'Caveat', cursive; color: #bbb; }
+        .tag .t2 { font: 300 12px/1.4 'Space Grotesk'; color: #555; margin-top: 4px; }
         .hd { position: absolute; top: 20px; right: 24px; text-align: right; }
         .hd .n { font: 700 58px/1 'Space Grotesk'; letter-spacing: -3px; transition: color 1s; }
         .hd .l { font: 300 9px/1 'DM Mono'; color: #555; letter-spacing: 4px; text-transform: uppercase; margin-top: 6px; }
         .subs { position: absolute; right: 24px; top: 108px; display: flex; flex-direction: column; gap: 8px; }
         .sr { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
-        .sn { font: 300 12px/1 'Space Grotesk'; color: #555; transition: color 0.5s; }
+        .sn { font: 400 13px/1 'Caveat', cursive; color: #666; transition: color 0.5s; }
         .sd { width: 6px; height: 6px; border-radius: 50%; background: #444; transition: all 0.8s; }
-        .vp { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); text-align: center; width: 90%; max-width: 400px; background: rgba(8,8,8,0.85); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 14px 20px; backdrop-filter: blur(16px); transition: border-color 0.8s; }
-        .vp .vt { font: 300 14px/1.6 'Space Grotesk'; color: #666; transition: color 0.6s; }
+        .vp { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); text-align: center; width: 90%; max-width: 420px; background: rgba(8,8,8,0.8); border: 1px solid rgba(255,255,255,0.04); border-radius: 14px; padding: 14px 20px; }
+        .vp .vt { font: 400 15px/1.5 'Caveat', cursive; color: #888; transition: color 0.6s; }
         .ctrls { position: absolute; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 6px; }
-        .cb { padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); background: rgba(8,8,8,0.85); backdrop-filter: blur(12px); font: 400 10px/1 'DM Mono'; color: #666; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: all 0.3s; }
-        .cb:hover { color: #aaa; border-color: rgba(255,255,255,0.12); }
-        .cb.on { color: #D4843A; border-color: rgba(212,132,58,0.3); background: rgba(212,132,58,0.05); }
+        .cb { padding: 7px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: rgba(8,8,8,0.8); font: 400 11px/1 'Caveat', cursive; color: #777; cursor: pointer; transition: all 0.3s; }
+        .cb:hover { color: #bbb; border-color: rgba(255,255,255,0.12); }
+        .cb.on { color: #D4843A; border-color: rgba(212,132,58,0.3); }
     </style>
 </head>
 <body>
@@ -79,19 +79,18 @@ ctrl.autoRotate=true;ctrl.autoRotateSpeed=0.15;ctrl.enablePan=false;
 
 const comp=new EffectComposer(R);
 comp.addPass(new RenderPass(S,cam));
-const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.5,0.3,0.5);
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.4,0.4,0.6);
 comp.addPass(bloom);
 
-// Brighter healthy color for visibility
-const HEALTHY=0xbbbbaa;
+const HEALTHY=0xccccbb;
 const DIM=0x333330;
 const ALERT={engine:0xD4843A,transmission:0xD4843A,cooling:0xD4843A,fuel:0xC4441A,exhaust:0xC4441A,electrical:0xD4843A};
 const MSGS={
-    engine:"Something I need to tell you. RPM instability at idle.",
+    engine:"RPM instability at idle. Could be a vacuum leak.",
     cooling:"Running warmer than I should be. 103 degrees.",
-    fuel:"My fuel trims have been drifting. LTFT at 12%.",
-    exhaust:"Catalyst efficiency dropping for two weeks now.",
-    electrical:"Voltage trending down. 13.2 now.",
+    fuel:"Fuel trims drifting. LTFT at 12% and climbing.",
+    exhaust:"Catalyst efficiency dropping for two weeks.",
+    electrical:"Voltage trending down under load. 13.2 now.",
 };
 
 const draco=new DRACOLoader();
@@ -100,8 +99,54 @@ const loader=new GLTFLoader();loader.setDRACOLoader(draco);
 
 let car=null;
 const edgeObjects={};
-// Build name-to-zone lookup AFTER we see what the GLB actually exports
 const nameToZone={};
+
+// Sketchy line shader -- gives Excalidraw hand-drawn feel
+const sketchyVertexShader=`
+    attribute float lineDistance;
+    varying float vDist;
+    varying vec3 vPos;
+    void main(){
+        vDist=lineDistance;
+        vPos=position;
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+    }
+`;
+const sketchyFragmentShader=`
+    uniform vec3 uColor;
+    uniform float uOpacity;
+    uniform float uTime;
+    varying float vDist;
+    varying vec3 vPos;
+
+    // Simple hash for pseudo-random
+    float hash(float n){return fract(sin(n)*43758.5453);}
+
+    void main(){
+        // Slight opacity variation along the line -- gives hand-drawn feel
+        float wobble=hash(floor(vPos.x*80.0)+floor(vPos.y*80.0)+floor(vPos.z*80.0));
+        float alpha=uOpacity*(0.6+wobble*0.4);
+
+        // Very subtle flicker
+        alpha*=0.95+0.05*sin(uTime*0.5+vPos.x*10.0);
+
+        gl_FragColor=vec4(uColor,alpha);
+    }
+`;
+
+function makeSketchMat(color,opacity){
+    return new THREE.ShaderMaterial({
+        uniforms:{
+            uColor:{value:new THREE.Color(color)},
+            uOpacity:{value:opacity},
+            uTime:{value:0},
+        },
+        vertexShader:sketchyVertexShader,
+        fragmentShader:sketchyFragmentShader,
+        transparent:true,
+        depthWrite:false,
+    });
+}
 
 loader.load('frontend/public/models/rune_sedan.glb',gltf=>{
     car=new THREE.Group();
@@ -109,56 +154,73 @@ loader.load('frontend/public/models/rune_sedan.glb',gltf=>{
     const box=new THREE.Box3().setFromObject(raw);
     const center=box.getCenter(new THREE.Vector3());
 
-    // First pass: log all mesh names and build zone lookup
-    const allNames=[];
-    raw.traverse(ch=>{
-        if(!ch.isMesh)return;
-        allNames.push(ch.name);
-    });
-    console.log('All mesh names in GLB:', allNames);
+    // Log all names for debugging
+    const names=[];
+    raw.traverse(ch=>{if(ch.isMesh)names.push(ch.name);});
+    console.log('GLB mesh names:',names);
 
-    // Map mesh names to subsystems using EXACT name matching
-    // The GLB may export zone names differently -- handle both cases
     raw.traverse(ch=>{
         if(!ch.isMesh)return;
         const n=ch.name;
 
-        // Determine which subsystem this mesh belongs to
+        // Zone assignment based on mesh name AND position
         let zone='neutral';
 
-        // Body zones (our custom splits)
-        if(n==='zone_hood_right_engine'||n.includes('zone_hood_right')) zone='engine';
-        else if(n==='zone_hood_left_cvt'||n.includes('zone_hood_left')) zone='transmission';
-        else if(n==='zone_trunk_left_fuel'||n.includes('zone_trunk_left')) zone='fuel';
-        else if(n==='zone_trunk_right_exhaust'||n.includes('zone_trunk_right')) zone='exhaust';
-        else if(n.includes('zone_cabin')) zone='neutral';
+        // Use world position to determine zone (more reliable than name matching)
+        ch.parent.updateWorldMatrix(true,false);
+        const worldPos=new THREE.Vector3();
+        const bbox=new THREE.Box3().setFromObject(ch);
+        bbox.getCenter(worldPos);
 
-        // If the zone names got mangled by glTF export, use the Car_0 suffix pattern
-        // The body was split into: Car_0 (original remainder), Car_0.001-.005 (splits)
-        // We need to check which ones correspond to which zones by their geometry position
-        else if(n.includes('ELANTRA_BODY_Car_0')&&!n.includes('ELANTRA_BODY_Car_0.')) {
-            // This might be the remaining cabin piece
+        // Front = negative Y, Rear = positive Y in this model
+        // Left (driver) = negative X, Right (passenger) = positive X
+        const isFront=worldPos.y<-0.3;
+        const isRear=worldPos.y>1.0;
+        const isLeft=worldPos.x<-0.05;
+        const isRight=worldPos.x>0.05;
+        const isBottom=worldPos.z<0.35;
+
+        // Name-based overrides for specific parts
+        if(n.includes('zone_hood_right')||n.includes('ELANTRA_BODY_Car_0.005')){
+            zone='engine';
+        } else if(n.includes('zone_hood_left')||n.includes('ELANTRA_BODY_Car_0.004')){
+            zone='transmission';
+        } else if(n.includes('zone_trunk_right')||n.includes('ELANTRA_BODY_Car_0.002')){
+            zone='exhaust';
+        } else if(n.includes('zone_trunk_left')||n.includes('ELANTRA_BODY_Car_0.001')){
+            zone='fuel';
+        } else if(n.includes('zone_cabin')||n.includes('ELANTRA_BODY_Car_0.003')||n.includes('ELANTRA_BODY_Car_0.004')){
             zone='neutral';
         }
-
-        // Non-zone parts mapped to subsystems
-        else if(n.includes('BlackPlastic_0')&&!n.includes('Plane')&&!n.includes('Cylinder')) zone='cooling'; // grille = radiator
-        else if(n==='Cube.006_Metal_0') zone='exhaust'; // underbody metal = exhaust pipe
-        else if(n.includes('RedLight')) zone='exhaust'; // taillights near muffler
-        else if(n.includes('OrangeLight')) zone='electrical'; // turn signals
-        else if(n.includes('Glass')||n.includes('Windows')) zone='neutral';
-        else if(n.includes('Wheels')||n.includes('wheel_arch')) zone='neutral';
+        // Grille = cooling
+        else if(n.includes('BlackPlastic')&&!n.includes('Plane')&&!n.includes('Cylinder')&&isFront){
+            zone='cooling';
+        }
+        // Underbody = exhaust
+        else if(n==='Cube.006_Metal_0'||n.includes('Bottom')){
+            zone='exhaust';
+        }
+        // Taillights = exhaust zone
+        else if(n.includes('RedLight')&&isRear){
+            zone='exhaust';
+        }
+        // Headlight area = electrical
+        else if(n.includes('OrangeLight')&&isFront){
+            zone='electrical';
+        }
+        // Position-based fallback for zone_ meshes that got renamed in GLB
+        else if(isFront&&isRight) zone='engine';
+        else if(isFront&&isLeft) zone='transmission';
+        else if(isRear&&isRight) zone='exhaust';
+        else if(isRear&&isLeft) zone='fuel';
 
         nameToZone[n]=zone;
 
-        // Create edge lines
+        // Create edges with sketchy material
         const edges=new THREE.EdgesGeometry(ch.geometry,12);
-        const mat=new THREE.LineBasicMaterial({color:HEALTHY,transparent:true,opacity:0.85});
+        const mat=makeSketchMat(HEALTHY,0.85);
         const line=new THREE.LineSegments(edges,mat);
         line.name=n;
-
-        // Apply world transform
-        ch.parent.updateWorldMatrix(true,false);
         line.applyMatrix4(ch.matrixWorld);
 
         edgeObjects[n]=line;
@@ -167,20 +229,18 @@ loader.load('frontend/public/models/rune_sedan.glb',gltf=>{
 
     car.position.set(-center.x,0,-center.z);
     S.add(car);
-
-    console.log('Zone assignments:', nameToZone);
+    console.log('Zone assignments:',nameToZone);
 });
 
 let activeFault=null,t=0;
 
-// Map subsystem faults to which zones light up
 const FAULT_ZONES={
     engine:['engine'],
     transmission:['transmission'],
-    cooling:['engine','transmission','cooling'], // radiator + both hood sides
+    cooling:['engine','transmission','cooling'],
     fuel:['fuel'],
     exhaust:['exhaust'],
-    electrical:['engine'], // battery is front-right = engine zone
+    electrical:['engine','electrical'],
 };
 
 window.fault=function(sub){
@@ -195,30 +255,22 @@ window.fault=function(sub){
     document.getElementById('hs').style.color=colHex;
     document.getElementById('vt').textContent=MSGS[sub]||'Something needs attention.';
     document.getElementById('vt').style.color=colHex;
-    document.getElementById('vp').style.borderColor=colHex+'26';
 
     document.querySelectorAll('.sd').forEach(d=>{d.style.background='#444';d.style.boxShadow='none';});
-    document.querySelectorAll('.sn').forEach(s=>s.style.color='#555');
+    document.querySelectorAll('.sn').forEach(s=>s.style.color='#666');
     const dot=document.querySelector('[data-s="'+sub+'"]');
-    if(dot){dot.style.background=colHex;dot.style.boxShadow='0 0 8px '+colHex+'88';if(dot.previousElementSibling)dot.previousElementSibling.style.color='#aaa';}
+    if(dot){dot.style.background=colHex;dot.style.boxShadow='0 0 8px '+colHex+'88';if(dot.previousElementSibling)dot.previousElementSibling.style.color='#ccc';}
 
-    // Light up only the correct zones
     const activeZones=FAULT_ZONES[sub]||[];
-    const alertColor=new THREE.Color(col);
-    const dimColor=new THREE.Color(DIM);
-    const healthyColor=new THREE.Color(HEALTHY);
+    const alertCol=new THREE.Color(col);
+    const dimCol=new THREE.Color(DIM);
+    const healthyCol=new THREE.Color(HEALTHY);
 
     for(const[name,line]of Object.entries(edgeObjects)){
-        const meshZone=nameToZone[name]||'neutral';
-        const isAffected=activeZones.includes(meshZone);
-
-        if(isAffected){
-            line.material.color.copy(alertColor);
-            line.material.opacity=1.0;
-        } else {
-            line.material.color.copy(dimColor);
-            line.material.opacity=0.15;
-        }
+        const z=nameToZone[name]||'neutral';
+        const affected=activeZones.includes(z);
+        line.material.uniforms.uColor.value.copy(affected?alertCol:dimCol);
+        line.material.uniforms.uOpacity.value=affected?1.0:0.12;
     }
 };
 
@@ -228,15 +280,14 @@ window.reset=function(){
     document.getElementById('hs').textContent='96';
     document.getElementById('hs').style.color='#e8e4df';
     document.getElementById('vt').textContent='All good. Running clean today.';
-    document.getElementById('vt').style.color='#666';
-    document.getElementById('vp').style.borderColor='rgba(255,255,255,0.05)';
+    document.getElementById('vt').style.color='#888';
     document.querySelectorAll('.sd').forEach(d=>{d.style.background='#444';d.style.boxShadow='none';});
-    document.querySelectorAll('.sn').forEach(s=>s.style.color='#555');
+    document.querySelectorAll('.sn').forEach(s=>s.style.color='#666');
 
-    const healthyColor=new THREE.Color(HEALTHY);
+    const healthyCol=new THREE.Color(HEALTHY);
     for(const line of Object.values(edgeObjects)){
-        line.material.color.copy(healthyColor);
-        line.material.opacity=0.85;
+        line.material.uniforms.uColor.value.copy(healthyCol);
+        line.material.uniforms.uOpacity.value=0.85;
     }
 };
 
@@ -245,14 +296,19 @@ function animate(){
     t+=0.016;ctrl.update();
     if(car)car.position.y=Math.sin(t*0.35)*0.002;
 
-    // Gentle pulse on affected zone
+    // Update time uniform for sketchy flicker
+    for(const line of Object.values(edgeObjects)){
+        line.material.uniforms.uTime.value=t;
+    }
+
+    // Pulse affected zones
     if(activeFault){
         const activeZones=FAULT_ZONES[activeFault]||[];
-        const pulse=0.7+Math.sin(t*1.5)*0.3;
+        const pulse=0.65+Math.sin(t*1.5)*0.35;
         for(const[name,line]of Object.entries(edgeObjects)){
-            const meshZone=nameToZone[name]||'neutral';
-            if(activeZones.includes(meshZone)){
-                line.material.opacity=pulse;
+            const z=nameToZone[name]||'neutral';
+            if(activeZones.includes(z)){
+                line.material.uniforms.uOpacity.value=pulse;
             }
         }
     }
