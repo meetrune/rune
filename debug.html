@@ -15,23 +15,23 @@
             --r: 6px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--fg); font-family: 'Inter', -apple-system, sans-serif; font-size: 13px; -webkit-font-smoothing: antialiased; }
+        body { background: var(--bg); color: var(--fg); font-family: 'Inter', -apple-system, sans-serif; font-size: 15px; -webkit-font-smoothing: antialiased; }
         .mono { font-family: 'Geist Mono', monospace; }
 
         /* Header */
-        .hdr { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
-        .hdr-title { font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; color: var(--muted); }
+        .hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+        .hdr-title { font-family: 'Geist Mono', monospace; font-size: 16px; font-weight: 500; color: var(--muted); }
         .hdr-title b { color: var(--fg); font-weight: 600; }
-        .hdr-r { display: flex; gap: 14px; align-items: center; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--dim); }
+        .hdr-r { display: flex; gap: 20px; align-items: center; font-family: 'Geist Mono', monospace; font-size: 14px; color: var(--dim); }
         .hdr-r .v { color: var(--muted); }
-        .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .dot-on { background: var(--green); animation: blink 2s ease infinite; }
         .dot-off { background: var(--red); }
         @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
 
         /* Tabs */
-        .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 20px; }
-        .tab { padding: 10px 16px; font-size: 12px; font-weight: 500; color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s; }
+        .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 28px; }
+        .tab { padding: 14px 20px; font-size: 14px; font-weight: 500; color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s; }
         .tab:hover { color: var(--muted); }
         .tab.active { color: var(--fg); border-bottom-color: var(--fg); }
 
@@ -40,7 +40,7 @@
         .panel.active { display: block; }
 
         /* Voice */
-        .voice { padding: 14px 20px; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 300; font-size: 14px; }
+        .voice { padding: 18px 28px; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 300; font-size: 17px; line-height: 1.5; }
 
         /* Grid system */
         .g { display: grid; gap: 1px; background: var(--border); border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); }
@@ -48,19 +48,19 @@
         .g3 { grid-template-columns: repeat(3,1fr); }
         .g2 { grid-template-columns: repeat(2,1fr); }
 
-        .c { background: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+        .c { background: var(--surface); padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
         .c:hover { background: var(--raised); }
-        .c-l { font-size: 11px; color: var(--dim); font-weight: 500; }
+        .c-l { font-size: 13px; color: var(--dim); font-weight: 500; }
         .c-r { display: flex; align-items: baseline; justify-content: space-between; }
-        .c-v { font-family: 'Geist Mono', monospace; font-size: 20px; font-weight: 600; line-height: 1; }
-        .c-u { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--dim); }
-        .c-big .c-v { font-size: 32px; }
+        .c-v { font-family: 'Geist Mono', monospace; font-size: 28px; font-weight: 600; line-height: 1; }
+        .c-u { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); }
+        .c-big .c-v { font-size: 44px; }
 
         /* Spark */
-        .spark { width: 56px; height: 20px; flex-shrink: 0; }
+        .spark { width: 80px; height: 28px; flex-shrink: 0; }
 
         /* Section */
-        .sec { font-size: 11px; font-weight: 500; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin: 20px 0 8px; }
+        .sec { font-size: 13px; font-weight: 500; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 28px 0 12px; }
         .sec:first-child { margin-top: 0; }
 
         /* Colors */
@@ -69,54 +69,54 @@
         .sr .c-v { color: var(--red); }
 
         /* Tank */
-        .tank { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; }
-        .tank-hd { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .tank-tr { height: 5px; background: var(--ghost); border-radius: 3px; overflow: hidden; }
+        .tank { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; }
+        .tank-hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+        .tank-tr { height: 8px; background: var(--ghost); border-radius: 4px; overflow: hidden; }
         .tank-fl { height: 100%; border-radius: 3px; transition: width .4s, background .4s; }
 
         /* Safety gate */
-        .mode-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .mode-tag { font-family: 'Geist Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+        .mode-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .mode-tag { font-family: 'Geist Mono', monospace; font-size: 14px; padding: 6px 14px; border-radius: 6px; font-weight: 500; }
         .mode-allow { color: var(--green); background: #22c55e10; border: 1px solid #22c55e20; }
         .mode-block { color: var(--red); background: #ef444410; border: 1px solid #ef444420; }
 
         /* DB table */
-        .db-tbl { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        .db-tbl th, .db-tbl td { text-align: left; padding: 6px 10px; font-size: 12px; border-bottom: 1px solid var(--border); }
-        .db-tbl th { color: var(--dim); font-weight: 500; font-size: 11px; }
+        .db-tbl { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .db-tbl th, .db-tbl td { text-align: left; padding: 12px 16px; font-size: 15px; border-bottom: 1px solid var(--border); }
+        .db-tbl th { color: var(--dim); font-weight: 500; font-size: 13px; }
         .db-tbl td { font-family: 'Geist Mono', monospace; color: var(--muted); }
-        .db-tbl td.num { text-align: right; color: var(--fg); }
+        .db-tbl td.num { text-align: right; color: var(--fg); font-size: 18px; font-weight: 600; }
 
         /* Trip card */
-        .trip-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; margin-bottom: 8px; }
-        .trip-card .trip-hd { display: flex; justify-content: space-between; margin-bottom: 6px; }
-        .trip-card .trip-hd span { font-size: 11px; color: var(--dim); }
-        .trip-stats { display: flex; gap: 16px; font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--muted); }
+        .trip-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 20px; margin-bottom: 10px; }
+        .trip-card .trip-hd { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .trip-card .trip-hd span { font-size: 13px; color: var(--dim); }
+        .trip-stats { display: flex; gap: 20px; font-family: 'Geist Mono', monospace; font-size: 14px; color: var(--muted); }
         .trip-stats b { color: var(--fg); font-weight: 500; }
 
         /* Health bars */
-        .hb { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-        .hb-n { font-size: 12px; color: var(--muted); width: 76px; }
-        .hb-t { flex: 1; height: 3px; background: var(--ghost); border-radius: 2px; overflow: hidden; }
-        .hb-f { height: 100%; border-radius: 2px; transition: width .4s; }
-        .hb-v { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--dim); width: 24px; text-align: right; }
+        .hb { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .hb-n { font-size: 14px; color: var(--muted); width: 90px; }
+        .hb-t { flex: 1; height: 6px; background: var(--ghost); border-radius: 3px; overflow: hidden; }
+        .hb-f { height: 100%; border-radius: 3px; transition: width .4s; }
+        .hb-v { font-family: 'Geist Mono', monospace; font-size: 15px; color: var(--dim); width: 32px; text-align: right; font-weight: 600; }
 
         /* Log */
-        .log-e { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--dim); padding: 4px 0; border-bottom: 1px solid var(--border); line-height: 1.4; }
+        .log-e { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); padding: 7px 0; border-bottom: 1px solid var(--border); line-height: 1.5; }
         .log-t { color: var(--ghost); }
         .log-tag { color: var(--muted); }
 
         /* JSON */
-        .json-area { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--dim); line-height: 1.5; white-space: pre; overflow: auto; max-height: 300px; padding: 12px; background: var(--bg); border-radius: var(--r); border: 1px solid var(--border); margin-top: 8px; }
+        .json-area { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); line-height: 1.6; white-space: pre; overflow: auto; max-height: 400px; padding: 16px; background: var(--bg); border-radius: var(--r); border: 1px solid var(--border); margin-top: 12px; }
 
         /* Sim phase badge */
-        .phase-b { font-family: 'Geist Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; color: var(--muted); background: var(--raised); border: 1px solid var(--border); }
+        .phase-b { font-family: 'Geist Mono', monospace; font-size: 14px; padding: 5px 12px; border-radius: 6px; color: var(--muted); background: var(--raised); border: 1px solid var(--border); }
 
         /* Two col layout */
-        .cols { display: grid; grid-template-columns: 1fr 320px; gap: 0; }
-        .col-main { padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; }
-        .col-side { padding: 16px; overflow-y: auto; }
-        .col-side .sec { margin-top: 16px; }
+        .cols { display: grid; grid-template-columns: 1fr 380px; gap: 0; }
+        .col-main { padding: 24px 28px; border-right: 1px solid var(--border); overflow-y: auto; }
+        .col-side { padding: 20px 24px; overflow-y: auto; }
+        .col-side .sec { margin-top: 24px; }
         .col-side .sec:first-child { margin-top: 0; }
 
         @media (max-width: 960px) {
@@ -153,8 +153,8 @@
 <div class="col-main">
     <div class="sec">Engine</div>
     <div class="g g4">
-        <div class="c c-big" id="c-rpm" style="grid-column:span 2"><div class="c-l">RPM</div><div class="c-r"><div class="c-v" id="v-rpm">--</div><canvas class="spark" id="sp-rpm" width="56" height="20"></canvas></div></div>
-        <div class="c c-big" id="c-mpg" style="grid-column:span 2"><div class="c-l" id="mpg-label">Instant MPG</div><div class="c-r"><div class="c-v" id="v-mpg">--</div><canvas class="spark" id="sp-mpg" width="56" height="20"></canvas></div></div>
+        <div class="c c-big" id="c-rpm" style="grid-column:span 2"><div class="c-l">RPM</div><div class="c-r"><div class="c-v" id="v-rpm">--</div><canvas class="spark" id="sp-rpm" width="80" height="28"></canvas></div></div>
+        <div class="c c-big" id="c-mpg" style="grid-column:span 2"><div class="c-l" id="mpg-label">Instant MPG</div><div class="c-r"><div class="c-v" id="v-mpg">--</div><canvas class="spark" id="sp-mpg" width="80" height="28"></canvas></div></div>
         <div class="c"><div class="c-l">Load</div><div class="c-r"><div class="c-v" id="v-load">--</div><div class="c-u">%</div></div></div>
         <div class="c"><div class="c-l">Throttle</div><div class="c-r"><div class="c-v" id="v-thr">--</div><div class="c-u">%</div></div></div>
         <div class="c"><div class="c-l">MAF</div><div class="c-r"><div class="c-v" id="v-maf">--</div><div class="c-u">g/s</div></div></div>
@@ -163,7 +163,7 @@
 
     <div class="sec">Thermal</div>
     <div class="g g4">
-        <div class="c" id="c-cool"><div class="c-l">Coolant</div><div class="c-r"><div class="c-v" id="v-cool">--</div><canvas class="spark" id="sp-cool" width="56" height="20"></canvas></div></div>
+        <div class="c" id="c-cool"><div class="c-l">Coolant</div><div class="c-r"><div class="c-v" id="v-cool">--</div><canvas class="spark" id="sp-cool" width="80" height="28"></canvas></div></div>
         <div class="c"><div class="c-l">Oil</div><div class="c-r"><div class="c-v" id="v-oil">--</div><div class="c-u">C</div></div></div>
         <div class="c"><div class="c-l">Intake Air</div><div class="c-r"><div class="c-v" id="v-iat">--</div><div class="c-u">C</div></div></div>
         <div class="c"><div class="c-l">Catalyst</div><div class="c-r"><div class="c-v" id="v-cat">--</div><div class="c-u">C</div></div></div>
@@ -171,7 +171,7 @@
 
     <div class="sec">Fuel System</div>
     <div class="tank">
-        <div class="tank-hd"><span class="c-l">Tank Level</span><span class="mono" style="font-size:12px;color:var(--fg)" id="tank-pct">--%</span></div>
+        <div class="tank-hd"><span class="c-l">Tank Level</span><span class="mono" style="font-size:18px;font-weight:600;color:var(--fg)" id="tank-pct">--%</span></div>
         <div class="tank-tr"><div class="tank-fl" id="tank-fl"></div></div>
     </div>
     <div style="height:8px"></div>
@@ -184,7 +184,7 @@
 
     <div class="sec">Electrical</div>
     <div class="g g3">
-        <div class="c" id="c-volt"><div class="c-l">Battery</div><div class="c-r"><div class="c-v" id="v-volt">--</div><canvas class="spark" id="sp-volt" width="56" height="20"></canvas></div></div>
+        <div class="c" id="c-volt"><div class="c-l">Battery</div><div class="c-r"><div class="c-v" id="v-volt">--</div><canvas class="spark" id="sp-volt" width="80" height="28"></canvas></div></div>
         <div class="c"><div class="c-l">Speed</div><div class="c-r"><div class="c-v" id="v-spd">--</div><div class="c-u">mph</div></div></div>
         <div class="c"><div class="c-l">Idle Rate</div><div class="c-r"><div class="c-v" id="v-idle">--</div><div class="c-u">gal/hr</div></div></div>
     </div>
@@ -201,7 +201,7 @@
     </div>
 
     <div class="sec">Simulator</div>
-    <div style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8">
+    <div style="font-family:'Geist Mono',monospace;font-size:14px;color:var(--muted);line-height:2">
         <div>Phase: <span class="phase-b" id="sim-phase">--</span></div>
         <div>Elapsed: <span id="sim-elapsed" style="color:var(--fg)">--</span></div>
         <div>Scenario: <span id="sim-scenario" style="color:var(--fg)">--</span></div>
@@ -216,7 +216,7 @@
 <!-- TAB: System -->
 <div class="panel" id="p-system">
     <div class="sec">Safety Gate</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Whitelist-based. Only these modes pass through SafeOBDConnection. Everything else raises BlockedCommandError.</p>
+    <p style="font-size:15px;color:var(--muted);margin-bottom:12px;line-height:1.5">Whitelist-based. Only these modes pass through SafeOBDConnection. Everything else raises BlockedCommandError.</p>
     <div style="margin-bottom:12px">
         <div class="c-l" style="margin-bottom:6px">Allowed (read-only)</div>
         <div class="mode-list" id="modes-allow"></div>
@@ -228,17 +228,17 @@
 
     <div class="sec">Fuel Calculator</div>
     <div class="g g3" id="fc-grid">
-        <div class="c"><div class="c-l">Trip Active</div><div class="c-v" id="fc-active" style="font-size:14px">--</div></div>
-        <div class="c"><div class="c-l">Gas Price</div><div class="c-v" id="fc-price" style="font-size:14px">--</div></div>
-        <div class="c"><div class="c-l">Tank Capacity</div><div class="c-v" id="fc-tank" style="font-size:14px">--</div></div>
+        <div class="c"><div class="c-l">Trip Active</div><div class="c-v" id="fc-active" style="font-size:20px">--</div></div>
+        <div class="c"><div class="c-l">Gas Price</div><div class="c-v" id="fc-price" style="font-size:20px">--</div></div>
+        <div class="c"><div class="c-l">Tank Capacity</div><div class="c-v" id="fc-tank" style="font-size:20px">--</div></div>
     </div>
     <div id="fc-trip-detail" style="margin-top:8px"></div>
 
     <div class="sec">WebSocket</div>
     <div class="g g3">
-        <div class="c"><div class="c-l">Clients</div><div class="c-v" id="ws-clients" style="font-size:14px">--</div></div>
-        <div class="c"><div class="c-l">Rate</div><div class="c-v" id="ws-rate" style="font-size:14px">--</div></div>
-        <div class="c"><div class="c-l">Uptime</div><div class="c-v" id="ws-uptime" style="font-size:14px">--</div></div>
+        <div class="c"><div class="c-l">Clients</div><div class="c-v" id="ws-clients" style="font-size:20px">--</div></div>
+        <div class="c"><div class="c-l">Rate</div><div class="c-v" id="ws-rate" style="font-size:20px">--</div></div>
+        <div class="c"><div class="c-l">Uptime</div><div class="c-v" id="ws-uptime" style="font-size:20px">--</div></div>
     </div>
 
     <div class="sec">Server Config</div>
@@ -265,7 +265,7 @@
     <div id="fillup-info"><p style="color:var(--dim);font-size:12px">No fill-ups detected</p></div>
 
     <div class="sec">Database Config</div>
-    <div style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8">
+    <div style="font-family:'Geist Mono',monospace;font-size:14px;color:var(--muted);line-height:2">
         <div>Path: <span style="color:var(--fg)" id="db-path">--</span></div>
         <div>Journal: <span style="color:var(--fg)">WAL</span></div>
         <div>Sync: <span style="color:var(--fg)">NORMAL</span></div>
