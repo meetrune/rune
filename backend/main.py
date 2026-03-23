@@ -222,6 +222,94 @@ async def health_check() -> JSONResponse:
     })
 
 
+@app.get("/api/debug")
+async def debug_info() -> JSONResponse:
+    """Full system state for the debug dashboard."""
+    db: RuneDatabase = app.state.db
+    fuel_calc: FuelCalculator = app.state.fuel_calc
+    fillup_det: FillupDetector = app.state.fillup_detector
+    collector = app.state.collector
+    manager: ConnectionManager = app.state.connection_manager
+
+    # Safety gate
+    from backend.obd_manager.connection import ALLOWED_MODES, BLOCKED_MODES
+
+    # DB row counts
+    conn = db._require_conn()
+    readings_count = (await (await conn.execute("SELECT COUNT(*) FROM sensor_readings")).fetchone())[0]
+    trips_count = (await (await conn.execute("SELECT COUNT(*) FROM trips")).fetchone())[0]
+    fillups_count = (await (await conn.execute("SELECT COUNT(*) FROM fillups")).fetchone())[0]
+    health_count = (await (await conn.execute("SELECT COUNT(*) FROM health_scores")).fetchone())[0]
+
+    # Recent trips
+    recent_trips = await db.get_recent_trips(limit=5)
+
+    # Last fillup
+    last_fillup = await db.get_last_fillup()
+
+    # Simulator state
+    sim = collector._sim if hasattr(collector, '_sim') else None
+    sim_info = {}
+    if sim:
+        sim_info = {
+            "phase": sim.phase.value,
+            "elapsed_seconds": round(sim._state.elapsed, 1),
+            "ambient_temp_c": sim._state.ambient_temp_c,
+            "scenario_index": sim._state.scenario_index,
+            "scenario_total": len(sim._scenario),
+            "anomalies_configured": len(sim._anomalies),
+        }
+
+    # Fuel calculator state
+    trip_info = None
+    if fuel_calc.current_trip:
+        t = fuel_calc.current_trip
+        trip_info = {
+            "trip_id": t.trip_id,
+            "start_time": t.start_time,
+            "distance_miles": round(t.distance_miles, 4),
+            "fuel_gallons": round(t.fuel_gallons, 6),
+            "fuel_cost_usd": round(t.fuel_gallons * settings.gas_price_per_gallon, 2),
+            "idle_since": t.idle_since,
+        }
+
+    return JSONResponse({
+        "safety_gate": {
+            "allowed_modes": sorted(ALLOWED_MODES),
+            "blocked_modes": sorted(BLOCKED_MODES),
+            "mode": "whitelist",
+        },
+        "database": {
+            "path": settings.db_path,
+            "journal_mode": "wal",
+            "tables": {
+                "sensor_readings": readings_count,
+                "trips": trips_count,
+                "fillups": fillups_count,
+                "health_scores": health_count,
+            },
+        },
+        "recent_trips": recent_trips,
+        "last_fillup": last_fillup,
+        "simulator": sim_info,
+        "fuel_calculator": {
+            "trip_active": fuel_calc.is_trip_active,
+            "current_trip": trip_info,
+            "gas_price_per_gallon": settings.gas_price_per_gallon,
+            "tank_capacity_gal": settings.fuel_tank_capacity_gal,
+        },
+        "websocket": {
+            "clients_connected": manager.client_count,
+            "rate_hz": settings.ws_rate_hz,
+        },
+        "server": {
+            "uptime_seconds": round(time.monotonic() - _start_time, 2),
+            "simulator_mode": settings.use_simulator,
+            "version": "0.1.0",
+        },
+    })
+
+
 @app.websocket("/ws/vehicle-data")
 async def vehicle_data_ws(websocket: WebSocket) -> None:
     """WebSocket endpoint for streaming vehicle data to the frontend.
