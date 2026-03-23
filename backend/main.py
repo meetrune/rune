@@ -23,8 +23,9 @@ from backend.config import settings
 from backend.database.db import RuneDatabase
 from backend.fuel.calculator import FuelCalculator
 from backend.fuel.fillup import FillupDetector
+from backend.health.scorer import HealthScorer
 from backend.obd_manager.collector import DataCollector, OBDCollector, SimulatedCollector
-from backend.obd_manager.models import HealthSnapshot, WebSocketMessage
+from backend.obd_manager.models import WebSocketMessage
 from backend.ws_manager import ConnectionManager
 
 # Structured JSON logging
@@ -61,6 +62,7 @@ async def obd_producer_loop(
     collector: DataCollector,
     fuel_calc: FuelCalculator,
     fillup_detector: FillupDetector,
+    health_scorer: HealthScorer,
     db: RuneDatabase,
     manager: ConnectionManager,
 ) -> None:
@@ -73,12 +75,6 @@ async def obd_producer_loop(
     tick_count = 0
     reading_buffer = []
     active_trip_id: int | None = None
-
-    # Placeholder: -1 indicates health scorer not yet active. Session 4 replaces this.
-    health_snap = HealthSnapshot(
-        overall=-1, engine=-1, transmission=-1,
-        fuel=-1, cooling=-1, exhaust=-1, electrical=-1,
-    )
 
     logger.info("Producer loop started at %dHz", settings.ws_rate_hz)
 
@@ -130,6 +126,9 @@ async def obd_producer_loop(
             if len(reading_buffer) >= settings.ws_rate_hz:
                 await db.insert_readings(reading_buffer)
                 reading_buffer.clear()
+
+            # Health scoring
+            health_snap = health_scorer.score(snap)
 
             # Broadcast to all connected clients
             if manager.client_count > 0:
@@ -184,6 +183,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         epa_combined_mpg=settings.epa_combined_mpg,
     )
 
+    health_scorer = HealthScorer(
+        n_trees=25,
+        tree_height=6,
+        window_size=500,
+        calibration_samples=3000,
+    )
+
     manager = ConnectionManager()
 
     # Store on app.state for access in route handlers
@@ -191,11 +197,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.collector = collector
     app.state.fuel_calc = fuel_calc
     app.state.fillup_detector = fillup_detector
+    app.state.health_scorer = health_scorer
     app.state.connection_manager = manager
 
     # Start background tasks
     producer_task = asyncio.create_task(
-        obd_producer_loop(collector, fuel_calc, fillup_detector, db, manager)
+        obd_producer_loop(collector, fuel_calc, fillup_detector, health_scorer, db, manager)
     )
     maintenance_task = asyncio.create_task(db_maintenance_loop(db))
 
@@ -330,6 +337,7 @@ async def debug_info() -> JSONResponse:
             "gas_price_per_gallon": settings.gas_price_per_gallon,
             "tank_capacity_gal": settings.fuel_tank_capacity_gal,
         },
+        "health_scorer": app.state.health_scorer.get_debug_state(),
         "websocket": {
             "clients_connected": manager.client_count,
             "rate_hz": settings.ws_rate_hz,

@@ -23,6 +23,7 @@ dependencies = [
     "aiosqlite>=0.22",
     "scikit-learn>=1.8",
     "scipy>=1.17",
+    "pyod>=2.0",
 ]
 
 [project.optional-dependencies]
