@@ -108,8 +108,16 @@ async def obd_producer_loop(
                     )
                 active_trip_id = None
 
-            # Fill-up detection
-            fillup_event = fillup_detector.check(snap)
+            # Fill-up detection -- query miles since last fill for MPG calculation
+            miles_since_fill: float | None = None
+            last_fill = await db.get_last_fillup()
+            if last_fill:
+                recent = await db.get_recent_trips(limit=100)
+                miles_since_fill = sum(
+                    t["distance_miles"] for t in recent
+                    if t["start_time"] >= last_fill["detected_at"]
+                )
+            fillup_event = fillup_detector.check(snap, miles_since_last_fill=miles_since_fill)
             if fillup_event:
                 await db.insert_fillup(
                     detected_at_ms=int(fillup_event.detected_at * 1000),

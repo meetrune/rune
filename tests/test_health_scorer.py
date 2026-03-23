@@ -69,9 +69,13 @@ class TestRangeScoring:
         """103C should NOT be critical -- just warning."""
         assert score_range(103, COOLANT_TEMP) > 50.0
 
-    def test_coolant_109_is_beyond_critical(self) -> None:
-        """109C is beyond critical threshold (108C)."""
-        assert score_range(109, COOLANT_TEMP) == 20.0
+    def test_coolant_107_is_critical(self) -> None:
+        """107C is in critical zone (105-110C)."""
+        assert score_range(107, COOLANT_TEMP) == 50.0
+
+    def test_coolant_112_is_beyond_critical(self) -> None:
+        """112C is beyond critical threshold (110C)."""
+        assert score_range(112, COOLANT_TEMP) == 20.0
 
     def test_catalyst_600_is_normal(self) -> None:
         """600C is well within normal catalyst range (300-800C) for turbo."""
@@ -81,9 +85,13 @@ class TestRangeScoring:
         """900C is in warning zone (800-1000C)."""
         assert score_range(900, CATALYST_TEMP) == 85.0
 
-    def test_catalyst_1050_is_beyond_critical(self) -> None:
-        """Above 1000C is beyond critical for catalyst."""
-        assert score_range(1050, CATALYST_TEMP) == 20.0
+    def test_catalyst_1000_is_critical(self) -> None:
+        """1000C is in critical zone (950-1050C)."""
+        assert score_range(1000, CATALYST_TEMP) == 50.0
+
+    def test_catalyst_1100_is_beyond_critical(self) -> None:
+        """Above 1050C is beyond critical for catalyst."""
+        assert score_range(1100, CATALYST_TEMP) == 20.0
 
     def test_oil_temp_110_is_normal(self) -> None:
         """110C oil is normal for L15BE (80-120C range)."""

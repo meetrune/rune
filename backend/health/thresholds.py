@@ -51,8 +51,8 @@ class AbsoluteThreshold:
 # Warning starts at 100C. Critical at 108C (Honda fans go high-speed at ~107C).
 COOLANT_TEMP = RangeThreshold(
     normal_low=75, normal_high=100,
-    warning_low=75, warning_high=108,
-    critical_low=75, critical_high=108,
+    warning_low=75, warning_high=105,
+    critical_low=75, critical_high=110,
 )
 
 # Oil temp: ECU-calculated, not a physical sensor on L15BE.
@@ -106,8 +106,8 @@ CVT_FLUID_TEMP = RangeThreshold(
 # running dumping unburned fuel into the cat).
 CATALYST_TEMP = RangeThreshold(
     normal_low=300, normal_high=800,
-    warning_low=300, warning_high=1000,
-    critical_low=300, critical_high=1000,
+    warning_low=300, warning_high=950,
+    critical_low=300, critical_high=1050,
 )
 
 # Short-term fuel trim: +/-10% is normal closed-loop correction.
