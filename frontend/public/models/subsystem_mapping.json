@@ -1,0 +1,76 @@
+{
+  "car": "2026 Honda Accord SE",
+  "color": "Meteorite Gray Metallic",
+  "engine": "L15BE 1.5L VTEC Turbo",
+  "transmission": "CVT (BMMA)",
+  "drivetrain": "FWD",
+  "model_faces": 38537,
+  "model_file": "rune_sedan.glb",
+  "license": "CC Attribution - assetfactory (Sketchfab)",
+  "subsystems": {
+    "engine": {
+      "description": "L15BE 1.5T mounted transversely, slightly right of center. Exhaust side faces firewall, intake faces radiator.",
+      "location": "front center-right, 400-500mm from ground",
+      "mesh_parts": ["body_hood", "grille_front", "underbody_metal"],
+      "health_color_normal": "#22c55e",
+      "health_color_warning": "#eab308",
+      "health_color_critical": "#ef4444"
+    },
+    "transmission": {
+      "description": "CVT bolted to driver's side of engine. Spans left portion of engine bay.",
+      "location": "front-left (driver side), 300-500mm from ground",
+      "mesh_parts": ["body_shell"],
+      "health_color_normal": "#22c55e",
+      "health_color_warning": "#eab308",
+      "health_color_critical": "#ef4444"
+    },
+    "cooling": {
+      "description": "Radiator at extreme front behind grille. Coolant flows through engine block. Thermostat front-right.",
+      "location": "front-center, 400-900mm from ground",
+      "mesh_parts": ["grille_front", "body_hood"],
+      "health_color_normal": "#22c55e",
+      "health_color_warning": "#eab308",
+      "health_color_critical": "#ef4444"
+    },
+    "exhaust": {
+      "description": "Integrated exhaust manifold in cylinder head. Turbo at firewall. Close-coupled cat under engine. Pipe runs center-right underfloor to rear muffler.",
+      "location": "starts firewall center, runs underfloor center-right to rear",
+      "mesh_parts": ["underbody_metal", "trim_exhaust_tip", "lights_rear", "lights_rear_inner"],
+      "health_color_normal": "#22c55e",
+      "health_color_warning": "#eab308",
+      "health_color_critical": "#ef4444"
+    },
+    "electrical": {
+      "description": "12V battery front-right (passenger side). Alternator at firewall rear. Fuse box front-right.",
+      "location": "front-right (passenger side), 700-800mm from ground",
+      "mesh_parts": ["trim_headlight_chrome", "trim_headlight_black", "lights_turn_signal", "trim_body_chrome"],
+      "health_color_normal": "#22c55e",
+      "health_color_warning": "#eab308",
+      "health_color_critical": "#ef4444"
+    },
+    "fuel": {
+      "description": "14.8 gal tank centered under rear seats. Fuel filler right-rear quarter panel. Capless filler.",
+      "location": "center underfloor, under rear seats",
+      "mesh_parts": ["body_bottom", "body_shell"],
+      "health_color_normal": "#22c55e",
+      "health_color_warning": "#eab308",
+      "health_color_critical": "#ef4444"
+    }
+  },
+  "cosmetic_groups": {
+    "wheels": {
+      "mesh_parts": ["wheels_tires", "wheels_rims", "wheel_arch_left", "wheel_arch_right"],
+      "animation": "rotation proportional to speed_kph"
+    },
+    "glass": {
+      "mesh_parts": ["glass_front", "glass_rear", "glass_side", "glass_quarter"],
+      "material": "semi-transparent, slight blue tint"
+    },
+    "mirrors": {
+      "mesh_parts": ["mirror_left", "mirror_right"]
+    },
+    "trim": {
+      "mesh_parts": ["trim_chrome", "trim_detail", "trim_window_black", "trim_rear_black", "trim_rear_detail"]
+    }
+  }
+}

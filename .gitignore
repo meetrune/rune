@@ -33,6 +33,7 @@ Thumbs.db
 *.sqlite
 tests/replay_data/*.bin
 
-# Models
+# Models (allow rune_sedan.glb, ignore others)
 frontend/public/models/*.glb
+!frontend/public/models/rune_sedan.glb
 !frontend/public/models/.gitkeep
