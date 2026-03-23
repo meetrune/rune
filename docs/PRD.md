@@ -143,8 +143,9 @@ Rune speaks like a brother. Not a servant, not a robot, not a dashboard. A broth
 
 | Component | Specs | Role |
 |-----------|-------|------|
-| Raspberry Pi 4B | 4GB RAM, BCM2711 quad-core Cortex-A72 | The brain. FastAPI, OBD polling, ML inference, sensor fusion. |
-| Google Pixel 6 Pro | Google Tensor, 12GB RAM, Mali-G78 MP20 GPU, 6.7" LTPO OLED, LSM6DSO IMU | The face. Displays React PWA. Dedicated to this project. |
+| Raspberry Pi 4B | 4GB RAM, BCM2711 quad-core Cortex-A72 | The brain. FastAPI, OBD polling, real-time ML inference (Isolation Forest + TFLite), sensor fusion. Lives in the car. |
+| Google Pixel 6 Pro | Google Tensor, 12GB RAM, Mali-G78 MP20 GPU, 6.7" LTPO OLED, LSM6DSO IMU | The face. Displays React PWA. Hard-mounted in the car on vent mount. Dedicated to this project. |
+| MacBook Pro M3 Max | 36GB unified RAM, 16-core Neural Engine, 40-core GPU | The gym. Offline training workstation. Receives SQLite DB exports, trains personalized ML models (LSTM autoencoder via MLX), runs batch analysis (Prophet forecasting, route clustering, seasonal normalization), generates PDF diagnostic reports. Outputs frozen TFLite models + analysis results that get pushed back to Pi. |
 | MicroSD card | Currently in Pi running Raspberry Pi OS | Development use. Back up to GitHub monthly. |
 | USB-C to USB-C cable | From SanDisk SSD | Connects Pixel 6 Pro to console USB-C charging port. |
 | Dupont jumper wires | Multiple sets | Connecting sensors to Pi GPIO. |
@@ -692,6 +693,43 @@ Brake pad wear, suspension degradation, tire condition -- Rune can't detect thes
 | 10 | PDF diagnostic reports | Jinja2 HTML templates + matplotlib charts + WeasyPrint PDF. Two-tier: customer-friendly summary (traffic-light per subsystem) + detailed technical section (DTCs, freeze frames, trend charts, spectrograms). |
 | 11 | GNN health graph (stretch) | 8-node graph: Engine, Transmission, Exhaust, Cooling, Fuel, Electrical, Brakes, HVAC. 2-3 layer GCN, 64-dim embeddings. Train on desktop with PyTorch Geometric, export to ONNX/TFLite (~200KB). Graph overlay on 3D model (green/yellow/red nodes, highlighted fault propagation edges). |
 | 12 | Plugin architecture + open source launch | BasePlugin ABC (initialize, process, shutdown). Dynamic discovery via importlib scanning `plugins/` dir. Vehicle profile YAML system (auto-detect via VIN). Circuit breaker for sensor failures. GitHub release: MIT license, README with architecture diagram, hardware BOM, safety section. Demo video (2 min). |
+
+### v5 -- Mac Training Workstation (Post-launch, ongoing)
+
+The MacBook M3 Max runs a local training application that processes exported SQLite databases from the Pi. Data arrives on irregular schedules -- could be weekly, monthly, or after several months. The app handles whatever it receives gracefully.
+
+| Component | What it does |
+|-----------|-------------|
+| **Rune Trainer App** | Python desktop app (or web UI via FastAPI). Upload/select a SQLite DB export. App auto-detects data range, validates integrity, runs the full pipeline, outputs deployable artifacts. |
+| **LSTM Autoencoder Training** | Train personalized anomaly detection model on accumulated sensor data using MLX. Learns what "normal Rune" looks like across all sensor channels together. Outputs quantized TFLite model (~50KB) ready to deploy to Pi. |
+| **Prophet Fuel Forecasting** | Seasonal fuel economy forecasting. "Based on the last 3 months, you'll spend $142 on fuel in April." Outputs forecast JSON for Pi to display. |
+| **Route Clustering** | K-means on GPS route geometry. Per-route fuel baselines. "This route usually costs 0.87 gal, today it cost 1.1 gal." Outputs route lookup table for Pi. |
+| **Seasonal Normalization** | Calculates LTFT calibration coefficients per temperature bin so the Pi can distinguish seasonal fuel trim shifts from genuine degradation. |
+| **PDF Diagnostic Reports** | WeasyPrint + matplotlib. Mechanic-grade 20-page report: health timeline, fuel trim trends, anomaly log, freeze frames, sensor correlation heatmaps. |
+| **Data Quality Report** | On upload, shows: date range covered, total readings, gaps in data, sensor coverage, anomalies found, data integrity issues. |
+
+**App workflow:**
+1. User drops/selects SQLite DB export file
+2. App validates: checks schema version, data integrity, date range, sensor coverage
+3. Shows data quality summary: "This export covers March 1 - April 15. 3.2M readings. 47 trips. 3 fill-ups. 2 data gaps (total 4 hours). Ready to process."
+4. User clicks "Train" -- runs the full pipeline (LSTM training, Prophet forecast, route clustering, seasonal calibration)
+5. Progress shown in real-time. Error handling for corrupt data, insufficient data, edge cases.
+6. Outputs a deployable package: `rune_update_YYYY-MM-DD.zip` containing:
+   - `model.tflite` -- updated anomaly detection model
+   - `forecast.json` -- fuel forecasts
+   - `routes.json` -- route baselines
+   - `calibration.json` -- seasonal normalization coefficients
+   - `report.pdf` -- diagnostic report
+7. User transfers the zip to Pi (via Rune WiFi, USB, or however they sync)
+8. Pi loads the new artifacts on next boot
+
+**Edge cases the app must handle:**
+- DB with only 1 week of data -- skip LSTM training (needs 4+ weeks), still run basic analysis
+- DB with gaps (car not driven for weeks) -- detect and exclude gaps from training
+- DB with sensor errors (NaN values, stuck sensors) -- clean before training, report what was cleaned
+- DB from a different schema version -- migration or clear error message
+- Very large DB (6+ months, 500MB+) -- progress indicators, chunked processing
+- Corrupt or truncated DB -- validate before processing, don't crash
 
 ---
 

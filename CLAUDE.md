@@ -66,6 +66,17 @@ Rune IS the car. He speaks in first person. He's a brother -- direct, honest, st
 - **Data validation:** pydantic 2.12.5
 - **Data flow:** All sensor data flows through Pi (central hub). WebSocket at 10Hz to phone. Phone is display + secondary sensor source.
 - **Static frontend serving:** `app.mount("/", StaticFiles(directory="frontend/dist", html=True))`
+- **Mac training workstation (v5+):** MacBook Pro M3 Max 36GB. Receives SQLite DB exports from Pi on irregular schedule (weekly/monthly/whenever). Trains personalized LSTM autoencoder via MLX, runs Prophet fuel forecasting, route clustering, seasonal calibration. Outputs deployable artifacts (TFLite model + JSON configs + PDF reports) that go back to Pi. See PRD Section 11 v5 for full spec.
+
+### Three-device architecture
+
+```
+Pi (collects + real-time inference) -> Pixel (displays) -> Mac (trains + analyzes offline)
+```
+
+- **Pi** owns real-time: OBD polling, EWMA, Isolation Forest, TFLite inference, WebSocket streaming
+- **Pixel** owns display: 3D visualization, health dashboard, fuel tracking, Rune's voice
+- **Mac** owns training: LSTM autoencoder training (MLX), Prophet forecasts, route clustering, PDF reports, seasonal calibration. Runs on-demand when DB export is available. Outputs artifacts that make the Pi smarter over time.
 
 ---
 
