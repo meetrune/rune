@@ -12,13 +12,11 @@ Layer 3 runs on a separate timer.
 from __future__ import annotations
 
 import logging
-import math
 import random
-import time
 from dataclasses import dataclass, field
 
 from backend.health.rules import compute_overall, score_subsystems
-from backend.health.thresholds import SUBSYSTEM_WEIGHTS
+from backend.health.thresholds import EWMA_ALPHAS, SUBSYSTEM_WEIGHTS
 from backend.obd_manager.models import HealthSnapshot, VehicleSnapshot
 
 logger = logging.getLogger(__name__)
@@ -27,24 +25,79 @@ logger = logging.getLogger(__name__)
 # --- Online HalfSpaceTrees implementation ---
 # River ML doesn't compile on Python 3.14, so we implement the core algorithm.
 # Based on Tan et al. "Fast Anomaly Detection for Streaming Data" (IJCAI 2011).
-# O(1) per sample, constant memory, no retraining needed.
+# Reference implementation: river/anomaly/hst.py
+#
+# Key algorithm details (verified against River source):
+# - Each node has TWO mass counters: l_mass (current window) and r_mass (reference).
+# - On learn: increment l_mass on EVERY node along the root-to-leaf path.
+# - Window swap: after window_size samples, copy l_mass -> r_mass, reset l_mass = 0.
+# - Scoring: walk root-to-leaf, accumulate r_mass * 2^depth at each node.
+# - Early stop if r_mass < size_limit (0.1 * window_size).
+# - Normalization: max_score = n_trees * window_size * (2^(height+1) - 1).
+# - Final = 1 - (raw / max). 0 = normal, 1 = anomaly.
+# - Warm-up guard: return 0.0 until first window pivot completes.
 
 
 @dataclass
-class _HalfSpaceNode:
-    """A single split node in a half-space tree."""
-    feature: int        # which feature to split on
-    split_value: float  # threshold value
-    left_count: float   # count on left side (with decay)
-    right_count: float  # count on right side (with decay)
+class _HSTNode:
+    """A node in the half-space tree (internal or leaf)."""
+    feature: int
+    split_value: float
+    left: _HSTNode | None = None
+    right: _HSTNode | None = None
+    l_mass: float = 0.0   # current window mass
+    r_mass: float = 0.0   # reference window mass
+
+
+def _build_tree(
+    rng: random.Random,
+    n_features: int,
+    height: int,
+    ranges: list[tuple[float, float]],
+    depth: int = 0,
+) -> _HSTNode:
+    """Recursively build a random half-space tree with padded split values."""
+    feature = rng.randint(0, n_features - 1)
+    a, b = ranges[feature]
+    span = b - a
+    # 15% padding on each side to avoid degenerate splits at boundaries
+    pad = 0.15 * span
+    if span > 0:
+        split = rng.uniform(a + pad, b - pad)
+    else:
+        split = a
+
+    node = _HSTNode(feature=feature, split_value=split)
+
+    if depth < height:
+        # Narrow the range for children
+        left_ranges = list(ranges)
+        left_ranges[feature] = (a, split)
+        right_ranges = list(ranges)
+        right_ranges[feature] = (split, b)
+
+        node.left = _build_tree(rng, n_features, height, left_ranges, depth + 1)
+        node.right = _build_tree(rng, n_features, height, right_ranges, depth + 1)
+
+    return node
+
+
+def _reset_masses(node: _HSTNode | None) -> None:
+    """Swap l_mass -> r_mass and reset l_mass for all nodes."""
+    if node is None:
+        return
+    node.r_mass = node.l_mass
+    node.l_mass = 0.0
+    _reset_masses(node.left)
+    _reset_masses(node.right)
 
 
 class HalfSpaceTrees:
     """Online streaming anomaly detector.
 
     Builds a forest of random half-space partitions. Normal data
-    lands in dense regions (high counts). Anomalies land in sparse
-    regions (low counts). Learns continuously from each sample.
+    lands in dense regions (high mass). Anomalies land in sparse
+    regions (low mass). Learns continuously from each sample.
 
     Usage:
         hst = HalfSpaceTrees(n_features=14)
@@ -64,27 +117,30 @@ class HalfSpaceTrees:
         self._height = height
         self._window_size = window_size
         self._sample_count = 0
+        self._size_limit = 0.1 * window_size
+        self._window_pivoted = False
+
+        # Max possible score for normalization
+        # Each tree can contribute at most window_size * sum(2^d for d in 0..height)
+        # = window_size * (2^(height+1) - 1)
+        self._max_score = float(n_trees * window_size * (2 ** (height + 1) - 1))
 
         # Feature ranges for normalization (learned online)
         self._min_vals = [float("inf")] * n_features
         self._max_vals = [float("-inf")] * n_features
 
-        # Build random trees
+        # Build random trees with initial [0, 1] ranges
         rng = random.Random(seed)
-        self._trees: list[list[_HalfSpaceNode]] = []
+        initial_ranges = [(0.0, 1.0)] * n_features
+        self._trees: list[_HSTNode] = []
         for _ in range(n_trees):
-            tree: list[_HalfSpaceNode] = []
-            for _ in range(2 ** height - 1):  # full binary tree nodes
-                feat = rng.randint(0, n_features - 1)
-                split = rng.random()  # split in [0, 1] after normalization
-                tree.append(_HalfSpaceNode(feat, split, 0.0, 0.0))
+            tree = _build_tree(rng, n_features, height, initial_ranges)
             self._trees.append(tree)
 
     def _normalize(self, features: list[float]) -> list[float]:
         """Normalize features to [0, 1] based on observed min/max."""
-        result = []
+        result: list[float] = []
         for i, v in enumerate(features):
-            # Update ranges
             if v < self._min_vals[i]:
                 self._min_vals[i] = v
             if v > self._max_vals[i]:
@@ -97,59 +153,64 @@ class HalfSpaceTrees:
                 result.append(0.5)
         return result
 
-    def _traverse(self, tree: list[_HalfSpaceNode], normed: list[float]) -> int:
-        """Traverse tree to find leaf index. Returns node index."""
-        idx = 0
-        for _ in range(self._height - 1):
-            node = tree[idx]
-            if normed[node.feature] < node.split_value:
-                idx = 2 * idx + 1  # left child
-            else:
-                idx = 2 * idx + 2  # right child
-            if idx >= len(tree):
-                break
-        return min(idx, len(tree) - 1)
+    def _learn_path(self, node: _HSTNode | None, normed: list[float]) -> None:
+        """Walk root to leaf, incrementing l_mass on every node along the path."""
+        if node is None:
+            return
+        node.l_mass += 1.0
+        if node.left is None and node.right is None:
+            return  # leaf
+        if normed[node.feature] < node.split_value:
+            self._learn_path(node.left, normed)
+        else:
+            self._learn_path(node.right, normed)
+
+    def _score_path(self, node: _HSTNode | None, normed: list[float], depth: int) -> float:
+        """Walk root to leaf, accumulating r_mass * 2^depth. Early stop on small mass."""
+        if node is None:
+            return 0.0
+
+        # Early stop: if reference mass is too small, this region is too sparse to be useful
+        if node.r_mass < self._size_limit:
+            return 0.0
+
+        score = node.r_mass * (2.0 ** depth)
+
+        if node.left is None and node.right is None:
+            return score  # leaf
+
+        if normed[node.feature] < node.split_value:
+            return score + self._score_path(node.left, normed, depth + 1)
+        else:
+            return score + self._score_path(node.right, normed, depth + 1)
 
     def score_and_learn(self, features: list[float]) -> float:
         """Score a sample and update the model. Returns 0.0 (normal) to 1.0 (anomaly)."""
         self._sample_count += 1
         normed = self._normalize(features)
 
-        total_score = 0.0
-        decay = 2 ** (-1.0 / self._window_size)  # exponential decay factor
+        # Score BEFORE learning (score uses r_mass, learn updates l_mass)
+        raw_score = 0.0
+        if self._window_pivoted and self._max_score > 0:
+            for tree in self._trees:
+                raw_score += self._score_path(tree, normed, depth=0)
 
+        # Learn: update l_mass along the path
         for tree in self._trees:
-            leaf_idx = self._traverse(tree, normed)
-            node = tree[leaf_idx]
+            self._learn_path(tree, normed)
 
-            # Score based on count at this leaf (lower count = more anomalous)
-            if normed[node.feature] < node.split_value:
-                count = node.left_count
-            else:
-                count = node.right_count
+        # Window swap: after window_size samples, pivot
+        if self._sample_count % self._window_size == 0:
+            for tree in self._trees:
+                _reset_masses(tree)
+            self._window_pivoted = True
 
-            # Anomaly score for this tree: inverse of density
-            # Add 1 to avoid division by zero
-            tree_score = 1.0 / (count + 1)
-            total_score += tree_score
+        # Warm-up guard: return 0.0 until first window pivot
+        if not self._window_pivoted:
+            return 0.0
 
-            # Update counts with exponential decay (windowed learning)
-            for n in tree:
-                n.left_count *= decay
-                n.right_count *= decay
-
-            # Increment the leaf this sample landed in
-            if normed[node.feature] < node.split_value:
-                node.left_count += 1
-            else:
-                node.right_count += 1
-
-        # Normalize score to [0, 1]
-        avg_score = total_score / self._n_trees
-        # Sigmoid-like normalization: map to [0, 1]
-        # Score of ~1.0 when count is 0 (never seen), ~0.0 when count is high
-        normalized = min(1.0, avg_score * math.sqrt(self._sample_count / max(self._window_size, 1)))
-
+        # Normalize: high raw_score = normal (dense), low = anomaly (sparse)
+        normalized = 1.0 - (raw_score / self._max_score)
         return max(0.0, min(1.0, normalized))
 
 
@@ -225,13 +286,9 @@ class HealthScorer:
         self._sample_count = 0
         self._calibration_complete = False
 
-        # EWMA smoothers for key parameters (trend pre-filtering)
+        # EWMA smoothers with sensor-appropriate alpha values
         self._ewma: dict[str, EWMA] = {
-            "coolant_temp_c": EWMA(alpha=0.05),
-            "ltft_pct": EWMA(alpha=0.05),
-            "battery_voltage": EWMA(alpha=0.05),
-            "catalyst_temp_c": EWMA(alpha=0.05),
-            "oil_temp_c": EWMA(alpha=0.05),
+            param: EWMA(alpha=alpha) for param, alpha in EWMA_ALPHAS.items()
         }
 
         # Last anomaly score for debug/logging

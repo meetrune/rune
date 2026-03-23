@@ -1,13 +1,11 @@
 """Per-subsystem scoring rules.
 
-Translates raw sensor values into 0-100 health scores using the
-Honda-specific thresholds. Each parameter gets its own score,
-subsystem scores are averaged, and overall is weighted.
-
-Scoring zones:
-  100       = within normal range
-  70-99     = warning zone (proportional to severity)
-  0-69      = critical zone (proportional to severity)
+Translates raw sensor values into 0-100 health scores using Honda-specific
+thresholds. Uses STEPPED deductions matching production fleet scoring systems:
+  100  = within normal range
+  85   = warning zone (fixed step, actionable threshold)
+  50   = at critical threshold
+  20   = beyond critical (minimum floor, never 0 unless DTC present)
 """
 
 from __future__ import annotations
@@ -30,68 +28,58 @@ from backend.obd_manager.models import VehicleSnapshot
 
 
 def score_range(value: float, threshold: RangeThreshold) -> float:
-    """Score a value against a range threshold. Returns 0-100."""
+    """Score a value against a range threshold using stepped deductions.
+
+    Returns:
+        100.0 if within normal range
+        85.0 if in warning zone (between normal and warning/critical boundary)
+        50.0 if at critical boundary
+        20.0 if beyond critical (floor -- never 0 from thresholds alone)
+    """
     # Within normal range
     if threshold.normal_low <= value <= threshold.normal_high:
         return 100.0
 
-    # Warning zone (high side)
-    if threshold.normal_high < value <= threshold.warning_high:
-        span = threshold.warning_high - threshold.normal_high
-        if span <= 0:
+    # Check high side
+    if value > threshold.normal_high:
+        if value <= threshold.warning_high:
             return 85.0
-        progress = (value - threshold.normal_high) / span
-        return 100.0 - progress * 30.0  # 100 -> 70
+        if value <= threshold.critical_high:
+            return 50.0
+        return 20.0
 
-    # Warning zone (low side)
-    if threshold.warning_low <= value < threshold.normal_low:
-        span = threshold.normal_low - threshold.warning_low
-        if span <= 0:
+    # Check low side
+    if value < threshold.normal_low:
+        if value >= threshold.warning_low:
             return 85.0
-        progress = (threshold.normal_low - value) / span
-        return 100.0 - progress * 30.0
-
-    # Critical zone (high side)
-    if value > threshold.warning_high:
-        span = threshold.critical_high - threshold.warning_high
-        if span <= 0:
-            return 20.0
-        progress = min((value - threshold.warning_high) / span, 1.0)
-        return 70.0 - progress * 70.0  # 70 -> 0
-
-    # Critical zone (low side)
-    if value < threshold.warning_low:
-        span = threshold.warning_low - threshold.critical_low
-        if span <= 0:
-            return 20.0
-        progress = min((threshold.warning_low - value) / span, 1.0)
-        return 70.0 - progress * 70.0
+        if value >= threshold.critical_low:
+            return 50.0
+        return 20.0
 
     return 100.0
 
 
 def score_absolute(value: float, threshold: AbsoluteThreshold) -> float:
-    """Score a value where absolute deviation matters (fuel trims)."""
+    """Score a value where absolute deviation matters (fuel trims).
+
+    Same stepped approach:
+        100.0 if within normal
+        85.0 if in warning zone
+        50.0 if at critical
+        20.0 if beyond critical
+    """
     abs_val = abs(value)
 
     if abs_val <= threshold.normal:
         return 100.0
 
     if abs_val <= threshold.warning:
-        span = threshold.warning - threshold.normal
-        if span <= 0:
-            return 85.0
-        progress = (abs_val - threshold.normal) / span
-        return 100.0 - progress * 30.0  # 100 -> 70
+        return 85.0
 
     if abs_val <= threshold.critical:
-        span = threshold.critical - threshold.warning
-        if span <= 0:
-            return 35.0
-        progress = (abs_val - threshold.warning) / span
-        return 70.0 - progress * 70.0  # 70 -> 0
+        return 50.0
 
-    return 0.0
+    return 20.0
 
 
 def score_subsystems(snap: VehicleSnapshot) -> dict[str, float]:

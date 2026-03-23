@@ -117,6 +117,16 @@ The whole purpose of Rune is safety. If the builder doesn't understand how somet
 - **Real hardware readiness.** OBDCollector is built with TCP connection, ELM327 init, PID polling, circuit breaker, reconnection logic. Ready for WiCAN Pro on day one.
 - **No placeholder data in production paths.** Health scores use -1 sentinel (not fake 100s) until the health scorer is active.
 
+## Validation Rule (NON-NEGOTIABLE)
+
+**Never implement an algorithm, threshold, formula, or calibration value from memory.** Always verify against primary sources before writing code. This is the same principle as the safety gate -- if you're not certain it's correct, it doesn't ship.
+
+1. **Algorithms:** Read the actual paper. Find the reference implementation. Compare line-by-line.
+2. **Vehicle specs:** Verify against Honda service manual, real scan tool data, or documented community measurements. Not assumptions.
+3. **Calibration values:** Research empirically validated values for the specific sensor and vehicle. No textbook defaults without verification.
+4. **Scoring formulas:** Research how proven systems compute scores. Don't invent formulas.
+5. **Before shipping:** "Would I trust this in my car?" If the answer requires "well, it should work..." then validate it first.
+
 ---
 
 ## Dependency Versions
