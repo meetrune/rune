@@ -273,3 +273,61 @@ class RuneDatabase:
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
+
+    # --- maintenance ---
+
+    async def cleanup(self, retention_days: int = 90) -> dict[str, int]:
+        """Delete old data and reclaim space.
+
+        Keeps the last retention_days of sensor readings.
+        Removes trips with zero meaningful distance (false starts from noise).
+        Checkpoints and vacuums the WAL file.
+
+        Returns counts of deleted rows per table.
+        """
+        conn = self._require_conn()
+        cutoff = _ts_ms() - (retention_days * 86400 * 1000)
+        deleted: dict[str, int] = {}
+
+        # Old sensor readings
+        cursor = await conn.execute(
+            "DELETE FROM sensor_readings WHERE ts < ?", (cutoff,),
+        )
+        deleted["sensor_readings"] = cursor.rowcount or 0
+
+        # Old health scores
+        cursor = await conn.execute(
+            "DELETE FROM health_scores WHERE ts < ?", (cutoff,),
+        )
+        deleted["health_scores"] = cursor.rowcount or 0
+
+        # Junk trips: completed trips with < 0.01 miles (noise-triggered false starts)
+        cursor = await conn.execute(
+            "DELETE FROM trips WHERE end_time IS NOT NULL AND distance_miles < 0.01",
+        )
+        deleted["junk_trips"] = cursor.rowcount or 0
+
+        await conn.commit()
+
+        # Reclaim disk space
+        await conn.execute("PRAGMA incremental_vacuum(200)")
+        await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        await conn.commit()
+
+        logger.info(
+            "Cleanup: deleted %d readings, %d health scores, %d junk trips",
+            deleted["sensor_readings"], deleted["health_scores"], deleted["junk_trips"],
+        )
+        return deleted
+
+    async def get_db_size_bytes(self) -> int:
+        """Get total DB file size (main + WAL + SHM)."""
+        import os
+        total = 0
+        for suffix in ("", "-wal", "-shm"):
+            path = self._db_path + suffix
+            try:
+                total += os.path.getsize(path)
+            except OSError:
+                pass
+        return total

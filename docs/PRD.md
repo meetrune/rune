@@ -951,6 +951,21 @@ sqlite3 /tmp/test.db "PRAGMA journal_mode;"      # wal
 
 **Running total: 138 tests, 15 source files, mypy clean.**
 
+### Data Quality Hardening (March 23, 2026)
+
+Fixes applied after honest assessment of edge cases before real hardware arrives.
+
+| Fix | What it does |
+|-----|-------------|
+| `RuneDatabase.cleanup()` | Deletes sensor readings older than 90 days, removes junk trips (<0.01 mi from noise), runs `PRAGMA incremental_vacuum` + `PRAGMA wal_checkpoint(TRUNCATE)` |
+| `db_maintenance_loop()` | Background task runs cleanup every hour automatically |
+| `get_db_size_bytes()` | Monitors DB + WAL + SHM file sizes, exposed in `/api/debug` |
+| Speed threshold 1->5 kph | Prevents GPS jitter (1-3 kph when stationary) from triggering false trips |
+| Junk trip discarding | Trips under 0.05 miles (~260 feet) are silently discarded instead of saved |
+| 5 new tests | Low-speed noise rejection, junk trip discarding, DB cleanup, DB size monitoring |
+
+**Running total: 143 tests, 15 source files, mypy clean.**
+
 ---
 
 ## 18. Research Findings (March 22, 2026)

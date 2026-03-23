@@ -37,6 +37,26 @@ logger = logging.getLogger("rune")
 _start_time: float = 0.0
 
 
+async def db_maintenance_loop(db: RuneDatabase) -> None:
+    """Background task: periodic DB cleanup and WAL checkpoint.
+
+    Runs every hour. Deletes old data, removes junk trips, reclaims space.
+    """
+    while True:
+        try:
+            await asyncio.sleep(3600)  # every hour
+            result = await db.cleanup(retention_days=90)
+            db_size = await db.get_db_size_bytes()
+            logger.info(
+                "DB maintenance: cleaned %s, size=%.1fMB",
+                result, db_size / 1_048_576,
+            )
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            logger.exception("DB maintenance error")
+
+
 async def obd_producer_loop(
     collector: SimulatedCollector,
     fuel_calc: FuelCalculator,
@@ -171,10 +191,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.fillup_detector = fillup_detector
     app.state.connection_manager = manager
 
-    # Start background producer
+    # Start background tasks
     producer_task = asyncio.create_task(
         obd_producer_loop(collector, fuel_calc, fillup_detector, db, manager)
     )
+    maintenance_task = asyncio.create_task(db_maintenance_loop(db))
 
     logger.info(
         "Rune started: simulator_mode=%s, ws_rate=%dHz, db=%s",
@@ -184,9 +205,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     # Shutdown -- order matters
+    maintenance_task.cancel()
     producer_task.cancel()
     try:
         await producer_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await maintenance_task
     except asyncio.CancelledError:
         pass
 
@@ -245,10 +271,14 @@ async def debug_info() -> JSONResponse:
 
     # DB row counts
     conn = db._require_conn()
-    readings_count = (await (await conn.execute("SELECT COUNT(*) FROM sensor_readings")).fetchone())[0]
-    trips_count = (await (await conn.execute("SELECT COUNT(*) FROM trips")).fetchone())[0]
-    fillups_count = (await (await conn.execute("SELECT COUNT(*) FROM fillups")).fetchone())[0]
-    health_count = (await (await conn.execute("SELECT COUNT(*) FROM health_scores")).fetchone())[0]
+    row = await (await conn.execute("SELECT COUNT(*) FROM sensor_readings")).fetchone()
+    readings_count = row[0] if row else 0
+    row = await (await conn.execute("SELECT COUNT(*) FROM trips")).fetchone()
+    trips_count = row[0] if row else 0
+    row = await (await conn.execute("SELECT COUNT(*) FROM fillups")).fetchone()
+    fillups_count = row[0] if row else 0
+    row = await (await conn.execute("SELECT COUNT(*) FROM health_scores")).fetchone()
+    health_count = row[0] if row else 0
 
     # Recent trips
     recent_trips = await db.get_recent_trips(limit=5)
@@ -282,6 +312,8 @@ async def debug_info() -> JSONResponse:
             "idle_since": t.idle_since,
         }
 
+    db_size = await db.get_db_size_bytes()
+
     return JSONResponse({
         "safety_gate": {
             "allowed_modes": sorted(ALLOWED_MODES),
@@ -291,6 +323,8 @@ async def debug_info() -> JSONResponse:
         "database": {
             "path": settings.db_path,
             "journal_mode": "wal",
+            "size_mb": round(db_size / 1_048_576, 2),
+            "retention_days": 90,
             "tables": {
                 "sensor_readings": readings_count,
                 "trips": trips_count,

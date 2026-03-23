@@ -228,6 +228,41 @@ class TestHealthScores:
         assert trend[0]["ts"] == now_ms
 
 
+class TestCleanup:
+
+    async def test_cleanup_removes_junk_trips(self, db: RuneDatabase) -> None:
+        """Trips with < 0.01 miles should be removed by cleanup."""
+        now = int(time.time() * 1000)
+        # Real trip
+        tid1 = await db.start_trip(now)
+        await db.end_trip(tid1, now + 600000, 5.2, 0.18, 0.63, 28.9)
+        # Junk trip
+        tid2 = await db.start_trip(now + 1000)
+        await db.end_trip(tid2, now + 2000, 0.002, 0.0001, 0.0, 0.2)
+
+        result = await db.cleanup(retention_days=90)
+        assert result["junk_trips"] == 1
+
+        trips = await db.get_recent_trips()
+        assert len(trips) == 1
+        assert trips[0]["trip_id"] == tid1
+
+    async def test_cleanup_keeps_recent_readings(self, db: RuneDatabase) -> None:
+        """Readings within retention window should survive cleanup."""
+        snap = _make_snap(rpm=700)
+        await db.insert_reading(snap)
+        result = await db.cleanup(retention_days=90)
+        assert result["sensor_readings"] == 0  # nothing old to delete
+
+        conn = db._require_conn()
+        cursor = await conn.execute("SELECT COUNT(*) FROM sensor_readings")
+        assert (await cursor.fetchone())[0] == 1
+
+    async def test_db_size_bytes(self, db: RuneDatabase) -> None:
+        size = await db.get_db_size_bytes()
+        assert size > 0  # DB file exists and has content
+
+
 class TestNotInitialized:
 
     def test_require_conn_raises(self) -> None:

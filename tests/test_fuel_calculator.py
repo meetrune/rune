@@ -52,11 +52,19 @@ class TestTripDetection:
 
     def test_trip_starts_on_movement(self) -> None:
         calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
-        snap = _snap(speed_kph=50)
+        snap = _snap(speed_kph=50)  # well above 5 kph threshold
         fuel, started, ended = calc.update(snap)
         assert started
         assert not ended
         assert calc.is_trip_active
+
+    def test_low_speed_noise_no_trip(self) -> None:
+        """Speed below 5 kph (GPS jitter) should NOT start a trip."""
+        calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
+        snap = _snap(speed_kph=3)  # below threshold
+        fuel, started, ended = calc.update(snap)
+        assert not started
+        assert not calc.is_trip_active
 
     def test_trip_accumulates_distance(self) -> None:
         calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
@@ -101,18 +109,40 @@ class TestTripDetection:
         calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
         t = time.time()
 
-        # Start driving
-        calc.update(_snap(speed_kph=50, timestamp=t))
+        # Drive for 30 seconds at 100 kph to build real distance (~0.5 miles)
+        for i in range(30):
+            calc.update(_snap(speed_kph=100, maf_gps=15.0, timestamp=t + i))
 
         # Stop for 61 seconds
         ended_at = None
-        for i in range(1, 62):
+        for i in range(30, 92):
             _, _, ended = calc.update(_snap(speed_kph=0, timestamp=t + i))
             if ended:
                 ended_at = i
 
         assert ended_at is not None
         assert not calc.is_trip_active
+
+    def test_junk_trip_discarded(self) -> None:
+        """Trip with < 0.05 miles should be silently discarded, not ended."""
+        calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
+        t = time.time()
+
+        # Barely move (6 kph for 1 second = ~0.001 miles)
+        calc.update(_snap(speed_kph=6, timestamp=t))
+        calc.update(_snap(speed_kph=6, timestamp=t + 1))
+
+        # Stop for 61 seconds
+        any_ended = False
+        for i in range(2, 63):
+            _, _, ended = calc.update(_snap(speed_kph=0, timestamp=t + i))
+            if ended:
+                any_ended = True
+
+        # Trip should be discarded, not ended
+        assert not any_ended
+        assert not calc.is_trip_active
+        assert calc.get_completed_trip_summary() is None
 
     def test_red_light_no_false_end(self) -> None:
         """Stop for 30s at a red light, then continue -- trip should NOT end."""
@@ -182,13 +212,12 @@ class TestTripSummary:
         calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
         t = time.time()
 
-        # Drive
-        calc.update(_snap(speed_kph=100, maf_gps=15.0, timestamp=t))
-        for i in range(1, 11):
+        # Drive for 30 seconds to build real distance
+        for i in range(30):
             calc.update(_snap(speed_kph=100, maf_gps=15.0, timestamp=t + i))
 
         # Stop for 61s to end trip
-        for i in range(11, 72):
+        for i in range(30, 92):
             calc.update(_snap(speed_kph=0, timestamp=t + i))
 
         summary = calc.get_completed_trip_summary()

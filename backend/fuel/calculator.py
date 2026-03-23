@@ -26,8 +26,12 @@ from backend.obd_manager.models import (
 
 logger = logging.getLogger(__name__)
 
-# Speed threshold for "stopped" -- accounts for sensor noise
-SPEED_THRESHOLD_KPH = 1.0
+# Speed threshold for "moving" -- must be above sensor noise and GPS jitter
+# Real GPS jitter can be 1-3 kph even when stationary
+SPEED_THRESHOLD_KPH = 5.0
+
+# Minimum trip distance to be considered real (not noise)
+MIN_TRIP_DISTANCE_MI = 0.05  # ~260 feet
 
 
 @dataclass
@@ -116,14 +120,22 @@ class FuelCalculator:
                 if self._trip.idle_since is None:
                     self._trip.idle_since = now
                 elif now - self._trip.idle_since >= self._idle_timeout_s:
-                    self._completed_trip = self._trip
-                    self._trip = None
-                    trip_ended = True
-                    logger.info(
-                        "Trip ended: %.2f mi, %.3f gal",
-                        self._completed_trip.distance_miles,
-                        self._completed_trip.fuel_gallons,
-                    )
+                    # Discard junk trips caused by sensor noise
+                    if self._trip.distance_miles < MIN_TRIP_DISTANCE_MI:
+                        logger.debug(
+                            "Discarding junk trip: %.4f mi (below %.2f threshold)",
+                            self._trip.distance_miles, MIN_TRIP_DISTANCE_MI,
+                        )
+                        self._trip = None
+                    else:
+                        self._completed_trip = self._trip
+                        self._trip = None
+                        trip_ended = True
+                        logger.info(
+                            "Trip ended: %.2f mi, %.3f gal",
+                            self._completed_trip.distance_miles,
+                            self._completed_trip.fuel_gallons,
+                        )
             else:
                 if self._trip is not None:
                     self._trip.idle_since = None
