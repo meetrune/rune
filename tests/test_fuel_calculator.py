@@ -253,91 +253,117 @@ class TestEdgeCases:
 # --- FillupDetector tests ---
 
 
+def _warmed_detector(
+    tank: float = 14.8,
+    price: float = 3.50,
+    epa: float = 31.0,
+    warmup_pct: float = 50.0,
+) -> FillupDetector:
+    """Create a FillupDetector past the 5-reading startup protection."""
+    det = FillupDetector(tank, price, epa)
+    for _ in range(5):
+        det.check(_snap(fuel_level_pct=warmup_pct))
+    return det
+
+
+class TestFillupStartupProtection:
+
+    def test_ignores_first_4_readings(self) -> None:
+        """Fill-up detection should be suppressed during startup."""
+        det = FillupDetector(14.8, 3.50, 31.0)
+        # Reading 1: set baseline at 30%
+        det.check(_snap(fuel_level_pct=30.0))
+        # Readings 2-4: jump to 95% but still in startup window
+        for _ in range(3):
+            event = det.check(_snap(fuel_level_pct=95.0))
+            assert event is None
+
+    def test_evaluates_after_5_readings(self) -> None:
+        """After 5 readings, fill-up detection should be active."""
+        det = FillupDetector(14.8, 3.50, 31.0)
+        # Burn through 4 startup readings at stable level
+        for _ in range(4):
+            det.check(_snap(fuel_level_pct=30.0))
+        # Reading 5: still at 30%, establishes baseline post-startup
+        det.check(_snap(fuel_level_pct=30.0))
+        # Reading 6: jump to 95%
+        event = det.check(_snap(fuel_level_pct=95.0))
+        assert event is not None
+
+
 class TestFillupDetector:
 
     def test_no_fillup_small_jump(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=50.0))
+        det = _warmed_detector(warmup_pct=50.0)
         event = det.check(_snap(fuel_level_pct=55.0))  # only 5% jump
         assert event is None
 
     def test_fillup_detected_at_20pct(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=50.0))  # exactly 20%
         assert event is not None
         assert isinstance(event, FillupEvent)
 
     def test_fillup_gallons_calculated(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=95.0))  # 65% jump
         assert event is not None
         # 65% of 14.8 gallons = 9.62
         assert abs(event.estimated_gallons - 9.6) < 0.2
 
     def test_fillup_cost_calculated(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=95.0))
         assert event is not None
         assert event.cost_usd is not None
         assert event.cost_usd > 0
 
     def test_first_fillup_no_mpg(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=95.0))
         assert event is not None
         assert event.mpg_since_last_fill is None  # no miles_since_last_fill passed
 
     def test_fillup_with_mpg(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=280.0)
         assert event is not None
         assert event.mpg_since_last_fill is not None
 
     def test_full_tank_message(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=98.0))
         assert event is not None
         assert "Full tank" in event.rune_message
 
     def test_partial_fill_message(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=70.0))  # not full
         assert event is not None
         assert "Topped off" in event.rune_message
 
     def test_mpg_at_epa_qualifier(self) -> None:
         """MPG near EPA (31) should say 'right where I should be'."""
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=300.0)
         assert event is not None
         assert "right where I should be" in event.rune_message
 
     def test_mpg_above_epa_qualifier(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         # 65% of 14.8 = 9.62 gal, 400 miles / 9.62 = ~41.6 MPG -- well above 31
         event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=400.0)
         assert event is not None
         assert "above average" in event.rune_message
 
     def test_mpg_below_epa_qualifier(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=30.0))
+        det = _warmed_detector(warmup_pct=30.0)
         # 65% of 14.8 = 9.62 gal, 150 miles / 9.62 = ~15.6 MPG -- well below 31
         event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=150.0)
         assert event is not None
         assert "below average" in event.rune_message
 
     def test_consecutive_same_level(self) -> None:
-        det = FillupDetector(14.8, 3.50, 31.0)
-        det.check(_snap(fuel_level_pct=75.0))
+        det = _warmed_detector(warmup_pct=75.0)
         event = det.check(_snap(fuel_level_pct=75.0))
         assert event is None

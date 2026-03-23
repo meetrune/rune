@@ -81,13 +81,13 @@ class HealthSnapshot(BaseModel):
     Overall is a weighted combination of subsystems.
     """
 
-    overall: float = Field(ge=0, le=100)
-    engine: float = Field(ge=0, le=100)
-    transmission: float = Field(ge=0, le=100)
-    fuel: float = Field(ge=0, le=100)
-    cooling: float = Field(ge=0, le=100)
-    exhaust: float = Field(ge=0, le=100)
-    electrical: float = Field(ge=0, le=100)
+    overall: float = Field(ge=-1, le=100)
+    engine: float = Field(ge=-1, le=100)
+    transmission: float = Field(ge=-1, le=100)
+    fuel: float = Field(ge=-1, le=100)
+    cooling: float = Field(ge=-1, le=100)
+    exhaust: float = Field(ge=-1, le=100)
+    electrical: float = Field(ge=-1, le=100)
 
 
 class FuelSnapshot(BaseModel):

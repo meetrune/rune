@@ -1,9 +1,10 @@
 # Rune -- Product Requirements Document
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** March 22, 2026
 **Author:** Kuladeep Mantri
-**Status:** v1 Week 1 -- Sessions 1-3 complete. Next: Session 4 (health scoring engine)
+**Status:** v1 Week 1 -- Sessions 1-3 + production hardening + OBDCollector. 208 tests. Next: Session 4 (health scoring)
+**Quality:** Production-grade. NOT an MVP. Built for daily use on a real car.
 
 ---
 
@@ -1003,6 +1004,43 @@ Fixes applied after honest assessment of edge cases before real hardware arrives
 | 5 new tests | Low-speed noise rejection, junk trip discarding, DB cleanup, DB size monitoring |
 
 **Running total: 143 tests, 15 source files, mypy clean.**
+
+### Production Hardening (March 23, 2026)
+
+Honest code review revealed 10 production-breaking issues. All fixed. No more MVP mindset.
+
+| Fix | What changed |
+|-----|-------------|
+| `obd_port` default | Changed from `/dev/ttyUSB0` to `192.168.4.100:3333` (WiCAN Pro TCP) |
+| `db_path` default | Changed from relative `rune.db` to absolute `/var/lib/rune/rune.db` |
+| Collector abstraction | `obd_producer_loop` now takes `DataCollector`, not `SimulatedCollector`. Lifespan respects `use_simulator` flag. |
+| CORS | Locked down from `["*"]` to specific origins |
+| Debug endpoint | Uses public `db.get_table_counts()` instead of private `_require_conn()` |
+| Health placeholders | Changed from fake 100s to -1 sentinel |
+| DB safety | `assert` replaced with proper `RuntimeError`. `import os` moved to top-level. |
+| Anomaly types | `AnomalyConfig.type` validated with `Literal` type |
+| Fill-up startup | 5-reading warmup window prevents phantom fill-ups on Pi restart |
+| Debug fonts | Removed Google Fonts dependency. System font stack works offline in car. |
+| Dev deps | Added `httpx>=0.27` and `ruff>=0.8` |
+
+### OBDCollector Built (March 23, 2026)
+
+Full WiCAN Pro TCP connection ready for hardware arrival.
+
+| Component | What it does |
+|-----------|-------------|
+| TCP connection | `asyncio.open_connection()` to WiCAN Pro at configured host:port |
+| ELM327 init | ATZ, ATE0, ATL0, ATS0, ATSP6, ATSH7E0, ATCRA7E8 |
+| PID polling | 14 Mode 01 PIDs cycled continuously, ~2-3 second full cycle |
+| Response parsing | Hex response parsing with formula decoding per PID |
+| Error handling | NO DATA, UNABLE TO CONNECT, BUS INIT ERROR, TCP disconnect |
+| Circuit breaker | 5 consecutive failures -> disconnect + 10s cooldown + reconnect |
+| Reconnection | Exponential backoff (1s, 2s, 4s, 8s, max 30s) |
+| Stale data | PIDs not updated in >5s get warning. Stale values still returned. |
+| Mode 22 CVT temp | Optional query, auto-disables on negative response |
+| 63 new tests | Response parsing, PID decoding, reconnection, circuit breaker, safety |
+
+**Running total: 208 tests, 15 source files, mypy clean.**
 
 ---
 

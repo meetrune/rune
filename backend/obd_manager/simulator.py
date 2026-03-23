@@ -18,6 +18,7 @@ import random
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Literal
 
 from backend.obd_manager.models import VehicleSnapshot, maf_to_fuel_rate_lph
 
@@ -43,7 +44,7 @@ class AnomalyConfig:
     severity: 0.0 (barely noticeable) to 1.0 (full failure)
     duration: how long the anomaly lasts in seconds (0 = permanent)
     """
-    type: str
+    type: Literal["coolant_spike", "fuel_trim_drift", "voltage_drop", "rpm_instability", "catalyst_degradation"]
     start_time: float
     severity: float = 0.5
     duration: float = 0.0  # 0 = permanent once started

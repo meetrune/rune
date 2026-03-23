@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>rune / debug</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #09090b; --surface: #0c0c0f; --raised: #111114; --hover: #16161a;
@@ -15,14 +13,14 @@
             --r: 6px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--fg); font-family: 'Inter', -apple-system, sans-serif; font-size: 15px; -webkit-font-smoothing: antialiased; }
-        .mono { font-family: 'Geist Mono', monospace; }
+        body { background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 15px; -webkit-font-smoothing: antialiased; }
+        .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; }
 
         /* Header */
         .hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
-        .hdr-title { font-family: 'Geist Mono', monospace; font-size: 16px; font-weight: 500; color: var(--muted); }
+        .hdr-title { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 16px; font-weight: 500; color: var(--muted); }
         .hdr-title b { color: var(--fg); font-weight: 600; }
-        .hdr-r { display: flex; gap: 20px; align-items: center; font-family: 'Geist Mono', monospace; font-size: 14px; color: var(--dim); }
+        .hdr-r { display: flex; gap: 20px; align-items: center; font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 14px; color: var(--dim); }
         .hdr-r .v { color: var(--muted); }
         .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .dot-on { background: var(--green); animation: blink 2s ease infinite; }
@@ -52,8 +50,8 @@
         .c:hover { background: var(--raised); }
         .c-l { font-size: 13px; color: var(--dim); font-weight: 500; }
         .c-r { display: flex; align-items: baseline; justify-content: space-between; }
-        .c-v { font-family: 'Geist Mono', monospace; font-size: 28px; font-weight: 600; line-height: 1; }
-        .c-u { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); }
+        .c-v { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 28px; font-weight: 600; line-height: 1; }
+        .c-u { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 13px; color: var(--dim); }
         .c-big .c-v { font-size: 44px; }
 
         /* Spark */
@@ -76,7 +74,7 @@
 
         /* Safety gate */
         .mode-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .mode-tag { font-family: 'Geist Mono', monospace; font-size: 14px; padding: 6px 14px; border-radius: 6px; font-weight: 500; }
+        .mode-tag { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 14px; padding: 6px 14px; border-radius: 6px; font-weight: 500; }
         .mode-allow { color: var(--green); background: #22c55e10; border: 1px solid #22c55e20; }
         .mode-block { color: var(--red); background: #ef444410; border: 1px solid #ef444420; }
 
@@ -84,14 +82,14 @@
         .db-tbl { width: 100%; border-collapse: collapse; margin-top: 12px; }
         .db-tbl th, .db-tbl td { text-align: left; padding: 12px 16px; font-size: 15px; border-bottom: 1px solid var(--border); }
         .db-tbl th { color: var(--dim); font-weight: 500; font-size: 13px; }
-        .db-tbl td { font-family: 'Geist Mono', monospace; color: var(--muted); }
+        .db-tbl td { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; color: var(--muted); }
         .db-tbl td.num { text-align: right; color: var(--fg); font-size: 18px; font-weight: 600; }
 
         /* Trip card */
         .trip-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 20px; margin-bottom: 10px; }
         .trip-card .trip-hd { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .trip-card .trip-hd span { font-size: 13px; color: var(--dim); }
-        .trip-stats { display: flex; gap: 20px; font-family: 'Geist Mono', monospace; font-size: 14px; color: var(--muted); }
+        .trip-stats { display: flex; gap: 20px; font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 14px; color: var(--muted); }
         .trip-stats b { color: var(--fg); font-weight: 500; }
 
         /* Health bars */
@@ -99,18 +97,18 @@
         .hb-n { font-size: 14px; color: var(--muted); width: 90px; }
         .hb-t { flex: 1; height: 6px; background: var(--ghost); border-radius: 3px; overflow: hidden; }
         .hb-f { height: 100%; border-radius: 3px; transition: width .4s; }
-        .hb-v { font-family: 'Geist Mono', monospace; font-size: 15px; color: var(--dim); width: 32px; text-align: right; font-weight: 600; }
+        .hb-v { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 15px; color: var(--dim); width: 32px; text-align: right; font-weight: 600; }
 
         /* Log */
-        .log-e { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); padding: 7px 0; border-bottom: 1px solid var(--border); line-height: 1.5; }
+        .log-e { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 13px; color: var(--dim); padding: 7px 0; border-bottom: 1px solid var(--border); line-height: 1.5; }
         .log-t { color: var(--ghost); }
         .log-tag { color: var(--muted); }
 
         /* JSON */
-        .json-area { font-family: 'Geist Mono', monospace; font-size: 13px; color: var(--dim); line-height: 1.6; white-space: pre; overflow: auto; max-height: 400px; padding: 16px; background: var(--bg); border-radius: var(--r); border: 1px solid var(--border); margin-top: 12px; }
+        .json-area { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 13px; color: var(--dim); line-height: 1.6; white-space: pre; overflow: auto; max-height: 400px; padding: 16px; background: var(--bg); border-radius: var(--r); border: 1px solid var(--border); margin-top: 12px; }
 
         /* Sim phase badge */
-        .phase-b { font-family: 'Geist Mono', monospace; font-size: 14px; padding: 5px 12px; border-radius: 6px; color: var(--muted); background: var(--raised); border: 1px solid var(--border); }
+        .phase-b { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Menlo', monospace; font-size: 14px; padding: 5px 12px; border-radius: 6px; color: var(--muted); background: var(--raised); border: 1px solid var(--border); }
 
         /* Two col layout */
         .cols { display: grid; grid-template-columns: 1fr 380px; gap: 0; }
@@ -201,7 +199,7 @@
     </div>
 
     <div class="sec">Simulator</div>
-    <div style="font-family:'Geist Mono',monospace;font-size:14px;color:var(--muted);line-height:2">
+    <div style="font-family:ui-monospace,'SF Mono','Cascadia Code','Menlo',monospace;font-size:14px;color:var(--muted);line-height:2">
         <div>Phase: <span class="phase-b" id="sim-phase">--</span></div>
         <div>Elapsed: <span id="sim-elapsed" style="color:var(--fg)">--</span></div>
         <div>Scenario: <span id="sim-scenario" style="color:var(--fg)">--</span></div>
@@ -265,7 +263,7 @@
     <div id="fillup-info"><p style="color:var(--dim);font-size:12px">No fill-ups detected</p></div>
 
     <div class="sec">Database Config</div>
-    <div style="font-family:'Geist Mono',monospace;font-size:14px;color:var(--muted);line-height:2">
+    <div style="font-family:ui-monospace,'SF Mono','Cascadia Code','Menlo',monospace;font-size:14px;color:var(--muted);line-height:2">
         <div>Path: <span style="color:var(--fg)" id="db-path">--</span></div>
         <div>Journal: <span style="color:var(--fg)">WAL</span></div>
         <div>Sync: <span style="color:var(--fg)">NORMAL</span></div>
@@ -380,7 +378,7 @@
             if(d.last_fillup){
                 var f=d.last_fillup;
                 fi.textContent=f.estimated_gallons.toFixed(1)+' gal | $'+(f.cost_usd||0).toFixed(2)+(f.mpg_since_last_fill?' | '+f.mpg_since_last_fill.toFixed(1)+' MPG':'');
-                fi.style.fontFamily="'Geist Mono',monospace";fi.style.fontSize='12px';fi.style.color='var(--muted)';
+                fi.style.fontFamily="ui-monospace,'SF Mono','Cascadia Code','Menlo',monospace";fi.style.fontSize='12px';fi.style.color='var(--muted)';
             } else { fi.textContent='No fill-ups detected';fi.style.color='var(--dim)';fi.style.fontSize='12px'; }
 
             // Fuel calc
@@ -393,7 +391,7 @@
             if(d.fuel_calculator.current_trip){
                 var ct=d.fuel_calculator.current_trip;
                 var info=document.createElement('div');info.className='trip-card';
-                info.style.fontFamily="'Geist Mono',monospace";info.style.fontSize='11px';info.style.color='var(--muted)';info.style.lineHeight='1.8';
+                info.style.fontFamily="ui-monospace,'SF Mono','Cascadia Code','Menlo',monospace";info.style.fontSize='11px';info.style.color='var(--muted)';info.style.lineHeight='1.8';
                 info.textContent='ID: '+(ct.trip_id||'pending')+'\nDistance: '+ct.distance_miles.toFixed(4)+' mi\nFuel: '+ct.fuel_gallons.toFixed(6)+' gal\nCost: $'+ct.fuel_cost_usd.toFixed(2)+'\nIdle since: '+(ct.idle_since?ct.idle_since.toFixed(1):'driving');
                 det.appendChild(info);
             }

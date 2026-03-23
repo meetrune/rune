@@ -23,7 +23,7 @@ from backend.config import settings
 from backend.database.db import RuneDatabase
 from backend.fuel.calculator import FuelCalculator
 from backend.fuel.fillup import FillupDetector
-from backend.obd_manager.collector import SimulatedCollector
+from backend.obd_manager.collector import DataCollector, OBDCollector, SimulatedCollector
 from backend.obd_manager.models import HealthSnapshot, WebSocketMessage
 from backend.ws_manager import ConnectionManager
 
@@ -58,7 +58,7 @@ async def db_maintenance_loop(db: RuneDatabase) -> None:
 
 
 async def obd_producer_loop(
-    collector: SimulatedCollector,
+    collector: DataCollector,
     fuel_calc: FuelCalculator,
     fillup_detector: FillupDetector,
     db: RuneDatabase,
@@ -74,10 +74,10 @@ async def obd_producer_loop(
     reading_buffer = []
     active_trip_id: int | None = None
 
-    # Placeholder health scores until health scorer is built (Session 4+)
+    # Placeholder: -1 indicates health scorer not yet active. Session 4 replaces this.
     health_snap = HealthSnapshot(
-        overall=100, engine=100, transmission=100,
-        fuel=100, cooling=100, exhaust=100, electrical=100,
+        overall=-1, engine=-1, transmission=-1,
+        fuel=-1, cooling=-1, exhaust=-1, electrical=-1,
     )
 
     logger.info("Producer loop started at %dHz", settings.ws_rate_hz)
@@ -168,7 +168,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     db = RuneDatabase(db_path=settings.db_path)
     await db.initialize()
 
-    collector = SimulatedCollector()
+    collector: DataCollector = (
+        SimulatedCollector() if settings.use_simulator else OBDCollector()
+    )
     await collector.start()
 
     fuel_calc = FuelCalculator(
@@ -230,7 +232,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://192.168.4.1:8080", "http://localhost:8080", "http://localhost:5173"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -270,15 +272,7 @@ async def debug_info() -> JSONResponse:
     from backend.obd_manager.connection import ALLOWED_MODES, BLOCKED_MODES
 
     # DB row counts
-    conn = db._require_conn()
-    row = await (await conn.execute("SELECT COUNT(*) FROM sensor_readings")).fetchone()
-    readings_count = row[0] if row else 0
-    row = await (await conn.execute("SELECT COUNT(*) FROM trips")).fetchone()
-    trips_count = row[0] if row else 0
-    row = await (await conn.execute("SELECT COUNT(*) FROM fillups")).fetchone()
-    fillups_count = row[0] if row else 0
-    row = await (await conn.execute("SELECT COUNT(*) FROM health_scores")).fetchone()
-    health_count = row[0] if row else 0
+    table_counts = await db.get_table_counts()
 
     # Recent trips
     recent_trips = await db.get_recent_trips(limit=5)
@@ -325,12 +319,7 @@ async def debug_info() -> JSONResponse:
             "journal_mode": "wal",
             "size_mb": round(db_size / 1_048_576, 2),
             "retention_days": 90,
-            "tables": {
-                "sensor_readings": readings_count,
-                "trips": trips_count,
-                "fillups": fillups_count,
-                "health_scores": health_count,
-            },
+            "tables": table_counts,
         },
         "recent_trips": recent_trips,
         "last_fillup": last_fillup,

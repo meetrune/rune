@@ -18,11 +18,21 @@ class RuneSettings(BaseSettings):
     server_host: str = "0.0.0.0"
     server_port: int = 8080
 
-    # OBD-II connection
-    obd_port: str = "/dev/ttyUSB0"
+    # OBD-II connection -- WiCAN Pro ELM327 TCP port on the Rune WiFi network
+    obd_port: str = "192.168.4.100:3333"
     obd_baudrate: int = 500000
     obd_protocol: str = "6"  # ISO 15765-4, 11-bit, 500 kbaud
     obd_fast: bool = True
+
+    # WiCAN Pro TCP connection
+    wican_host: str = "192.168.4.100"
+    wican_port: int = 3333
+    obd_cmd_timeout: float = 2.0  # seconds per PID query
+    obd_reconnect_max_backoff: float = 30.0  # max seconds between reconnect attempts
+    obd_circuit_breaker_threshold: int = 5  # consecutive failures before disconnect
+    obd_circuit_breaker_cooldown: float = 10.0  # seconds to wait after circuit break
+    obd_stale_threshold: float = 5.0  # seconds before PID considered stale
+    obd_mode22_enabled: bool = True  # attempt Mode 22 CVT temp query
 
     # WebSocket
     ws_rate_hz: int = 10
@@ -32,8 +42,8 @@ class RuneSettings(BaseSettings):
     epa_combined_mpg: float = 31.0
     gas_price_per_gallon: float = 3.50  # USD, update weekly
 
-    # Database
-    db_path: str = "rune.db"
+    # Database -- absolute path for Pi deployment; override with RUNE_DB_PATH env var for dev
+    db_path: str = "/var/lib/rune/rune.db"
 
     # Modes
     use_simulator: bool = True  # True for desktop dev, False on Pi with real OBD

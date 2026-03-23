@@ -44,6 +44,7 @@ class FillupDetector:
         self._gas_price = gas_price_per_gallon
         self._epa_mpg = epa_combined_mpg
         self._last_fuel_pct: float | None = None
+        self._readings_since_init: int = 0
 
     def check(
         self,
@@ -53,6 +54,13 @@ class FillupDetector:
         """Check if a fill-up occurred. Returns FillupEvent or None."""
         current_pct = snap.fuel_level_pct
         event: FillupEvent | None = None
+
+        # Ignore the first 5 readings after init -- OBD can return garbage
+        # values during ELM327 protocol negotiation
+        self._readings_since_init += 1
+        if self._readings_since_init < 5:
+            self._last_fuel_pct = current_pct
+            return None
 
         if self._last_fuel_pct is not None:
             delta = current_pct - self._last_fuel_pct

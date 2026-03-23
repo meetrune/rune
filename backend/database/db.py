@@ -15,6 +15,7 @@ Key decisions based on research:
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
@@ -180,7 +181,8 @@ class RuneDatabase:
             (start_time_ms,),
         )
         await conn.commit()
-        assert cursor.lastrowid is not None
+        if cursor.lastrowid is None:
+            raise RuntimeError("Failed to create trip -- no lastrowid returned")
         return cursor.lastrowid
 
     async def end_trip(
@@ -274,6 +276,18 @@ class RuneDatabase:
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
 
+    # --- table counts ---
+
+    async def get_table_counts(self) -> dict[str, int]:
+        """Return row counts for all 4 tables."""
+        conn = self._require_conn()
+        counts: dict[str, int] = {}
+        for table in ("sensor_readings", "trips", "fillups", "health_scores"):
+            cursor = await conn.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
+            row = await cursor.fetchone()
+            counts[table] = row[0] if row else 0
+        return counts
+
     # --- maintenance ---
 
     async def cleanup(self, retention_days: int = 90) -> dict[str, int]:
@@ -322,7 +336,6 @@ class RuneDatabase:
 
     async def get_db_size_bytes(self) -> int:
         """Get total DB file size (main + WAL + SHM)."""
-        import os
         total = 0
         for suffix in ("", "-wal", "-shm"):
             path = self._db_path + suffix

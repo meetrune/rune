@@ -21,7 +21,8 @@ See `PRD.md` for full specifications, data contracts, OBD PID tables, build time
 
 ```
 CURRENT PHASE: v1 -- First words (Desktop Development, Simulated Data)
-STATUS: Sessions 1-3 complete (138 tests). Next: Session 4 (health scoring engine).
+STATUS: Sessions 1-3 complete + production hardening + OBDCollector built (208 tests). Next: Session 4 (health scoring engine).
+QUALITY: Production-grade. NOT an MVP. Every component is built to ship.
 ```
 Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).
 
@@ -102,6 +103,19 @@ HOW TO VERIFY:
 ```
 
 The whole purpose of Rune is safety. If the builder doesn't understand how something was built, there's no safety. Rune's driver must be able to diagnose issues independently.
+
+---
+
+## Quality Standard
+
+**This is production code, not a prototype.** Rune is a real product used daily on a real car. Every component must be built as if it ships today.
+
+- **No MVP mindset.** Don't defer known issues. Don't use "good enough for now." Fix it right the first time.
+- **No broken defaults.** Config defaults must work for the real deployment target (WiCAN Pro TCP, absolute DB path, proper CORS origins).
+- **Error handling is mandatory.** Handle every failure path: OBD disconnects, corrupt data, SD card full, power loss mid-drive.
+- **Test the wiring.** Don't just test individual components -- test that they work together (main.py, WebSocket handler, producer loop).
+- **Real hardware readiness.** OBDCollector is built with TCP connection, ELM327 init, PID polling, circuit breaker, reconnection logic. Ready for WiCAN Pro on day one.
+- **No placeholder data in production paths.** Health scores use -1 sentinel (not fake 100s) until the health scorer is active.
 
 ---
 
