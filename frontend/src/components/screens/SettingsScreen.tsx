@@ -1,183 +1,120 @@
-import { useThemeStore } from "@/stores/themeStore";
-import { useVehicleStore } from "@/stores/vehicleStore";
-import { THEMES } from "@/constants/themes";
-import { useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
+import { PreferenceCard } from "@/components/settings/PreferenceCard";
+import { ConnectionInfo } from "@/components/settings/ConnectionInfo";
+import { AboutBlock } from "@/components/settings/AboutBlock";
+import { useSettingsStore } from "@/stores/settingsStore";
 
-function ThemePicker() {
-  const activeId = useThemeStore((s) => s.activeThemeId);
-  const setTheme = useThemeStore((s) => s.setTheme);
-  const randomize = useThemeStore((s) => s.randomize);
+function GasPriceInput() {
+  const gasPrice = useSettingsStore((s) => s.gasPricePerGallon);
+  const setGasPrice = useSettingsStore((s) => s.setGasPrice);
+  const [localValue, setLocalValue] = useState(gasPrice.toFixed(2));
+
+  const handleBlur = useCallback(() => {
+    const parsed = parseFloat(localValue);
+    if (!isNaN(parsed) && parsed > 0 && parsed < 20) {
+      setGasPrice(parsed);
+      setLocalValue(parsed.toFixed(2));
+    } else {
+      setLocalValue(gasPrice.toFixed(2));
+    }
+  }, [localValue, gasPrice, setGasPrice]);
 
   return (
-    <div
-      style={{
-        background: "var(--rune-surface)",
-        borderRadius: "20px",
-        border: "1px solid var(--rune-border)",
-        padding: "24px",
-      }}
-    >
+    <div style={{ padding: "10px 14px" }}>
       <span
         style={{
-          fontFamily: "var(--font-mono)",
+          fontFamily: "var(--font-data)",
           fontSize: "12px",
-          letterSpacing: "0.12em",
           color: "var(--rune-text-muted)",
-          textTransform: "uppercase",
+          opacity: 0.6,
           display: "block",
-          marginBottom: "20px",
+          marginBottom: "6px",
         }}
       >
-        Theme
+        Gas price per gallon
       </span>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: "12px",
-        }}
-      >
-        {THEMES.map((theme) => {
-          const isActive = theme.id === activeId;
-          return (
-            <button
-              key={theme.id}
-              onClick={() => setTheme(theme.id)}
-              style={{
-                height: "72px",
-                borderRadius: "16px",
-                border: isActive
-                  ? `2.5px solid ${theme.primary}`
-                  : "2px solid rgba(255,255,255,0.06)",
-                background: theme.bg,
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                padding: 0,
-                WebkitTapHighlightColor: "transparent",
-                touchAction: "manipulation",
-                transition: "border-color 0.2s, transform 0.15s",
-                transform: isActive ? "scale(1.02)" : "scale(1)",
-              }}
-            >
-              <div
-                style={{
-                  width: "16px",
-                  height: "16px",
-                  borderRadius: "50%",
-                  background: theme.primary,
-                  boxShadow: isActive ? `0 0 12px ${theme.primary}60` : "none",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
-                  color: theme.primary,
-                  opacity: isActive ? 1 : 0.5,
-                  letterSpacing: "0.08em",
-                }}
-              >
-                {theme.name}
-              </span>
-            </button>
-          );
-        })}
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <span
+          style={{
+            fontFamily: "var(--font-data)",
+            fontSize: "16px",
+            color: "var(--rune-text-muted)",
+          }}
+        >
+          $
+        </span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          style={{
+            fontFamily: "var(--font-data)",
+            fontSize: "16px",
+            fontWeight: 500,
+            color: "var(--rune-text)",
+            background: "none",
+            border: "none",
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
+            outline: "none",
+            width: "64px",
+            padding: "4px 0",
+          }}
+        />
       </div>
-
-      <button
-        onClick={randomize}
-        style={{
-          width: "100%",
-          height: "56px",
-          marginTop: "16px",
-          borderRadius: "16px",
-          border: "1px solid var(--rune-border)",
-          background: "transparent",
-          color: "var(--rune-primary)",
-          fontFamily: "var(--font-mono)",
-          fontSize: "13px",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          cursor: "pointer",
-          WebkitTapHighlightColor: "transparent",
-          touchAction: "manipulation",
-        }}
-      >
-        Shuffle
-      </button>
     </div>
   );
 }
 
-function ConnectionInfo() {
-  const statusRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const unsub = useVehicleStore.subscribe((state) => {
-      if (statusRef.current) {
-        statusRef.current.textContent = state.connected ? "Connected" : "Disconnected";
-        statusRef.current.style.color = state.connected
-          ? "var(--rune-primary)"
-          : "var(--rune-critical)";
-      }
-    });
-    return unsub;
-  }, []);
+function UnitsSelector() {
+  const units = useSettingsStore((s) => s.units);
+  const setUnits = useSettingsStore((s) => s.setUnits);
 
   return (
-    <div
-      style={{
-        background: "var(--rune-surface)",
-        borderRadius: "20px",
-        border: "1px solid var(--rune-border)",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-      }}
-    >
+    <div style={{ padding: "10px 14px" }}>
       <span
         style={{
-          fontFamily: "var(--font-mono)",
+          fontFamily: "var(--font-data)",
           fontSize: "12px",
-          letterSpacing: "0.12em",
           color: "var(--rune-text-muted)",
-          textTransform: "uppercase",
+          opacity: 0.6,
+          display: "block",
+          marginBottom: "8px",
         }}
       >
-        Connection
+        Units
       </span>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: "var(--font-data)", fontSize: "16px", color: "var(--rune-text)" }}>
-          Status
-        </span>
-        <div
-          ref={statusRef}
-          style={{ fontFamily: "var(--font-data)", fontSize: "16px", color: "var(--rune-text-muted)" }}
-        >
-          --
-        </div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: "var(--font-data)", fontSize: "16px", color: "var(--rune-text)" }}>
-          WebSocket
-        </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--rune-text-muted)" }}>
-          10 Hz
-        </span>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: "var(--font-data)", fontSize: "16px", color: "var(--rune-text)" }}>
-          Vehicle
-        </span>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--rune-text-muted)" }}>
-          2026 Accord SE
-        </span>
+      <div style={{ display: "flex", gap: "8px" }}>
+        {(["imperial", "metric"] as const).map((u) => {
+          const isActive = units === u;
+          return (
+            <button
+              key={u}
+              onClick={() => setUnits(u)}
+              style={{
+                flex: 1,
+                minHeight: "44px",
+                background: "none",
+                border: "none",
+                borderLeft: isActive ? "3px solid var(--rune-text)" : "3px solid transparent",
+                padding: "8px 12px",
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+                fontFamily: "var(--font-data)",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: isActive ? "var(--rune-text)" : "var(--rune-text-muted)",
+                textDecoration: isActive ? "none" : "line-through",
+                textAlign: "left",
+                transition: "color 0.2s, border-left-color 0.2s",
+              }}
+            >
+              {u === "imperial" ? "Imperial" : "Metric"}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -189,43 +126,78 @@ export function SettingsScreen() {
       style={{
         width: "100%",
         height: "100%",
-        background: "var(--rune-bg)",
-        padding: "calc(16px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom))",
-        overflowY: "auto",
-        overflowX: "hidden",
         display: "flex",
-        flexDirection: "column",
-        gap: "16px",
+        gap: "24px",
+        padding: "16px 20px 56px 20px",
+        background: "var(--rune-bg)",
+        overflow: "hidden",
       }}
     >
+      {/* Left column: preferences */}
       <div
         style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          letterSpacing: "0.2em",
-          color: "var(--rune-text-muted)",
-          textTransform: "uppercase",
-          padding: "8px 4px",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+          overflowY: "auto",
+          scrollbarWidth: "none",
         }}
       >
-        Settings
+        <span
+          style={{
+            fontFamily: "var(--font-data)",
+            fontSize: "11px",
+            letterSpacing: "0.15em",
+            color: "var(--rune-text-muted)",
+            textTransform: "uppercase",
+            opacity: 0.5,
+            padding: "4px 14px 8px",
+          }}
+        >
+          Preferences
+        </span>
+
+        <PreferenceCard
+          title="Grid Background"
+          description="Subtle grid overlay on main screen"
+          settingKey="gridBackground"
+        />
+        <PreferenceCard
+          title="Rune Voice"
+          description="First-person status messages from Rune"
+          settingKey="runeVoice"
+        />
+        <PreferenceCard
+          title="Haptic Feedback"
+          description="Vibration on interactions"
+          settingKey="hapticFeedback"
+        />
+        <PreferenceCard
+          title="Parallax Tilt"
+          description="Car responds to phone gyroscope"
+          settingKey="parallaxTilt"
+        />
+
+        <div style={{ height: "8px" }} />
+
+        <GasPriceInput />
+        <UnitsSelector />
       </div>
 
-      <ThemePicker />
-      <ConnectionInfo />
-
+      {/* Right column: connection + about */}
       <div
         style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "10px",
-          color: "var(--rune-text-muted)",
-          opacity: 0.4,
-          textAlign: "center",
-          padding: "16px",
-          letterSpacing: "0.08em",
+          width: "40%",
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px",
+          justifyContent: "space-between",
         }}
       >
-        RUNE v0.1.0
+        <ConnectionInfo />
+        <AboutBlock />
       </div>
     </div>
   );

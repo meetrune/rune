@@ -389,3 +389,9 @@ async def vehicle_data_ws(websocket: WebSocket) -> None:
         pass
     finally:
         manager.disconnect(websocket)
+
+
+# Serve built frontend from dist/ (must be LAST -- catches all routes)
+_dist_dir = Path(__file__).parent.parent / "frontend" / "dist"
+if _dist_dir.exists():
+    app.mount("/", StaticFiles(directory=str(_dist_dir), html=True), name="frontend-dist")

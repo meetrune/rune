@@ -21,7 +21,7 @@ See `PRD.md` for full specifications. See `docs/superpowers/specs/2026-03-24-run
 
 ```
 CURRENT PHASE: v1 -- First words (Desktop Development, Simulated Data)
-STATUS: Sessions 1-4 complete (271 tests). Session 5: Frontend design COMPLETE. Implementation plan written (13 tasks). Next: Execute the plan -- build Rune OS.
+STATUS: Sessions 1-5 complete (271 backend tests). Session 6: Frontend code complete (40 files, 0 TS errors, 75KB gzipped) but VISUALLY BROKEN. Data wiring works. Next: Screen-by-screen visual fixes with browser feedback. Branch: feat/rune-os-frontend (uncommitted).
 QUALITY: Production-grade. NOT an MVP. Every component is built to ship.
 ```
 Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).

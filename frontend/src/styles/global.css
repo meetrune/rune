@@ -5,19 +5,33 @@
 }
 
 :root {
+  /* White Minimal HUD -- pure white on OLED black */
   --rune-bg: #000000;
-  --rune-primary: #4a9eff;
-  --rune-dim: #1a3a5c;
-  --rune-warn: #f59e0b;
-  --rune-critical: #ef4444;
-  --rune-text: #e6edf3;
-  --rune-text-muted: #8b949e;
-  --rune-surface: rgba(13, 17, 23, 0.85);
-  --rune-border: rgba(74, 158, 255, 0.15);
+  --rune-white: #ffffff;
+  --rune-text: rgba(255, 255, 255, 0.55);
+  --rune-text-bright: rgba(255, 255, 255, 0.87);
+  --rune-text-muted: rgba(255, 255, 255, 0.35);
+  --rune-label: rgba(255, 255, 255, 0.12);
+  --rune-border: rgba(255, 255, 255, 0.08);
+  --rune-surface: rgba(255, 255, 255, 0.04);
 
+  /* Color is the exception -- only on deviation */
+  --rune-warn: rgba(251, 191, 36, 0.70);
+  --rune-critical: rgba(239, 68, 68, 0.80);
+  --rune-ok: rgba(255, 255, 255, 0.55);
+
+  /* Typography */
   --font-data: "Space Grotesk", system-ui, sans-serif;
-  --font-mono: "DM Mono", "Courier New", monospace;
-  --font-voice: "Caveat", cursive;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-credit: "Cormorant Garamond", Georgia, serif;
+
+  /* Grid background */
+  --grid-size: 36px;
+  --grid-color: rgba(255, 255, 255, 0.012);
+
+  /* Burn-in protection -- updated by useBurnInProtection hook */
+  --burn-shift-x: 0px;
+  --burn-shift-y: 0px;
 
   color-scheme: dark;
 }
@@ -28,7 +42,7 @@ html, body, #root {
   overflow: hidden;
   background: var(--rune-bg);
   color: var(--rune-text);
-  font-family: var(--font-data);
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
@@ -37,6 +51,50 @@ html, body, #root {
 
 body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Grid background -- subtle depth without competing with data */
+#root {
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+}
+
+/* Landscape orientation lock */
+@media (orientation: portrait) {
+  #root > *:not(.portrait-fallback) {
+    display: none !important;
+  }
+
+  .portrait-fallback {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    color: var(--rune-label);
+    text-align: center;
+    padding: 2rem;
+  }
+}
+
+/* Data numbers use Space Grotesk */
+.font-data {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Credit line uses Cormorant Garamond */
+.font-credit {
+  font-family: var(--font-credit);
+}
+
+/* Burn-in shift applied to static elements */
+.burn-shift {
+  transform: translate(var(--burn-shift-x), var(--burn-shift-y));
 }
 
 ::-webkit-scrollbar {
