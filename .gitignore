@@ -37,3 +37,6 @@ tests/replay_data/*.bin
 frontend/public/models/*.glb
 !frontend/public/models/rune_sedan.glb
 !frontend/public/models/.gitkeep
+.superpowers/
+.vite/
+frontend/node_modules/

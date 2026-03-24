@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Date:** March 22, 2026
 **Author:** Kuladeep Mantri
-**Status:** v1 Week 1 -- Sessions 1-3 + production hardening + OBDCollector. 208 tests. Next: Session 4 (health scoring)
+**Status:** v1 -- Sessions 1-4 complete (271 tests). Session 5 in progress: React frontend with Rune OS multi-screen architecture.
 **Quality:** Production-grade. NOT an MVP. Built for daily use on a real car.
 
 ---
@@ -596,6 +596,47 @@ Brake pad wear, suspension degradation, tire condition -- Rune can't detect thes
 
 ---
 
+## 9.5 Rune OS -- Interaction Philosophy
+
+**Rune is not a web app displayed on a phone. It is a car operating system.** The Pixel 6 Pro is a dedicated display -- always mounted, always running Rune, nothing else. Every design decision follows from this.
+
+### Core Principle
+
+The difference between "a website on a phone" and "a car OS" is **information density** and **interaction model**. A website packs information tight and assumes precise mouse clicks. A car OS shows fewer things, bigger, and relies on swipes and taps in the lower half of the screen where the driver's thumb naturally reaches while the phone is vent-mounted.
+
+### Multi-Screen Architecture
+
+Horizontal swipe navigation between screens, like iOS home screens:
+
+| Screen | Name | Content |
+|--------|------|---------|
+| 1 | **Visualization** | 3D wireframe car, health zones, Rune's voice. The hero view. |
+| 2 | **Dashboard** | Raw numbers and gauges -- RPM, speed, temps, fuel stats, trip data. The cockpit instruments view. |
+| 3 | **Settings** | Theme picker, gas price config, display preferences. Also accessible via gear icon. |
+
+Page indicator dots at the bottom show which screen is active.
+
+### Touch-First Design Rules
+
+- **Minimum touch target: 56x56px** -- bigger than Material Design 48px because the phone is vent-mounted and finger precision is reduced while driving
+- **No hover states** -- touch only, no mouse assumptions
+- **No small text buttons** -- everything is either a large tappable area or a gesture
+- **Swipe for navigation, tap for actions** within a screen
+- **One-thumb reachable** -- critical controls in the bottom 60% of the 6.7" screen
+- **Health score: 72px+ font** -- readable at arm's length from the vent mount
+- **MPG number: 56px+ font** -- second most glanceable element
+- **All UI panels have generous padding and 16-20px border-radius** -- soft, modern, OS-grade
+
+### Dedicated Device Setup
+
+- **Kiosk mode:** Tasker + Android Screen Pinning (free). Future: custom Rune Launcher APK.
+- **Auto-start:** Pi boots on ignition -> creates "Rune" WiFi -> Pixel auto-connects -> Tasker launches Rune PWA fullscreen
+- **Auto-stop:** Pi shuts down -> WiFi disappears -> Pixel screen dims and sleeps
+- **Boot experience:** Pure black -> line-draw reveal (car wireframe sketches itself in over 2 seconds) -> health scores fade in -> "All good."
+- **Emergency exit:** Unpin screen with PIN -> normal Android
+
+---
+
 ## 10. Visual Design System
 
 ### Color Palette
@@ -651,7 +692,7 @@ Brake pad wear, suspension degradation, tire condition -- Rune can't detect thes
 
 | Metric | Target |
 |--------|--------|
-| Frame rate | 30-45 fps on Pixel 6 Pro Chrome |
+| Frame rate | Uncapped -- target 120fps on Pixel 6 Pro LTPO (10-120Hz adaptive). Dedicated device, nothing else competing for GPU. Dynamic DPR scaling (2x->1x) as thermal safety valve. |
 | Draw calls | <100 |
 | Shadows | None (disabled for performance) |
 | Pixel ratio | Capped at 2x (`renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))`) |
