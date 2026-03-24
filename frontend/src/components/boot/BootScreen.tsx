@@ -1,24 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 interface BootScreenProps {
   onComplete: () => void;
 }
 
-// Clean, minimal boot: "Rune" fades in, holds, fades out.
+// Clean, minimal boot: "Rune" fades in, holds, fades out. Tap to skip.
 export function BootScreen({ onComplete }: BootScreenProps) {
   const [phase, setPhase] = useState<"fade-in" | "hold" | "fade-out">("fade-in");
+  const completed = useRef(false);
+
+  const finish = useCallback(() => {
+    if (completed.current) return;
+    completed.current = true;
+    onComplete();
+  }, [onComplete]);
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase("hold"), 100);
     const t2 = setTimeout(() => setPhase("fade-out"), 2500);
-    const t3 = setTimeout(onComplete, 3200);
+    const t3 = setTimeout(finish, 3300); // 2500 + 800ms fade-out
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [onComplete]);
+  }, [finish]);
 
   const opacity = phase === "hold" ? 1 : 0;
 
   return (
     <div
+      onClick={finish}
       style={{
         position: "fixed",
         inset: 0,
@@ -31,6 +39,7 @@ export function BootScreen({ onComplete }: BootScreenProps) {
         gap: "16px",
         opacity,
         transition: "opacity 800ms ease",
+        cursor: "pointer",
       }}
     >
       <span

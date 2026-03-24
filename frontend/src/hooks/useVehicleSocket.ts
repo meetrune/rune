@@ -28,7 +28,8 @@ export function useVehicleSocket() {
     }
 
     function connect() {
-      if (wsRef.current?.readyState === WebSocket.OPEN) return;
+      const state = wsRef.current?.readyState;
+      if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
 
       const ws = new WebSocket(getUrl());
       wsRef.current = ws;

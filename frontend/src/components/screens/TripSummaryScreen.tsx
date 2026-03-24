@@ -29,7 +29,7 @@ function mpgColor(mpg: number | null): string {
 function BigArc({ mpg }: { mpg: number | null }) {
   const r = 52, cx = 60, cy = 60, sz = 120;
   const circ = 2 * Math.PI * r, arc = circ * 0.75;
-  const pct = mpg ? Math.min(mpg / 50, 1) : 0;
+  const pct = mpg != null ? Math.min(mpg / 50, 1) : 0;
   const color = mpgColor(mpg);
   return (
     <div style={{ position: "relative", width: sz, height: sz, flexShrink: 0 }}>
@@ -41,7 +41,7 @@ function BigArc({ mpg }: { mpg: number | null }) {
           transform={`rotate(135 ${cx} ${cy})`} style={{ transition: "all 600ms ease", filter: `drop-shadow(0 0 10px ${color}30)` }} />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontFamily: MONO, fontSize: 42, fontWeight: 700, color, lineHeight: 1 }}>{mpg ? Math.round(mpg) : "--"}</span>
+        <span style={{ fontFamily: MONO, fontSize: 42, fontWeight: 700, color, lineHeight: 1 }}>{mpg != null ? Math.round(mpg) : "--"}</span>
         <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>MPG</span>
       </div>
     </div>
@@ -171,7 +171,7 @@ function TripDetail({ trip, avgMpg, avgCostPerMi }: { trip: Trip; avgMpg: number
   const costPerMi = trip.distance_miles > 0 ? trip.fuel_cost_usd / trip.distance_miles : 0;
   const co2Kg = trip.fuel_gallons * 8.89;
   const durationSec = trip.end_time ? (trip.end_time - trip.start_time) / 1000 : 0;
-  const drivingSec = s ? durationSec - s.idle_seconds : durationSec;
+  const drivingSec = s ? Math.max(0, durationSec - s.idle_seconds) : durationSec;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, animation: "fade-in 300ms ease" }}>
@@ -197,11 +197,13 @@ function TripDetail({ trip, avgMpg, avgCostPerMi }: { trip: Trip; avgMpg: number
 
       {/* Rune voice */}
       <div style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", fontFamily: "var(--font-ui)", fontStyle: "italic", padding: "4px 0" }}>
-        {trip.avg_mpg && trip.avg_mpg > avgMpg + 2
+        {trip.avg_mpg != null && trip.avg_mpg > avgMpg + 2
           ? `${(trip.avg_mpg - avgMpg).toFixed(0)} MPG above your average. Efficient run.`
-          : trip.avg_mpg && trip.avg_mpg < avgMpg - 3
+          : trip.avg_mpg != null && trip.avg_mpg < avgMpg - 3
           ? `Below average by ${(avgMpg - trip.avg_mpg).toFixed(0)} MPG. Probably stop-and-go.`
-          : `Typical run for you.`}
+          : trip.avg_mpg != null
+          ? `Typical run for you.`
+          : `No fuel data for this trip.`}
       </div>
 
       {/* MPG RANGE -- gradient bar visualization */}
@@ -293,7 +295,7 @@ export function TripSummaryScreen() {
                   </div>
                 </div>
                 <div style={{ fontFamily: MONO, fontSize: 26, fontWeight: 700, color, lineHeight: 1 }}>
-                  {trip.avg_mpg ? Math.round(trip.avg_mpg) : "--"}
+                  {trip.avg_mpg != null ? Math.round(trip.avg_mpg) : "--"}
                 </div>
               </button>
             );

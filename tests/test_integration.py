@@ -289,16 +289,20 @@ class TestProducerLoopWiring:
             )
             detector.check(snap, miles_since_last_fill=None)
 
-        # Now jump to 95% -- this should trigger fillup
-        snap_full = VehicleSnapshot(
-            timestamp=t + 20,
-            rpm=700, speed_kph=0, coolant_temp_c=90,
-            engine_load_pct=20, throttle_pct=0, intake_air_temp_c=25,
-            intake_manifold_kpa=30, maf_gps=2.5, stft_pct=0, ltft_pct=0,
-            fuel_level_pct=95.0, catalyst_temp_c=400, oil_temp_c=88,
-            battery_voltage=14.2,
-        )
-        event = detector.check(snap_full, miles_since_last_fill=300.0)
+        # Now jump to 95% -- send multiple readings for multi-sample confirmation
+        event = None
+        for i in range(5):
+            snap_full = VehicleSnapshot(
+                timestamp=t + 20 + i,
+                rpm=700, speed_kph=0, coolant_temp_c=90,
+                engine_load_pct=20, throttle_pct=0, intake_air_temp_c=25,
+                intake_manifold_kpa=30, maf_gps=2.5, stft_pct=0, ltft_pct=0,
+                fuel_level_pct=95.0, catalyst_temp_c=400, oil_temp_c=88,
+                battery_voltage=14.2,
+            )
+            event = detector.check(snap_full, miles_since_last_fill=300.0)
+            if event is not None:
+                break
 
         assert event is not None
         assert event.estimated_gallons > 0

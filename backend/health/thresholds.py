@@ -118,12 +118,11 @@ CATALYST_TEMP = RangeThreshold(
 # Beyond +/-25% the ECU is near its correction limit.
 STFT = AbsoluteThreshold(normal=10.0, warning=15.0, critical=25.0)
 
-# Long-term fuel trim: +/-5% is well-adapted. +/-5 to +/-10% means slow
+# Long-term fuel trim: +/-5% is well-adapted. +/-5 to +/-8% means slow
 # drift (dirty air filter, slight vacuum leak). Beyond +/-10% sustained
-# indicates a real fuel system issue.
-# The warning zone is 5-10%, critical is at 10% and above. We use 9.99 as
-# the warning boundary so that exactly 10% falls into the critical zone.
-LTFT = AbsoluteThreshold(normal=5.0, warning=9.99, critical=10.0)
+# means the ECU is near its adaptation limit.
+# Gap between warning and critical prevents score oscillation from noise.
+LTFT = AbsoluteThreshold(normal=5.0, warning=8.0, critical=10.0)
 
 
 # --- EWMA alpha values ---

@@ -324,8 +324,15 @@ class HealthScorer:
         self._sample_count += 1
 
         if not self._calibration_complete and self._sample_count >= self._calibration_threshold:
-            self._calibration_complete = True
-            logger.info("Health scorer calibration complete after %d samples", self._sample_count)
+            # Don't complete calibration if data looks like garbage (OBD not connected).
+            # Real engine data has RPM > 0 or coolant > ambient. All zeros = no real data.
+            has_real_data = snap.rpm > 0 or snap.coolant_temp_c > 10
+            if has_real_data:
+                self._calibration_complete = True
+                logger.info("Health scorer calibration complete after %d samples", self._sample_count)
+            else:
+                logger.debug("Calibration deferred: data looks like OBD defaults (rpm=%.0f, coolant=%.0f)",
+                             snap.rpm, snap.coolant_temp_c)
 
         # Update EWMA smoothers (always, even during calibration)
         for param, ewma in self._ewma.items():
@@ -379,39 +386,34 @@ class HealthScorer:
         )
 
     def _identify_affected_subsystem(self, snap: VehicleSnapshot) -> str:
-        """Identify which subsystem is most anomalous based on EWMA deviation."""
+        """Identify which subsystem is most anomalous based on EWMA deviation.
+
+        Deviations are normalized by each sensor's normal range width so
+        that a 50C catalyst swing (normal variation in a 500C range) doesn't
+        outweigh a 0.5V voltage drop (serious in a 3V range).
+        """
         max_deviation = 0.0
         worst = "engine"
 
-        # Check coolant deviation -> cooling
-        if "coolant_temp_c" in self._ewma:
-            dev = abs(snap.coolant_temp_c - self._ewma["coolant_temp_c"].value)
-            if dev > max_deviation:
-                max_deviation = dev
-                worst = "cooling"
+        # (sensor, subsystem, normal_range_width)
+        # range_width = how wide the "normal" band is for this sensor
+        checks: list[tuple[str, str, float]] = [
+            ("coolant_temp_c", "cooling", 25.0),     # 75-100C = 25C range
+            ("ltft_pct", "fuel", 10.0),               # +/-5% = 10% range
+            ("battery_voltage", "electrical", 3.0),   # 12.0-15.0V = 3V range
+            ("catalyst_temp_c", "exhaust", 500.0),    # 300-800C = 500C range
+            ("oil_temp_c", "cooling", 40.0),          # 80-120C = 40C range
+        ]
 
-        # Check LTFT deviation -> fuel
-        if "ltft_pct" in self._ewma:
-            dev = abs(snap.ltft_pct - self._ewma["ltft_pct"].value)
-            # Scale fuel trim deviation higher (5% LTFT drift is more serious than 5C coolant)
-            if dev * 3 > max_deviation:
-                max_deviation = dev * 3
-                worst = "fuel"
-
-        # Check voltage deviation -> electrical
-        if "battery_voltage" in self._ewma:
-            dev = abs(snap.battery_voltage - self._ewma["battery_voltage"].value)
-            # Scale voltage deviation (0.5V drop is very significant)
-            if dev * 10 > max_deviation:
-                max_deviation = dev * 10
-                worst = "electrical"
-
-        # Check catalyst deviation -> exhaust
-        if "catalyst_temp_c" in self._ewma:
-            dev = abs(snap.catalyst_temp_c - self._ewma["catalyst_temp_c"].value)
-            if dev > max_deviation:
-                max_deviation = dev
-                worst = "exhaust"
+        for param, subsystem, range_width in checks:
+            if param not in self._ewma:
+                continue
+            dev = abs(getattr(snap, param) - self._ewma[param].value)
+            # Normalize: deviation as fraction of normal range
+            normalized = dev / range_width if range_width > 0 else 0
+            if normalized > max_deviation:
+                max_deviation = normalized
+                worst = subsystem
 
         return worst
 

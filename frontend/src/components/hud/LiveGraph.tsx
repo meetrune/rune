@@ -44,7 +44,9 @@ export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labe
 
     // Always buffer data (even when paused) so the graph is up to date when visible
     const unsub = useVehicleStore.subscribe((state) => {
-      const v = state.sensors[sensorKey]?.v ?? 0;
+      const raw = state.sensors[sensorKey]?.v ?? 0;
+      // Guard against NaN/Infinity from malformed data
+      const v = Number.isFinite(raw) ? raw : 0;
       buffer.current.push(v);
       if (buffer.current.length > BUF_LEN) buffer.current.shift();
     });
@@ -109,9 +111,12 @@ export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labe
         prevColor.current = color;
       }
 
-      // Value text
+      // Value text -- clamp display to max to prevent overflow from sensor malfunction
       if (valTextRef.current) {
-        valTextRef.current.textContent = lastVal < 1 && max < 50 ? lastVal.toFixed(1) : String(Math.round(lastVal));
+        const displayVal = Math.min(lastVal, max * 1.5);
+        valTextRef.current.textContent = !Number.isFinite(displayVal) ? "--"
+          : displayVal < 1 && max < 50 ? displayVal.toFixed(1)
+          : String(Math.round(displayVal));
         valTextRef.current.style.color = color;
       }
 

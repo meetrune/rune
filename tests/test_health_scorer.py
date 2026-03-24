@@ -184,9 +184,13 @@ class TestAbsoluteScoring:
         """10% LTFT sustained is critical (beyond warning boundary of 9.99%)."""
         assert score_absolute(10.0, LTFT) == 50.0
 
-    def test_ltft_9_5_is_warning(self) -> None:
-        """9.5% LTFT is in warning zone (5-9.99%)."""
-        assert score_absolute(9.5, LTFT) == 85.0
+    def test_ltft_9_5_is_critical(self) -> None:
+        """9.5% LTFT is in critical zone (8-10%) with updated thresholds."""
+        assert score_absolute(9.5, LTFT) == 50.0
+
+    def test_ltft_7_is_warning(self) -> None:
+        """7% LTFT is in warning zone (5-8%)."""
+        assert score_absolute(7.0, LTFT) == 85.0
 
     def test_ltft_12_is_beyond_critical(self) -> None:
         """12% LTFT is beyond critical (>10%)."""

@@ -31,8 +31,17 @@ class FillupEvent:
     rune_message: str
 
 
+FILLUP_CONFIRM_READINGS = 3  # require 3 consecutive high readings to confirm
+
+
 class FillupDetector:
-    """Detects fill-up events by watching fuel level jumps."""
+    """Detects fill-up events by watching fuel level jumps.
+
+    Uses multi-sample confirmation: a fuel level jump must persist for
+    FILLUP_CONFIRM_READINGS consecutive readings to be confirmed as a
+    real fill-up. This prevents false positives from sensor noise
+    (fuel slosh on hills, OBD glitches).
+    """
 
     def __init__(
         self,
@@ -45,6 +54,9 @@ class FillupDetector:
         self._epa_mpg = epa_combined_mpg
         self._last_fuel_pct: float | None = None
         self._readings_since_init: int = 0
+        # Multi-sample confirmation state
+        self._pending_fillup_from: float | None = None  # fuel level before suspected jump
+        self._confirm_count: int = 0
 
     def check(
         self,
@@ -64,26 +76,49 @@ class FillupDetector:
 
         if self._last_fuel_pct is not None:
             delta = current_pct - self._last_fuel_pct
+
             if delta >= FILLUP_THRESHOLD_PCT:
-                estimated_gal = (delta / 100) * self._tank_gal
-                cost = estimated_gal * self._gas_price
+                # Possible fill-up -- start or continue confirmation
+                if self._pending_fillup_from is None:
+                    self._pending_fillup_from = self._last_fuel_pct
+                    self._confirm_count = 1
+                else:
+                    self._confirm_count += 1
+            elif self._pending_fillup_from is not None:
+                # Fuel level dropped back down -- was noise, reset
+                if current_pct < self._pending_fillup_from + FILLUP_THRESHOLD_PCT:
+                    self._pending_fillup_from = None
+                    self._confirm_count = 0
+                else:
+                    # Still above threshold, count it
+                    self._confirm_count += 1
 
-                mpg: float | None = None
-                if miles_since_last_fill is not None and estimated_gal > 0:
-                    mpg = miles_since_last_fill / estimated_gal
+        # Confirmed fill-up after enough consecutive high readings
+        if self._confirm_count >= FILLUP_CONFIRM_READINGS and self._pending_fillup_from is not None:
+            delta = current_pct - self._pending_fillup_from
+            estimated_gal = (delta / 100) * self._tank_gal
+            cost = estimated_gal * self._gas_price
 
-                message = self._build_message(estimated_gal, current_pct, mpg)
+            mpg: float | None = None
+            if miles_since_last_fill is not None and estimated_gal > 0:
+                mpg = miles_since_last_fill / estimated_gal
 
-                event = FillupEvent(
-                    detected_at=snap.timestamp,
-                    fuel_level_before=self._last_fuel_pct,
-                    fuel_level_after=current_pct,
-                    estimated_gallons=round(estimated_gal, 1),
-                    cost_usd=round(cost, 2),
-                    mpg_since_last_fill=round(mpg, 1) if mpg else None,
-                    rune_message=message,
-                )
-                logger.info("Fill-up detected: %s", message)
+            message = self._build_message(estimated_gal, current_pct, mpg)
+
+            event = FillupEvent(
+                detected_at=snap.timestamp,
+                fuel_level_before=self._pending_fillup_from,
+                fuel_level_after=current_pct,
+                estimated_gallons=round(estimated_gal, 1),
+                cost_usd=round(cost, 2),
+                mpg_since_last_fill=round(mpg, 1) if mpg else None,
+                rune_message=message,
+            )
+            logger.info("Fill-up detected: %s", message)
+
+            # Reset confirmation state
+            self._pending_fillup_from = None
+            self._confirm_count = 0
 
         self._last_fuel_pct = current_pct
         return event
