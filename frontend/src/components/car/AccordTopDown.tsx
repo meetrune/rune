@@ -1,386 +1,172 @@
-import React from "react";
+import type { CSSProperties } from "react";
 
 interface AccordTopDownProps {
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
-/**
- * Top-down wireframe of the 2026 Honda Accord SE (11th gen).
- * White strokes on transparent background for OLED HUD display.
- *
- * Proportions based on 11th gen Accord:
- *   Overall ~4971mm L x ~1862mm W, wheelbase ~2830mm
- *   Hood ~30%, cabin ~40%, trunk ~30% of length
- *   Wheels at ~20% and ~75% from front
- */
-export function AccordTopDown({
-  className,
-  style,
-}: AccordTopDownProps): React.JSX.Element {
-  // Opacity tokens
-  const body = "rgba(255,255,255,0.30)";
-  const glass = "rgba(255,255,255,0.20)";
-  const detail = "rgba(255,255,255,0.15)";
-  const accent = "rgba(255,255,255,0.35)";
-
+// 2026 Honda Accord SE (11th gen) top-down wireframe.
+// Proportions: 4975mm L x 1862mm W, wheelbase 2830mm.
+// viewBox 500x188 maintains the 2.67:1 length-to-width ratio.
+export function AccordTopDown({ className, style }: AccordTopDownProps) {
   return (
     <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 400 180"
+      viewBox="0 0 500 188"
       className={className}
       style={style}
-      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
       strokeLinecap="round"
       strokeLinejoin="round"
+      fill="none"
     >
-      {/* ---------- BODY OUTLINE ---------- */}
-      {/*
-        The outline traces the full perimeter of the car from above.
-        Front is left, rear is right. Centred vertically at y=90.
-        Width of body ~110 units (y 35-145), length ~360 units (x 20-380).
-      */}
+      {/* Body outline -- the main silhouette */}
       <path
-        d={[
-          // Front bumper -- subtle trapezoidal nose
-          "M 56,52",
-          "L 38,58",
-          "Q 24,64 22,74",
-          "L 20,90",
-          "Q 22,106 24,106",
-          "L 38,122",
-          "L 56,128",
-
-          // Driver side (bottom in SVG) -- slight fender flare at front wheel
-          "L 72,130",
-          "Q 80,132 88,132",   // front wheel arch flare
-          "L 100,131",
-          "Q 108,130 112,129",
-
-          // Beltline runs along driver side
-          "L 180,128",
-          "L 260,129",
-
-          // Rear wheel arch flare
-          "Q 280,131 292,132",
-          "L 310,132",
-          "Q 318,131 324,129",
-
-          // Rear quarter -- fastback taper
-          "L 352,124",
-          "L 368,116",
-          "Q 378,108 380,100",
-          "L 380,90",
-
-          // Passenger side (top in SVG) -- mirror of driver side
-          "L 380,80",
-          "Q 378,72 368,64",
-          "L 352,56",
-          "L 324,51",
-          "Q 318,49 310,48",
-          "L 292,48",
-          "Q 280,49 260,51",
-          "L 180,52",
-          "L 112,51",
-          "Q 108,50 100,49",
-          "L 88,48",
-          "Q 80,48 72,50",
-          "L 56,52",
-          "Z",
-        ].join(" ")}
-        stroke={body}
-        strokeWidth={1.6}
+        d="
+          M 60,30
+          Q 30,30 20,50
+          L 12,70
+          Q 8,80 8,94
+          Q 8,108 12,118
+          L 20,138
+          Q 30,158 60,158
+          L 400,158
+          Q 440,158 460,145
+          L 480,130
+          Q 492,120 492,94
+          Q 492,68 480,58
+          L 460,43
+          Q 440,30 400,30
+          Z
+        "
+        stroke="rgba(255,255,255,0.30)"
+        strokeWidth="1.5"
       />
 
-      {/* ---------- HEADLIGHTS (C-shaped DRL wrap) ---------- */}
-      {/* Passenger side headlight */}
+      {/* Hood panel line */}
+      <line x1="140" y1="38" x2="140" y2="150" stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" />
+
+      {/* Hood center crease */}
+      <line x1="60" y1="94" x2="140" y2="94" stroke="rgba(255,255,255,0.06)" strokeWidth="0.6" />
+
+      {/* Windshield -- raked back */}
       <path
-        d="M 52,54 Q 40,58 36,62 L 30,70 Q 28,74 30,76"
-        stroke={accent}
-        strokeWidth={1.4}
-      />
-      {/* Inner C curve */}
-      <path
-        d="M 48,56 Q 42,60 39,64 L 35,70"
-        stroke={accent}
-        strokeWidth={0.8}
-      />
-      {/* Driver side headlight */}
-      <path
-        d="M 52,126 Q 40,122 36,118 L 30,110 Q 28,106 30,104"
-        stroke={accent}
-        strokeWidth={1.4}
-      />
-      <path
-        d="M 48,124 Q 42,120 39,116 L 35,110"
-        stroke={accent}
-        strokeWidth={0.8}
+        d="M 145,48 Q 155,42 175,40 L 175,148 Q 155,146 145,140"
+        stroke="rgba(255,255,255,0.20)"
+        strokeWidth="1.2"
       />
 
-      {/* ---------- FRONT GRILLE (trapezoidal) ---------- */}
+      {/* Roof outline -- narrower than body */}
       <path
-        d="M 30,76 L 24,82 L 22,90 L 24,98 L 30,104"
-        stroke={detail}
-        strokeWidth={0.8}
+        d="
+          M 178,46
+          L 320,44
+          Q 340,44 355,50
+          L 365,56
+        "
+        stroke="rgba(255,255,255,0.18)"
+        strokeWidth="1"
       />
-      {/* Grille horizontal bars */}
-      <line x1="26" y1="84" x2="28" y2="84" stroke={detail} strokeWidth={0.5} />
-      <line x1="24" y1="90" x2="26" y2="90" stroke={detail} strokeWidth={0.5} />
-      <line x1="26" y1="96" x2="28" y2="96" stroke={detail} strokeWidth={0.5} />
+      <path
+        d="
+          M 178,142
+          L 320,144
+          Q 340,144 355,138
+          L 365,132
+        "
+        stroke="rgba(255,255,255,0.18)"
+        strokeWidth="1"
+      />
 
-      {/* ---------- TAILLIGHTS (full-width LED bar) ---------- */}
-      {/* The 11th gen Accord has a distinctive thin light bar spanning the trunk */}
+      {/* Rear window -- fastback slope */}
       <path
-        d="M 352,56 Q 366,62 372,68 L 376,76"
-        stroke={accent}
-        strokeWidth={1.4}
+        d="M 365,56 Q 380,60 385,70 L 385,118 Q 380,128 365,132"
+        stroke="rgba(255,255,255,0.20)"
+        strokeWidth="1.2"
+      />
+
+      {/* Trunk panel line */}
+      <line x1="390" y1="50" x2="390" y2="138" stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" />
+
+      {/* A-pillar lines */}
+      <line x1="145" y1="48" x2="178" y2="46" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
+      <line x1="145" y1="140" x2="178" y2="142" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
+
+      {/* B-pillar */}
+      <line x1="245" y1="38" x2="245" y2="42" stroke="rgba(255,255,255,0.10)" strokeWidth="1.5" />
+      <line x1="245" y1="146" x2="245" y2="150" stroke="rgba(255,255,255,0.10)" strokeWidth="1.5" />
+
+      {/* Side windows -- front */}
+      <rect x="180" y="42" width="63" height="5" rx="1" stroke="rgba(255,255,255,0.10)" strokeWidth="0.6" />
+      <rect x="180" y="141" width="63" height="5" rx="1" stroke="rgba(255,255,255,0.10)" strokeWidth="0.6" />
+
+      {/* Side windows -- rear */}
+      <rect x="247" y="42" width="70" height="5" rx="1" stroke="rgba(255,255,255,0.10)" strokeWidth="0.6" />
+      <rect x="247" y="141" width="70" height="5" rx="1" stroke="rgba(255,255,255,0.10)" strokeWidth="0.6" />
+
+      {/* Headlights -- angular C-shape wrapping around fenders */}
+      <path
+        d="M 18,65 Q 12,72 10,80 L 10,94"
+        stroke="rgba(255,255,255,0.35)"
+        strokeWidth="2"
       />
       <path
-        d="M 352,124 Q 366,118 372,112 L 376,104"
-        stroke={accent}
-        strokeWidth={1.4}
+        d="M 18,123 Q 12,116 10,108 L 10,94"
+        stroke="rgba(255,255,255,0.35)"
+        strokeWidth="2"
+      />
+
+      {/* Headlight inner detail (DRL) */}
+      <path d="M 22,68 L 14,78" stroke="rgba(255,255,255,0.20)" strokeWidth="1" />
+      <path d="M 22,120 L 14,110" stroke="rgba(255,255,255,0.20)" strokeWidth="1" />
+
+      {/* Taillights -- full-width LED bar (signature 11th gen feature) */}
+      <path
+        d="M 470,55 Q 488,65 490,80"
+        stroke="rgba(255,255,255,0.30)"
+        strokeWidth="2"
+      />
+      <path
+        d="M 470,133 Q 488,123 490,108"
+        stroke="rgba(255,255,255,0.30)"
+        strokeWidth="2"
       />
       {/* Connecting bar across trunk */}
+      <line x1="440" y1="35" x2="440" y2="153" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+
+      {/* Front grille -- trapezoidal */}
       <path
-        d="M 376,76 Q 380,84 380,90 Q 380,96 376,104"
-        stroke={accent}
-        strokeWidth={1.2}
-      />
-      {/* Inner LED strip detail */}
-      <path
-        d="M 370,72 Q 376,82 376,90 Q 376,98 370,108"
-        stroke={detail}
-        strokeWidth={0.6}
+        d="M 14,75 L 10,82 L 10,106 L 14,113"
+        stroke="rgba(255,255,255,0.15)"
+        strokeWidth="0.8"
       />
 
-      {/* ---------- WINDSHIELD (front) ---------- */}
-      <path
-        d="M 108,58 Q 112,56 128,55 L 200,54 L 272,55 Q 288,56 292,58"
-        stroke={glass}
-        strokeWidth={0}
-      />
-      <path
-        d={[
-          "M 102,60",
-          "L 120,58",
-          "Q 160,55 200,54",
-          "Q 240,55 280,58",
-          "L 298,60",
-        ].join(" ")}
-        stroke={glass}
-        strokeWidth={1.2}
-      />
-      {/* Windshield rear edge (A-pillar line) */}
-      <path
-        d={[
-          "M 102,60",
-          "L 108,120",
-        ].join(" ")}
-        stroke={glass}
-        strokeWidth={0.8}
-      />
-      <path
-        d={[
-          "M 298,60",
-          "L 292,120",
-        ].join(" ")}
-        stroke={glass}
-        strokeWidth={0.8}
-      />
-      {/* Windshield bottom edge */}
-      <path
-        d={[
-          "M 108,120",
-          "L 120,122",
-          "Q 160,125 200,126",
-          "Q 240,125 280,122",
-          "L 292,120",
-        ].join(" ")}
-        stroke={glass}
-        strokeWidth={1.2}
-      />
+      {/* Wheels -- front pair at ~18% of length */}
+      <ellipse cx="90" cy="28" rx="22" ry="8" stroke="rgba(255,255,255,0.25)" strokeWidth="1.2" />
+      <ellipse cx="90" cy="160" rx="22" ry="8" stroke="rgba(255,255,255,0.25)" strokeWidth="1.2" />
+      {/* Wheel inner rim */}
+      <ellipse cx="90" cy="28" rx="14" ry="5" stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />
+      <ellipse cx="90" cy="160" rx="14" ry="5" stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />
 
-      {/* ---------- ROOF OUTLINE ---------- */}
-      <path
-        d={[
-          "M 120,62",
-          "Q 160,59 200,58",
-          "Q 240,59 280,62",
-          "L 330,68",
-          "Q 345,74 348,82",
-          "L 348,90",
-          "L 348,98",
-          "Q 345,106 330,112",
-          "L 280,118",
-          "Q 240,121 200,122",
-          "Q 160,121 120,118",
-          "L 120,62",
-          "Z",
-        ].join(" ")}
-        stroke={body}
-        strokeWidth={1.0}
-      />
+      {/* Wheels -- rear pair at ~75% of length */}
+      <ellipse cx="375" cy="28" rx="22" ry="8" stroke="rgba(255,255,255,0.25)" strokeWidth="1.2" />
+      <ellipse cx="375" cy="160" rx="22" ry="8" stroke="rgba(255,255,255,0.25)" strokeWidth="1.2" />
+      <ellipse cx="375" cy="28" rx="14" ry="5" stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />
+      <ellipse cx="375" cy="160" rx="14" ry="5" stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />
 
-      {/* ---------- REAR WINDSHIELD ---------- */}
-      <path
-        d={[
-          "M 290,66",
-          "Q 310,70 324,74",
-          "L 336,80",
-        ].join(" ")}
-        stroke={glass}
-        strokeWidth={1.0}
-      />
-      <path
-        d={[
-          "M 290,114",
-          "Q 310,110 324,106",
-          "L 336,100",
-        ].join(" ")}
-        stroke={glass}
-        strokeWidth={1.0}
-      />
-      {/* Rear glass horizontal */}
-      <path
-        d="M 336,80 Q 340,86 340,90 Q 340,94 336,100"
-        stroke={glass}
-        strokeWidth={1.0}
-      />
+      {/* Side mirrors */}
+      <ellipse cx="155" cy="24" rx="8" ry="4" stroke="rgba(255,255,255,0.20)" strokeWidth="0.8" />
+      <ellipse cx="155" cy="164" rx="8" ry="4" stroke="rgba(255,255,255,0.20)" strokeWidth="0.8" />
 
-      {/* ---------- SIDE WINDOWS ---------- */}
-      {/* Passenger side -- front window */}
+      {/* Shoulder crease lines -- run along body sides */}
       <path
-        d="M 124,62 L 186,59 L 186,62 L 126,64"
-        stroke={glass}
-        strokeWidth={0.7}
+        d="M 50,36 Q 100,33 200,35 L 400,35"
+        stroke="rgba(255,255,255,0.06)"
+        strokeWidth="0.6"
       />
-      {/* Passenger side -- rear window */}
       <path
-        d="M 190,59 L 276,62 Q 286,64 290,66 L 190,62"
-        stroke={glass}
-        strokeWidth={0.7}
-      />
-      {/* Driver side -- front window */}
-      <path
-        d="M 124,118 L 186,121 L 186,118 L 126,116"
-        stroke={glass}
-        strokeWidth={0.7}
-      />
-      {/* Driver side -- rear window */}
-      <path
-        d="M 190,121 L 276,118 Q 286,116 290,114 L 190,118"
-        stroke={glass}
-        strokeWidth={0.7}
-      />
-
-      {/* ---------- B-PILLAR ---------- */}
-      <line
-        x1="186" y1="59" x2="186" y2="62"
-        stroke={detail}
-        strokeWidth={1.4}
-      />
-      <line
-        x1="186" y1="118" x2="186" y2="121"
-        stroke={detail}
-        strokeWidth={1.4}
-      />
-
-      {/* ---------- SIDE MIRRORS ---------- */}
-      {/* Passenger */}
-      <path
-        d="M 110,46 L 104,40 L 98,42 L 104,48"
-        stroke={body}
-        strokeWidth={0.8}
-      />
-      {/* Driver */}
-      <path
-        d="M 110,134 L 104,140 L 98,138 L 104,132"
-        stroke={body}
-        strokeWidth={0.8}
-      />
-
-      {/* ---------- WHEELS ---------- */}
-      {/* Front passenger */}
-      <ellipse
-        cx="80" cy="46"
-        rx="16" ry="5"
-        stroke={body}
-        strokeWidth={1.0}
-      />
-      <ellipse
-        cx="80" cy="46"
-        rx="11" ry="3.5"
-        stroke={detail}
-        strokeWidth={0.5}
-      />
-
-      {/* Front driver */}
-      <ellipse
-        cx="80" cy="134"
-        rx="16" ry="5"
-        stroke={body}
-        strokeWidth={1.0}
-      />
-      <ellipse
-        cx="80" cy="134"
-        rx="11" ry="3.5"
-        stroke={detail}
-        strokeWidth={0.5}
-      />
-
-      {/* Rear passenger */}
-      <ellipse
-        cx="300" cy="46"
-        rx="16" ry="5"
-        stroke={body}
-        strokeWidth={1.0}
-      />
-      <ellipse
-        cx="300" cy="46"
-        rx="11" ry="3.5"
-        stroke={detail}
-        strokeWidth={0.5}
-      />
-
-      {/* Rear driver */}
-      <ellipse
-        cx="300" cy="134"
-        rx="16" ry="5"
-        stroke={body}
-        strokeWidth={1.0}
-      />
-      <ellipse
-        cx="300" cy="134"
-        rx="11" ry="3.5"
-        stroke={detail}
-        strokeWidth={0.5}
-      />
-
-      {/* ---------- BODY CREASE LINES ---------- */}
-      {/* Shoulder line -- passenger side */}
-      <path
-        d="M 60,53 L 180,51 L 320,50 L 354,56"
-        stroke={detail}
-        strokeWidth={0.5}
-      />
-      {/* Shoulder line -- driver side */}
-      <path
-        d="M 60,127 L 180,129 L 320,130 L 354,124"
-        stroke={detail}
-        strokeWidth={0.5}
-      />
-
-      {/* Center hood line */}
-      <line
-        x1="30" y1="90" x2="108" y2="90"
-        stroke={detail}
-        strokeWidth={0.4}
-      />
-      {/* Center trunk line */}
-      <line
-        x1="340" y1="90" x2="376" y2="90"
-        stroke={detail}
-        strokeWidth={0.4}
+        d="M 50,152 Q 100,155 200,153 L 400,153"
+        stroke="rgba(255,255,255,0.06)"
+        strokeWidth="0.6"
       />
     </svg>
   );

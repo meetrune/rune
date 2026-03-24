@@ -11,7 +11,7 @@ interface RuneVoiceResult {
 
 // Minimum score change to trigger a new voice message.
 // Prevents message flicker from minor fluctuations.
-const DEBOUNCE_THRESHOLD = 3;
+const DEBOUNCE_THRESHOLD = 8;
 
 export function useRuneVoice(): RuneVoiceResult {
   const [result, setResult] = useState<RuneVoiceResult>({

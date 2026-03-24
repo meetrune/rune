@@ -57,8 +57,9 @@ Rune IS the car. He speaks in first person. He's a brother -- direct, honest, st
 - **Web framework:** FastAPI 0.135.1 with uvicorn 0.42.0
 - **OBD-II:** `obd` 0.7.3 (PyPI package name is `obd`, install with `pip install obd`). Async mode, `fast=True`.
 - **Database:** SQLite with WAL mode via aiosqlite 0.22.1. **Not InfluxDB** (50-70% CPU on Pi from TSM compaction). **Not TimescaleDB.**
-- **Frontend:** React 19.2.4 + Vite 8.0.0. **Pure SVG + CSS animations (NO Three.js/WebGL).** PWA served from Pi. zustand 5.0.12 for state.
-- **Frontend aesthetic:** White Minimal HUD -- pure white on OLED black (#000), zero accent color. Landscape orientation. Full Hero layout (car fills screen). Amber/red color ONLY on deviating sensors.
+- **Frontend:** React 19.2.4 + Three.js + React Three Fiber + Vite 8.0.0. PWA served from Pi. zustand 5.0.12 for state.
+- **Car visualization:** Interactive 3D model (.glb) rendered with Three.js/R3F. 360-degree touch rotation. Dark metallic materials with studio lighting. Model exported from Blender (scene file: `docs/assets/rune-accord-scene.blend`). Blender render backup: `docs/assets/accord-hud-render.png`.
+- **Frontend aesthetic:** Premium dark HUD on OLED black (#000). Large, readable text (CarPlay/Android Auto scale). Amber/red color ONLY on deviating sensors. Landscape orientation. Always-visible nav bar.
 - **State management:** zustand 5.0.12
 - **ML (classical):** scikit-learn 1.8.0 (Isolation Forest, Random Forest)
 - **ML (deep, v3+):** tflite-runtime 2.14.0 (autoencoder inference on ARM64)
