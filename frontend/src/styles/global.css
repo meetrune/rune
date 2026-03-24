@@ -87,6 +87,18 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Voice pulse animation */
+@keyframes pulse-voice {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.6; }
+}
+
+/* Zone alert ripple */
+@keyframes zone-ripple {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
 /* Credit line uses Cormorant Garamond */
 .font-credit {
   font-family: var(--font-credit);

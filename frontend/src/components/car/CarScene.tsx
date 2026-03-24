@@ -2,6 +2,7 @@ import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { useGLTF, OrbitControls, ContactShadows, Environment } from "@react-three/drei";
 import * as THREE from "three";
+import { ZoneIndicators } from "./ZoneIndicators";
 
 const MODEL_PATH = "/models/accord.glb";
 useGLTF.preload(MODEL_PATH);
@@ -127,6 +128,7 @@ export function CarScene() {
           <group position={[0, -0.8, 0]}>
             <AccordModel />
           </group>
+          <ZoneIndicators />
           <ContactShadows
             position={[0, -0.85, 0]}
             opacity={0.3}

@@ -1,21 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 interface BootScreenProps {
   onComplete: () => void;
 }
 
+// Clean, minimal boot: "Rune" fades in, holds, fades out.
 export function BootScreen({ onComplete }: BootScreenProps) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [phase, setPhase] = useState<"fade-in" | "hold" | "fade-out">("fade-in");
 
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      onComplete();
-    }, 2000);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    const t1 = setTimeout(() => setPhase("hold"), 100);
+    const t2 = setTimeout(() => setPhase("fade-out"), 2500);
+    const t3 = setTimeout(onComplete, 3200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [onComplete]);
+
+  const opacity = phase === "hold" ? 1 : 0;
 
   return (
     <div
@@ -27,74 +27,41 @@ export function BootScreen({ onComplete }: BootScreenProps) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 1000,
+        zIndex: 200,
+        gap: "16px",
+        opacity,
+        transition: "opacity 800ms ease",
       }}
     >
-      {/* "Rune" text with breathing animation */}
       <span
         style={{
           fontFamily: "var(--font-data)",
-          fontSize: "48px",
-          fontWeight: 500,
-          color: "#fff",
-          letterSpacing: "0.08em",
-          animation: "runeBreathing 2s ease-in-out infinite",
+          fontSize: "52px",
+          fontWeight: 700,
+          color: "rgba(255,255,255,0.9)",
+          letterSpacing: "-0.02em",
         }}
       >
         Rune
       </span>
-
-      {/* Thin horizontal divider */}
       <div
         style={{
-          width: "40%",
+          width: "40px",
           height: "1px",
-          background: "rgba(255,255,255,0.08)",
-          marginTop: "16px",
+          background: "rgba(255,255,255,0.1)",
         }}
       />
-
-      {/* Maker's mark at bottom */}
-      <div
+      <span
         style={{
-          position: "absolute",
-          bottom: "32px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          textAlign: "center",
-          whiteSpace: "nowrap",
+          fontFamily: "var(--font-credit)",
+          fontStyle: "italic",
+          fontSize: "15px",
+          fontWeight: 300,
+          color: "rgba(255,255,255,0.12)",
         }}
       >
-        <span
-          style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
-            fontStyle: "italic",
-            fontSize: "13px",
-            color: "#fff",
-            opacity: 0.12,
-          }}
-        >
-          crafted by{" "}
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-data)",
-            fontSize: "13px",
-            color: "#fff",
-            opacity: 0.15,
-          }}
-        >
-          Kuladeep Mantri
-        </span>
-      </div>
-
-      {/* Keyframes injected via style tag */}
-      <style>{`
-        @keyframes runeBreathing {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.9; }
-        }
-      `}</style>
+        crafted by Kuladeep Mantri
+      </span>
     </div>
   );
 }

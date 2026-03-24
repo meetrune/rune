@@ -1,31 +1,48 @@
 import { CarScene } from "@/components/car/CarScene";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useVehicleStore } from "@/stores/vehicleStore";
 import { useRuneVoice } from "@/hooks/useRuneVoice";
 
-// Main screen -- premium car OS layout.
-// Car fills the center. Data overlays at edges. Everything CarPlay-readable.
 export function RuneScreen() {
   const healthRef = useRef<HTMLSpanElement>(null);
   const mpgRef = useRef<HTMLSpanElement>(null);
   const mpgLabelRef = useRef<HTMLSpanElement>(null);
   const sensorRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const voice = useRuneVoice();
+  const [displayVoice, setDisplayVoice] = useState("");
+  const [voiceOpacity, setVoiceOpacity] = useState(0);
+  const prevVoice = useRef("");
 
-  // Imperative 10Hz updates for all data elements
+  // Smooth voice transition
+  useEffect(() => {
+    if (!voice.message || voice.message === prevVoice.current) return;
+    prevVoice.current = voice.message;
+    setVoiceOpacity(0);
+    const t = setTimeout(() => {
+      setDisplayVoice(voice.message);
+      setVoiceOpacity(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [voice.message]);
+
+  useEffect(() => {
+    if (voice.message && !displayVoice) {
+      setDisplayVoice(voice.message);
+      setTimeout(() => setVoiceOpacity(1), 100);
+    }
+  }, [voice.message, displayVoice]);
+
+  // Imperative 10Hz sensor updates
   useEffect(() => {
     const unsub = useVehicleStore.subscribe((state) => {
-      // Health score
       if (healthRef.current) {
-        const score = state.health.overall;
-        healthRef.current.textContent = score === -1 ? "--" : String(Math.round(score));
+        const s = state.health.overall;
+        healthRef.current.textContent = s === -1 ? "--" : String(Math.round(s));
         healthRef.current.style.color =
-          score < 50 ? "rgba(239,68,68,0.9)" :
-          score < 70 ? "rgba(251,191,36,0.85)" :
+          s < 50 ? "rgba(239,68,68,0.9)" :
+          s < 70 ? "rgba(251,191,36,0.85)" :
           "rgba(255,255,255,0.9)";
       }
-
-      // MPG or Idle GPH
       if (mpgRef.current && mpgLabelRef.current) {
         const speed = state.sensors["SPEED"]?.v ?? 0;
         if (speed > 2) {
@@ -38,10 +55,8 @@ export function RuneScreen() {
           mpgLabelRef.current.textContent = "IDLE GPH";
         }
       }
-
-      // Sensor values
-      const sensorKeys = ["RPM", "SPEED", "COOLANT_TEMP", "BATTERY_V", "FUEL_LEVEL"];
-      sensorKeys.forEach((key, i) => {
+      const keys = ["RPM", "SPEED", "COOLANT_TEMP", "BATTERY_V", "FUEL_LEVEL"];
+      keys.forEach((key, i) => {
         const el = sensorRefs.current[i];
         if (!el) return;
         const v = state.sensors[key]?.v;
@@ -56,49 +71,64 @@ export function RuneScreen() {
   }, []);
 
   return (
-    <div style={styles.screen}>
-      {/* 3D Car -- fills most of the screen */}
-      <div style={styles.carArea}>
+    <div style={S.screen}>
+      {/* 3D Car fills the screen */}
+      <div style={S.carArea}>
         <CarScene />
       </div>
 
-      {/* Top-left: Health */}
-      <div style={styles.topLeft}>
-        <span style={styles.runeTag}>RUNE</span>
-        <span ref={healthRef} style={styles.healthScore}>--</span>
-        <span style={styles.healthLabel}>HEALTH</span>
+      {/* Top-left: Rune identity */}
+      <div style={S.topLeft}>
+        <div style={S.brandRow}>
+          <span style={S.runeName}>Rune</span>
+          <span style={S.byLine}>by Kuladeep Mantri</span>
+        </div>
+        <div style={S.healthRow}>
+          <span ref={healthRef} style={S.healthScore}>--</span>
+          <span style={S.healthLabel}>HEALTH</span>
+        </div>
       </div>
 
       {/* Top-right: MPG */}
-      <div style={styles.topRight}>
-        <span ref={mpgRef} style={styles.mpgValue}>--</span>
-        <span ref={mpgLabelRef} style={styles.mpgLabel}>MPG</span>
+      <div style={S.topRight}>
+        <span ref={mpgRef} style={S.mpgValue}>--</span>
+        <span ref={mpgLabelRef} style={S.mpgLabel}>MPG</span>
       </div>
 
-      {/* Right edge: Key sensors -- large, glanceable */}
-      <div style={styles.sensorColumn}>
-        {["RPM", "KPH", "°C", "V", "%"].map((unit, i) => (
-          <div key={unit} style={styles.sensorRow}>
+      {/* Right edge: Key sensors */}
+      <div style={S.sensorColumn}>
+        {["RPM", "KPH", "\u00B0C", "V", "%"].map((unit, i) => (
+          <div key={unit} style={S.sensorRow}>
             <span
               ref={(el) => { sensorRefs.current[i] = el; }}
-              style={styles.sensorValue}
-            >
-              --
-            </span>
-            <span style={styles.sensorUnit}>{unit}</span>
+              style={S.sensorValue}
+            >--</span>
+            <span style={S.sensorUnit}>{unit}</span>
           </div>
         ))}
       </div>
 
-      {/* Bottom center: Rune's voice */}
-      <div style={styles.voiceArea}>
-        <span style={styles.voiceText}>{voice.message}</span>
+      {/* Bottom: Rune speaking -- modern card */}
+      <div style={S.voiceArea}>
+        <div
+          style={{
+            ...S.voiceCard,
+            opacity: voiceOpacity,
+            transform: voiceOpacity ? "translateY(0)" : "translateY(8px)",
+            transition: "opacity 600ms ease, transform 600ms ease",
+          }}
+        >
+          <div style={S.voiceAvatar}>R</div>
+          <p style={S.voiceText}>
+            {displayVoice || "Listening..."}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-const styles = {
+const S = {
   screen: {
     position: "relative" as const,
     width: "100%",
@@ -111,21 +141,40 @@ const styles = {
     inset: 0,
     zIndex: 0,
   },
+
+  // Top-left: Rune identity
   topLeft: {
     position: "absolute" as const,
     top: "20px",
     left: "24px",
     zIndex: 10,
+  },
+  brandRow: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: "2px",
+    marginBottom: "10px",
   },
-  runeTag: {
+  runeName: {
     fontFamily: "var(--font-data)",
+    fontSize: "32px",
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.9)",
+    letterSpacing: "-0.02em",
+    lineHeight: 1,
+  },
+  byLine: {
+    fontFamily: "var(--font-credit)",
+    fontStyle: "italic" as const,
     fontSize: "13px",
-    fontWeight: 500,
-    letterSpacing: "0.12em",
-    color: "rgba(255,255,255,0.25)",
+    fontWeight: 300,
+    color: "rgba(255,255,255,0.18)",
+    marginTop: "4px",
+    letterSpacing: "0.02em",
+  },
+  healthRow: {
+    display: "flex",
+    alignItems: "baseline" as const,
+    gap: "10px",
   },
   healthScore: {
     fontFamily: "var(--font-data)",
@@ -137,11 +186,13 @@ const styles = {
   },
   healthLabel: {
     fontFamily: "var(--font-ui)",
-    fontSize: "11px",
+    fontSize: "13px",
     fontWeight: 600,
-    letterSpacing: "0.15em",
+    letterSpacing: "0.12em",
     color: "rgba(255,255,255,0.2)",
   },
+
+  // Top-right: MPG
   topRight: {
     position: "absolute" as const,
     top: "20px",
@@ -162,20 +213,22 @@ const styles = {
   },
   mpgLabel: {
     fontFamily: "var(--font-ui)",
-    fontSize: "11px",
+    fontSize: "12px",
     fontWeight: 600,
-    letterSpacing: "0.15em",
+    letterSpacing: "0.12em",
     color: "rgba(255,255,255,0.2)",
   },
+
+  // Right sensor column
   sensorColumn: {
     position: "absolute" as const,
     right: "24px",
     top: "50%",
-    transform: "translateY(-30%)",
+    transform: "translateY(-25%)",
     zIndex: 10,
     display: "flex",
     flexDirection: "column" as const,
-    gap: "20px",
+    gap: "18px",
     alignItems: "flex-end" as const,
   },
   sensorRow: {
@@ -201,20 +254,50 @@ const styles = {
     letterSpacing: "0.04em",
     minWidth: "32px",
   },
+
+  // Voice area -- Rune speaking
   voiceArea: {
     position: "absolute" as const,
-    bottom: "70px",
-    left: "50%",
-    transform: "translateX(-50%)",
+    bottom: "28px",
+    left: "24px",
+    right: "24px",
     zIndex: 10,
-    maxWidth: "500px",
-    textAlign: "center" as const,
+    display: "flex",
+    justifyContent: "center" as const,
+  },
+  voiceCard: {
+    display: "flex",
+    alignItems: "flex-start" as const,
+    gap: "14px",
+    maxWidth: "520px",
+    padding: "14px 20px",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.04)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    border: "1px solid rgba(255,255,255,0.06)",
+  },
+  voiceAvatar: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "10px",
+    background: "rgba(255,255,255,0.08)",
+    display: "flex",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    fontFamily: "var(--font-data)",
+    fontSize: "14px",
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.4)",
+    flexShrink: 0,
   },
   voiceText: {
     fontFamily: "var(--font-ui)",
-    fontSize: "15px",
-    fontWeight: 300,
-    color: "rgba(255,255,255,0.4)",
-    lineHeight: 1.5,
+    fontSize: "16px",
+    fontWeight: 400,
+    lineHeight: 1.6,
+    color: "rgba(255,255,255,0.65)",
+    margin: 0,
+    paddingTop: "4px",
   },
 } as const;
