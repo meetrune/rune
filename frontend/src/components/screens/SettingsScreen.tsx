@@ -2,14 +2,33 @@ import { useRef, useEffect } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useVehicleStore } from "@/stores/vehicleStore";
 
-const TOGGLES: { key: "gridBackground" | "runeVoice" | "hapticFeedback" | "parallaxTilt"; label: string; desc: string }[] = [
-  { key: "gridBackground", label: "Grid Background", desc: "Subtle grid overlay" },
-  { key: "runeVoice", label: "Rune Voice", desc: "Status messages from Rune" },
-  { key: "hapticFeedback", label: "Haptic Feedback", desc: "Vibration on alerts" },
-  { key: "parallaxTilt", label: "Parallax Tilt", desc: "Gyroscope response" },
-];
+// iOS-style grouped settings. Rounded groups, clean dividers, no individual cards.
 
-function Toggle({ settingKey, label, desc }: { settingKey: typeof TOGGLES[number]["key"]; label: string; desc: string }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: "20px" }}>
+      <span style={{
+        fontFamily: "var(--font-ui)", fontSize: "13px", fontWeight: 600,
+        letterSpacing: "0.06em", textTransform: "uppercase" as const,
+        color: "rgba(255,255,255,0.3)", display: "block",
+        padding: "0 16px 8px",
+      }}>{title}</span>
+      <div style={{
+        borderRadius: "16px", overflow: "hidden",
+        background: "rgba(255,255,255,0.03)",
+        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+        border: "1px solid rgba(255,255,255,0.05)",
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ToggleRow({ label, desc, settingKey }: {
+  label: string; desc: string;
+  settingKey: "gridBackground" | "runeVoice" | "hapticFeedback" | "parallaxTilt";
+}) {
   const value = useSettingsStore((s) => s[settingKey]);
   const toggle = useSettingsStore((s) => s.toggle);
   const on = Boolean(value);
@@ -19,41 +38,63 @@ function Toggle({ settingKey, label, desc }: { settingKey: typeof TOGGLES[number
       onClick={() => toggle(settingKey)}
       style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        width: "100%", padding: "14px 18px",
-        background: on ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.015)",
-        border: "none", borderRadius: "14px", cursor: "pointer",
-        borderLeft: on ? "3px solid rgba(255,255,255,0.4)" : "3px solid transparent",
-        transition: "all 200ms", minHeight: "56px",
-        WebkitTapHighlightColor: "transparent", textAlign: "left" as const,
+        width: "100%", padding: "14px 16px",
+        background: "transparent", border: "none",
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        cursor: "pointer", textAlign: "left" as const,
+        minHeight: "56px", WebkitTapHighlightColor: "transparent",
+        transition: "background 100ms",
       }}
+      onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
+      onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+      onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
     >
       <div>
         <div style={{
-          fontFamily: "var(--font-ui)", fontSize: "16px",
-          fontWeight: on ? 600 : 400,
-          color: on ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)",
-          textDecoration: on ? "none" : "line-through",
+          fontFamily: "var(--font-ui)", fontSize: "16px", fontWeight: 500,
+          color: "rgba(255,255,255,0.9)",
         }}>{label}</div>
         <div style={{
           fontFamily: "var(--font-ui)", fontSize: "12px", fontWeight: 300,
           color: "rgba(255,255,255,0.25)", marginTop: "2px",
         }}>{desc}</div>
       </div>
+      {/* iOS-style toggle track */}
       <div style={{
-        width: "40px", height: "24px", borderRadius: "12px",
-        background: on ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.05)",
-        position: "relative" as const, transition: "background 200ms",
+        width: "44px", height: "26px", borderRadius: "13px",
+        background: on ? "rgba(74,222,128,0.6)" : "rgba(255,255,255,0.08)",
+        position: "relative", transition: "background 250ms ease",
         flexShrink: 0,
       }}>
         <div style={{
-          width: "18px", height: "18px", borderRadius: "9px",
-          background: on ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.15)",
-          position: "absolute" as const, top: "3px",
-          left: on ? "19px" : "3px",
-          transition: "all 200ms",
+          width: "22px", height: "22px", borderRadius: "11px",
+          background: "#fff",
+          position: "absolute", top: "2px",
+          left: on ? "20px" : "2px",
+          transition: "left 250ms cubic-bezier(0.4,0,0.2,1)",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
         }} />
       </div>
     </button>
+  );
+}
+
+function InfoRow({ label, value, valueRef, color }: {
+  label: string; value?: string;
+  valueRef?: React.RefObject<HTMLSpanElement | null>;
+  color?: string;
+}) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)",
+    }}>
+      <span style={{ fontFamily: "var(--font-ui)", fontSize: "16px", fontWeight: 500, color: "rgba(255,255,255,0.9)" }}>{label}</span>
+      <span ref={valueRef} style={{
+        fontFamily: "var(--font-data)", fontSize: "16px", fontWeight: 500,
+        color: color ?? "rgba(255,255,255,0.5)",
+      }}>{value ?? ""}</span>
+    </div>
   );
 }
 
@@ -67,170 +108,90 @@ export function SettingsScreen() {
   useEffect(() => {
     const unsub = useVehicleStore.subscribe((state) => {
       if (connRef.current) {
-        connRef.current.textContent = state.connected ? "Connected" : "Disconnected";
-        connRef.current.style.color = state.connected ? "rgba(74,222,128,0.8)" : "rgba(239,68,68,0.8)";
+        connRef.current.textContent = state.connected ? "Connected" : "Offline";
+        connRef.current.style.color = state.connected ? "rgba(74,222,128,0.8)" : "rgba(239,68,68,0.7)";
       }
     });
     return unsub;
   }, []);
 
   return (
-    <div style={S.screen}>
-      {/* Left: Preferences */}
-      <div style={S.col}>
-        <span style={S.heading}>Preferences</span>
-        <div style={S.toggles}>
-          {TOGGLES.map((t) => (
-            <Toggle key={t.key} settingKey={t.key} label={t.label} desc={t.desc} />
-          ))}
-        </div>
+    <div style={{
+      width: "100%", height: "100%", background: "#000",
+      display: "flex", padding: "20px 24px 28px", gap: "32px",
+      overflow: "hidden",
+    }}>
+      {/* Left column */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <Section title="Display">
+          <ToggleRow settingKey="gridBackground" label="Grid Background" desc="Subtle grid overlay" />
+          <ToggleRow settingKey="runeVoice" label="Rune Voice" desc="Status messages from Rune" />
+          <ToggleRow settingKey="hapticFeedback" label="Haptic Feedback" desc="Vibration on alerts" />
+          <ToggleRow settingKey="parallaxTilt" label="Parallax Tilt" desc="Gyroscope response" />
+        </Section>
 
-        <div style={S.field}>
-          <span style={S.fieldLabel}>Gas price</span>
-          <div style={S.priceRow}>
-            <span style={S.dollar}>$</span>
-            <input
-              type="number" step="0.01" value={gasPrice}
-              onChange={(e) => setGasPrice(parseFloat(e.target.value) || 0)}
-              style={S.priceInput}
-            />
-            <span style={S.perGal}>/ gal</span>
+        <Section title="Fuel">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+            <span style={{ fontFamily: "var(--font-ui)", fontSize: "16px", fontWeight: 500, color: "rgba(255,255,255,0.9)" }}>Gas price</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+              <span style={{ fontFamily: "var(--font-data)", fontSize: "18px", fontWeight: 500, color: "rgba(255,255,255,0.5)" }}>$</span>
+              <input type="number" step="0.01" value={gasPrice}
+                onChange={(e) => setGasPrice(parseFloat(e.target.value) || 0)}
+                style={{
+                  fontFamily: "var(--font-data)", fontSize: "18px", fontWeight: 600,
+                  color: "rgba(255,255,255,0.9)", background: "transparent",
+                  border: "none", outline: "none", width: "50px", textAlign: "right",
+                }} />
+            </div>
           </div>
-        </div>
-
-        <div style={S.field}>
-          <span style={S.fieldLabel}>Units</span>
-          <div style={{ display: "flex", gap: "8px" }}>
-            {(["imperial", "metric"] as const).map((u) => (
-              <button key={u} onClick={() => setUnits(u)} style={{
-                ...S.unitBtn,
-                background: units === u ? "rgba(255,255,255,0.08)" : "transparent",
-                color: units === u ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.2)",
-                borderColor: units === u ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.04)",
-              }}>
-                {u.charAt(0).toUpperCase() + u.slice(1)}
-              </button>
-            ))}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
+            <span style={{ fontFamily: "var(--font-ui)", fontSize: "16px", fontWeight: 500, color: "rgba(255,255,255,0.9)" }}>Units</span>
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: "8px", overflow: "hidden" }}>
+              {(["imperial", "metric"] as const).map((u) => (
+                <button key={u} onClick={() => setUnits(u)} style={{
+                  fontFamily: "var(--font-ui)", fontSize: "14px", fontWeight: 500,
+                  padding: "6px 16px", border: "none", cursor: "pointer",
+                  background: units === u ? "rgba(255,255,255,0.12)" : "transparent",
+                  color: units === u ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)",
+                  transition: "all 200ms", WebkitTapHighlightColor: "transparent",
+                }}>
+                  {u.charAt(0).toUpperCase() + u.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </Section>
       </div>
 
-      {/* Right: System info */}
-      <div style={S.col}>
-        <span style={S.heading}>Connection</span>
-        <div style={S.infoCard}>
-          <Row label="Status" valueRef={connRef} defaultVal="--" />
-          <Row label="Stream" value="10 Hz" />
-          <Row label="Pi" value="192.168.4.1" />
-        </div>
+      {/* Right column */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <Section title="Connection">
+          <InfoRow label="Status" valueRef={connRef} />
+          <InfoRow label="Stream rate" value="10 Hz" />
+          <InfoRow label="Pi address" value="192.168.4.1" />
+        </Section>
 
-        <span style={{ ...S.heading, marginTop: "20px" }}>Vehicle</span>
-        <div style={S.infoCard}>
-          <Row label="Model" value="2026 Honda Accord SE" />
-          <Row label="Engine" value="L15BE 1.5T CVT" />
-          <Row label="Version" value="Rune OS v0.1.0" />
-        </div>
+        <Section title="About">
+          <InfoRow label="Vehicle" value="2026 Honda Accord SE" />
+          <InfoRow label="Engine" value="L15BE 1.5T CVT" />
+          <InfoRow label="Version" value="Rune OS v0.1.0" />
+        </Section>
 
         {/* Signature */}
-        <div style={S.signature}>
-          <span style={S.sigBy}>crafted by</span>
-          <span style={S.sigName}>Kuladeep Mantri</span>
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "flex-end",
+          padding: "20px 16px 0", marginTop: "auto",
+        }}>
+          <span style={{
+            fontFamily: "var(--font-credit)", fontStyle: "italic",
+            fontSize: "12px", fontWeight: 300, color: "rgba(255,255,255,0.08)",
+          }}>crafted by</span>
+          <span style={{
+            fontFamily: "var(--font-signature)", fontSize: "32px",
+            color: "rgba(255,255,255,0.18)",
+          }}>Kuladeep Mantri</span>
         </div>
       </div>
     </div>
   );
 }
-
-function Row({ label, value, valueRef, defaultVal }: {
-  label: string;
-  value?: string;
-  valueRef?: React.RefObject<HTMLSpanElement | null>;
-  defaultVal?: string;
-}) {
-  return (
-    <div style={S.infoRow}>
-      <span style={S.infoLabel}>{label}</span>
-      <span ref={valueRef} style={S.infoValue}>{value ?? defaultVal ?? ""}</span>
-    </div>
-  );
-}
-
-const S = {
-  screen: {
-    width: "100%", height: "100%", background: "#000",
-    display: "flex", padding: "24px 28px 32px", gap: "40px", overflow: "hidden",
-  },
-  col: {
-    flex: 1, display: "flex", flexDirection: "column" as const, gap: "14px",
-  },
-  heading: {
-    fontFamily: "var(--font-data)", fontSize: "20px", fontWeight: 600,
-    color: "rgba(255,255,255,0.75)", letterSpacing: "-0.01em",
-    display: "block" as const,
-  },
-  toggles: {
-    display: "flex", flexDirection: "column" as const, gap: "6px",
-  },
-  field: {
-    display: "flex", flexDirection: "column" as const, gap: "8px", marginTop: "8px",
-  },
-  fieldLabel: {
-    fontFamily: "var(--font-ui)", fontSize: "14px", fontWeight: 500,
-    color: "rgba(255,255,255,0.35)",
-  },
-  priceRow: {
-    display: "flex", alignItems: "baseline" as const, gap: "4px",
-  },
-  dollar: {
-    fontFamily: "var(--font-data)", fontSize: "22px", fontWeight: 500,
-    color: "rgba(255,255,255,0.4)",
-  },
-  priceInput: {
-    fontFamily: "var(--font-data)", fontSize: "22px", fontWeight: 600,
-    color: "rgba(255,255,255,0.85)", background: "transparent",
-    border: "none", borderBottom: "1px solid rgba(255,255,255,0.1)",
-    outline: "none", width: "70px", padding: "2px 0",
-  },
-  perGal: {
-    fontFamily: "var(--font-ui)", fontSize: "13px", fontWeight: 300,
-    color: "rgba(255,255,255,0.2)",
-  },
-  unitBtn: {
-    fontFamily: "var(--font-ui)", fontSize: "15px", fontWeight: 500,
-    padding: "12px 24px", border: "1px solid rgba(255,255,255,0.04)",
-    borderRadius: "12px", cursor: "pointer", transition: "all 200ms",
-    minHeight: "48px", WebkitTapHighlightColor: "transparent",
-  } as React.CSSProperties,
-
-  // Info cards
-  infoCard: {
-    display: "flex", flexDirection: "column" as const, gap: "12px",
-    padding: "16px 18px", borderRadius: "14px", background: "rgba(255,255,255,0.025)",
-  },
-  infoRow: {
-    display: "flex", justifyContent: "space-between" as const, alignItems: "center" as const,
-  },
-  infoLabel: {
-    fontFamily: "var(--font-ui)", fontSize: "15px", fontWeight: 400,
-    color: "rgba(255,255,255,0.35)",
-  },
-  infoValue: {
-    fontFamily: "var(--font-data)", fontSize: "15px", fontWeight: 500,
-    color: "rgba(255,255,255,0.75)",
-  },
-
-  // Signature
-  signature: {
-    marginTop: "auto", paddingTop: "16px",
-    display: "flex", flexDirection: "column" as const, alignItems: "flex-end" as const,
-    gap: "2px",
-  },
-  sigBy: {
-    fontFamily: "var(--font-credit)", fontStyle: "italic" as const,
-    fontSize: "14px", fontWeight: 300, color: "rgba(255,255,255,0.15)",
-  },
-  sigName: {
-    fontFamily: "var(--font-data)", fontSize: "22px", fontWeight: 300,
-    color: "rgba(255,255,255,0.35)", letterSpacing: "0.02em",
-  },
-} as const;

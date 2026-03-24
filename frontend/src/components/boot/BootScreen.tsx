@@ -51,16 +51,8 @@ export function BootScreen({ onComplete }: BootScreenProps) {
           background: "rgba(255,255,255,0.1)",
         }}
       />
-      <span
-        style={{
-          fontFamily: "var(--font-credit)",
-          fontStyle: "italic",
-          fontSize: "15px",
-          fontWeight: 300,
-          color: "rgba(255,255,255,0.12)",
-        }}
-      >
-        crafted by Kuladeep Mantri
+      <span style={{ fontFamily: "var(--font-signature)", fontSize: "22px", color: "rgba(255,255,255,0.15)" }}>
+        Kuladeep Mantri
       </span>
     </div>
   );

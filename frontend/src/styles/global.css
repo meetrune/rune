@@ -24,6 +24,7 @@
   --font-data: "Space Grotesk", system-ui, sans-serif;
   --font-ui: "Inter", system-ui, sans-serif;
   --font-credit: "Cormorant Garamond", Georgia, serif;
+  --font-signature: "Alex Brush", cursive;
 
   /* Grid background */
   --grid-size: 36px;
