@@ -2,7 +2,15 @@
 // He IS the car. Not a servant, not a robot.
 
 import type { SubsystemId } from "@/types/vehicle";
-import { SUBSYSTEM_LABELS } from "@/constants/zones";
+// Full names for voice -- Rune speaks naturally, not in abbreviations
+const VOICE_NAMES: Record<SubsystemId, string> = {
+  engine: "engine",
+  transmission: "transmission",
+  fuel: "fuel system",
+  cooling: "cooling",
+  exhaust: "exhaust",
+  electrical: "electrical",
+};
 
 export type VoiceState = "good" | "calibrating" | "warning" | "critical" | "recovering" | "disconnected";
 
@@ -82,6 +90,6 @@ export function generateVoiceMessage(opts: VoiceMessageOpts): string {
 
   return template
     .replace("{score}", opts.overallScore != null ? String(opts.overallScore) : "--")
-    .replace("{subsystem}", opts.worstSubsystem ? SUBSYSTEM_LABELS[opts.worstSubsystem] : "")
+    .replace("{subsystem}", opts.worstSubsystem ? VOICE_NAMES[opts.worstSubsystem] : "")
     .replace("{detail}", detail);
 }

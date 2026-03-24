@@ -3,8 +3,10 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, OrbitControls, ContactShadows, Environment, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useVehicleStore } from "@/stores/vehicleStore";
+import { useUiStore } from "@/stores/uiStore";
 import { SUBSYSTEM_SENSORS } from "@/constants/zones";
 import { TelemetrySensorCard } from "@/components/telemetry/TelemetrySensorCard";
+import { OfflineIndicator } from "@/components/hud/OfflineIndicator";
 import type { SubsystemId } from "@/types/vehicle";
 
 const MODEL_PATH = "/models/accord.glb";
@@ -212,6 +214,7 @@ export function TelemetryScreen() {
   const headerScoreRef = useRef<HTMLSpanElement>(null);
   const headerBarRef = useRef<HTMLDivElement>(null);
   const panelBorderRef = useRef<HTMLDivElement>(null);
+  const isActive = useUiStore((s) => s.activeScreen === "telemetry");
 
   const selectedSub = SUBS.find((s) => s.id === selected);
   const sensorKeys = selected ? (SUBSYSTEM_SENSORS[selected] ?? DEFAULT_SENSORS) : DEFAULT_SENSORS;
@@ -230,9 +233,14 @@ export function TelemetryScreen() {
         headerBarRef.current.style.background = color;
       }
       if (panelBorderRef.current) {
-        panelBorderRef.current.style.borderLeftColor = score === -1
-          ? "rgba(255,255,255,0.04)"
-          : color.replace(")", ",0.15)").replace("rgba", "rgba").replace("rgb(", "rgba(");
+        // Use a fixed low-opacity version of the health color for the border
+        let borderColor = "rgba(255,255,255,0.04)";
+        if (score !== -1) {
+          if (score < 50) borderColor = "rgba(239,68,68,0.15)";
+          else if (score < 70) borderColor = "rgba(245,158,11,0.15)";
+          else borderColor = "rgba(255,255,255,0.08)";
+        }
+        panelBorderRef.current.style.borderLeftColor = borderColor;
       }
     });
     return unsub;
@@ -242,6 +250,7 @@ export function TelemetryScreen() {
     <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", overflow: "hidden" }}>
       {/* 3D car -- tap empty space to deselect back to Overview */}
       <div onClick={() => setSelected(null)} style={{ flex: 1, position: "relative", touchAction: "none" }}>
+        <OfflineIndicator />
         {/* Maker's bar -- architectural, part of the frame */}
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, pointerEvents: "none",
@@ -264,6 +273,7 @@ export function TelemetryScreen() {
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
           style={{ background: "transparent" }}
           dpr={[1, 2]}
+          frameloop={isActive ? "always" : "demand"}
         >
           <Environment preset="night" background={false} />
           <ambientLight intensity={0.3} />

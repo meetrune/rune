@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTripHistory, type Trip } from "@/hooks/useTripHistory";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 const MONO = "'JetBrains Mono', 'SF Mono', monospace";
 
@@ -166,7 +167,7 @@ function SectionLabel({ text }: { text: string }) {
 
 function TripDetail({ trip, avgMpg, avgCostPerMi }: { trip: Trip; avgMpg: number; avgCostPerMi: number }) {
   const s = trip.trip_stats;
-  const gp = 3.50;
+  const gp = useSettingsStore((st) => st.gasPricePerGallon);
   const costPerMi = trip.distance_miles > 0 ? trip.fuel_cost_usd / trip.distance_miles : 0;
   const co2Kg = trip.fuel_gallons * 8.89;
   const durationSec = trip.end_time ? (trip.end_time - trip.start_time) / 1000 : 0;

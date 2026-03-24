@@ -138,8 +138,11 @@ export function SettingsScreen() {
             <span style={{ fontSize: 15, fontWeight: 500, color: "rgba(255,255,255,0.5)" }}>Gas price</span>
             <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
               <span style={{ fontFamily: "var(--font-data)", fontSize: 16, color: "rgba(255,255,255,0.3)" }}>$</span>
-              <input type="number" step="0.01" value={gasPrice}
-                onChange={(e) => setGasPrice(parseFloat(e.target.value) || 0)}
+              <input type="number" step="0.01" min="0" max="20" value={gasPrice}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (!isNaN(v) && v >= 0 && v <= 20) setGasPrice(v);
+                }}
                 style={{
                   fontFamily: "var(--font-data)", fontSize: 18, fontWeight: 600,
                   color: "rgba(255,255,255,0.85)", background: "transparent",

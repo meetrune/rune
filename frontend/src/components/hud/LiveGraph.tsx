@@ -15,11 +15,12 @@ interface LiveGraphProps {
   getColor: (value: number) => string;
   labelColor?: string;
   zeroLine?: number; // draw a dim reference line at this value (e.g., 0 for fuel trims)
+  active?: boolean;  // pause rAF rendering when screen is not visible
 }
 
 const BUF_LEN = 200;
 
-export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labelColor, zeroLine }: LiveGraphProps) {
+export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labelColor, zeroLine, active = true }: LiveGraphProps) {
   const buffer = useRef<number[]>(new Array(BUF_LEN).fill(0));
   const pathRef = useRef<SVGPathElement>(null);
   const fillRef = useRef<SVGPathElement>(null);
@@ -29,6 +30,8 @@ export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labe
   const trendRef = useRef<HTMLSpanElement>(null);
   const prevColor = useRef<string>("");
   const glowTimeout = useRef<number>(0);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const H = 60, W = 900;
 
   // Compute zero-line Y position in SVG coords
@@ -39,6 +42,7 @@ export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labe
   useEffect(() => {
     let af = 0;
 
+    // Always buffer data (even when paused) so the graph is up to date when visible
     const unsub = useVehicleStore.subscribe((state) => {
       const v = state.sensors[sensorKey]?.v ?? 0;
       buffer.current.push(v);
@@ -46,6 +50,8 @@ export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labe
     });
 
     const render = () => {
+      // Skip rendering when screen is not visible (save GPU/battery)
+      if (!activeRef.current) { af = requestAnimationFrame(render); return; }
       const buf = buffer.current;
       if (buf.length < 2 || !pathRef.current) { af = requestAnimationFrame(render); return; }
 

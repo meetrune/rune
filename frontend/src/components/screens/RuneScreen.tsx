@@ -1,8 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useVehicleStore } from "@/stores/vehicleStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useRuneVoice } from "@/hooks/useRuneVoice";
 import { LiveGraph } from "@/components/hud/LiveGraph";
+import { OfflineIndicator } from "@/components/hud/OfflineIndicator";
 
 // TRACE MATRIX -- mosaic of live waveforms + Warm Gold hero strip.
 // Shows ONLY OBD-II data the Honda dash doesn't.
@@ -34,9 +36,10 @@ function rollingStdDev(buf: number[], len: number): number {
 // Warmup progress: composite of temps vs Honda operating minimums
 // Sources: PRD Section 8 (coolant 82C), Honda L15BE oil ~90C, EPA catalyst light-off 400C
 function warmupProgress(coolant: number, oil: number, catalyst: number): number {
-  const coolantPct = Math.min(coolant / 82, 1);   // 82C = Honda normal operating min
-  const oilPct = Math.min(oil / 90, 1);            // 90C = normal operating min
-  const catalystPct = Math.min(catalyst / 400, 1);  // 400C = catalyst light-off temp
+  // Clamp to 0 -- cold climate starts can have negative temps (e.g. -20C coolant)
+  const coolantPct = Math.max(0, Math.min(coolant / 82, 1));   // 82C = Honda normal operating min
+  const oilPct = Math.max(0, Math.min(oil / 90, 1));            // 90C = normal operating min
+  const catalystPct = Math.max(0, Math.min(catalyst / 400, 1));  // 400C = catalyst light-off temp
   // Weighted: coolant most important (engine protection), oil (lubrication), catalyst (emissions)
   return Math.round((coolantPct * 0.5 + oilPct * 0.3 + catalystPct * 0.2) * 100);
 }
@@ -44,6 +47,7 @@ function warmupProgress(coolant: number, oil: number, catalyst: number): number 
 export function RuneScreen() {
   const refs = useRef<Record<string, HTMLSpanElement | null>>({});
   const stftBuffer = useRef<number[]>([]);  // rolling STFT for volatility calc
+  const isActive = useUiStore((s) => s.activeScreen === "rune");
 
   const voice = useRuneVoice();
   const [dv, setDv] = useState("");
@@ -77,11 +81,12 @@ export function RuneScreen() {
       set("tank", `${Math.round(s["FUEL_LEVEL"]?.v ?? 0)}%`, (s["FUEL_LEVEL"]?.v ?? 100) < 15 ? WARN_COLOR : HERO);
 
       // --- DERIVED: Cost per mile ---
-      // fuel_rate_gph * gas_price / speed_mph (verified: HEM Data, Lightner OBD2 Guru)
-      const gph = state.fuel.idle_gph ?? 0;
+      // When moving: gasPrice / instantMpg (miles per dollar inverted)
+      // idle_gph is null when moving (backend only sets it at speed=0)
       const gasPrice = useSettingsStore.getState().gasPricePerGallon;
-      if (speedMph > 3) {
-        const cpm = (gph * gasPrice) / speedMph;
+      const instantMpg = state.fuel.instant_mpg;
+      if (speedMph > 3 && instantMpg && instantMpg > 0) {
+        const cpm = gasPrice / instantMpg;
         set("cpm", `$${cpm.toFixed(2)}`, cpm > 0.20 ? WARN_COLOR : HERO);
       } else {
         set("cpm", "--", HERO_DIM);
@@ -126,8 +131,9 @@ export function RuneScreen() {
     return a > 10 ? CRIT_COLOR : a > 5 ? WARN_COLOR : "#4ade80";
   }, []);
   const ltftColor = useCallback((v: number) => {
+    // Honda ECU adaptation limit: ±10% is critical, ±5% is warn
     const a = Math.abs(v);
-    return a > 15 ? CRIT_COLOR : a > 10 ? WARN_COLOR : a > 5 ? "#e2a73a" : "#c9952a";
+    return a > 10 ? CRIT_COLOR : a > 5 ? WARN_COLOR : a > 3 ? "#e2a73a" : "#c9952a";
   }, []);
   const mafColor = useCallback((v: number) =>
     v > 30 ? CRIT_COLOR : v > 20 ? WARN_COLOR : "#a78bfa", []);
@@ -146,6 +152,7 @@ export function RuneScreen() {
 
   return (
     <div style={S.screen}>
+      <OfflineIndicator />
       {/* LEFT: Warm Gold hero strip -- driver side, closest to eyes */}
       <div style={S.hero}>
         <div style={S.heroBlock}>
@@ -184,35 +191,35 @@ export function RuneScreen() {
       <div style={S.mosaic}>
         <div style={S.row}>
           <div style={{ ...S.cell, flex: 2 }}>
-            <LiveGraph label="FUEL TRIM (SHORT)" unit="%" sensorKey="STFT" min={-20} max={20} getColor={stftColor} labelColor="rgba(74,222,128,0.35)" zeroLine={0} />
+            <LiveGraph label="FUEL TRIM (SHORT)" unit="%" sensorKey="STFT" min={-20} max={20} getColor={stftColor} labelColor="rgba(74,222,128,0.35)" zeroLine={0} active={isActive} />
           </div>
           <div style={S.cell}>
-            <LiveGraph label="FUEL TRIM (LONG)" unit="%" sensorKey="LTFT" min={-20} max={20} getColor={ltftColor} labelColor="rgba(201,149,42,0.35)" zeroLine={0} />
-          </div>
-        </div>
-        <div style={S.row}>
-          <div style={S.cell}>
-            <LiveGraph label="MAF AIRFLOW" unit="g/s" sensorKey="MAF" min={0} max={30} getColor={mafColor} labelColor="rgba(167,139,250,0.35)" />
-          </div>
-          <div style={S.cell}>
-            <LiveGraph label="ENGINE LOAD" unit="%" sensorKey="ENGINE_LOAD" min={0} max={100} getColor={loadColor} labelColor="rgba(96,165,250,0.35)" />
-          </div>
-          <div style={S.cell}>
-            <LiveGraph label="THROTTLE" unit="%" sensorKey="THROTTLE_POS" min={0} max={100} getColor={throttleColor} labelColor="rgba(52,211,153,0.35)" />
+            <LiveGraph label="FUEL TRIM (LONG)" unit="%" sensorKey="LTFT" min={-20} max={20} getColor={ltftColor} labelColor="rgba(201,149,42,0.35)" zeroLine={0} active={isActive} />
           </div>
         </div>
         <div style={S.row}>
           <div style={S.cell}>
-            <LiveGraph label="CATALYST" unit="C" sensorKey="CATALYST_TEMP" min={50} max={950} getColor={catalystColor} labelColor="rgba(245,158,11,0.35)" />
+            <LiveGraph label="MAF AIRFLOW" unit="g/s" sensorKey="MAF" min={0} max={30} getColor={mafColor} labelColor="rgba(167,139,250,0.35)" active={isActive} />
           </div>
           <div style={S.cell}>
-            <LiveGraph label="OIL TEMP" unit="C" sensorKey="OIL_TEMP" min={10} max={140} getColor={oilColor} labelColor="rgba(251,146,60,0.35)" />
+            <LiveGraph label="ENGINE LOAD" unit="%" sensorKey="ENGINE_LOAD" min={0} max={100} getColor={loadColor} labelColor="rgba(96,165,250,0.35)" active={isActive} />
           </div>
           <div style={S.cell}>
-            <LiveGraph label="BATTERY" unit="V" sensorKey="BATTERY_V" min={11.5} max={15.5} getColor={batteryColor} labelColor="rgba(56,189,248,0.35)" />
+            <LiveGraph label="THROTTLE" unit="%" sensorKey="THROTTLE_POS" min={0} max={100} getColor={throttleColor} labelColor="rgba(52,211,153,0.35)" active={isActive} />
+          </div>
+        </div>
+        <div style={S.row}>
+          <div style={S.cell}>
+            <LiveGraph label="CATALYST" unit="C" sensorKey="CATALYST_TEMP" min={50} max={950} getColor={catalystColor} labelColor="rgba(245,158,11,0.35)" active={isActive} />
           </div>
           <div style={S.cell}>
-            <LiveGraph label="INTAKE MAP" unit="kPa" sensorKey="MAP" min={20} max={105} getColor={mapColor} labelColor="rgba(148,163,184,0.35)" />
+            <LiveGraph label="OIL TEMP" unit="C" sensorKey="OIL_TEMP" min={10} max={140} getColor={oilColor} labelColor="rgba(251,146,60,0.35)" active={isActive} />
+          </div>
+          <div style={S.cell}>
+            <LiveGraph label="BATTERY" unit="V" sensorKey="BATTERY_V" min={11.5} max={15.5} getColor={batteryColor} labelColor="rgba(56,189,248,0.35)" active={isActive} />
+          </div>
+          <div style={S.cell}>
+            <LiveGraph label="INTAKE MAP" unit="kPa" sensorKey="MAP" min={20} max={105} getColor={mapColor} labelColor="rgba(148,163,184,0.35)" active={isActive} />
           </div>
         </div>
       </div>

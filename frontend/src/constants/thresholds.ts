@@ -65,10 +65,12 @@ export const SENSOR_THRESHOLDS: Record<string, SensorThreshold> = {
     critical: { low: -25, high: 25 },
   },
   LTFT: {
+    // Honda ECU adaptation limit is ~10%. Beyond that, ECU cannot compensate.
+    // Warning at 5%, critical at 10% -- matches backend thresholds.py
     label: "LTFT",
     unit: "%",
-    warn: { low: -10, high: 10 },
-    critical: { low: -20, high: 20 },
+    warn: { low: -5, high: 5 },
+    critical: { low: -10, high: 10 },
   },
   INTAKE_TEMP: {
     label: "Intake",

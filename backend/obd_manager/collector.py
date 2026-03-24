@@ -307,12 +307,23 @@ class OBDCollector(DataCollector):
         self._backoff_seconds = 1.0
 
     async def start(self) -> None:
-        """Connect to WiCAN Pro and start the polling loop."""
+        """Start the polling loop. Connects to WiCAN Pro if available.
+
+        If the adapter isn't ready (car off, adapter booting), the server
+        still starts. The poll loop will retry connection with backoff.
+        """
         if self._running:
             logger.warning("OBDCollector already running")
             return
 
-        await self._connect()
+        try:
+            await self._connect()
+        except ConnectionError:
+            logger.warning(
+                "WiCAN Pro not reachable at %s:%d -- will retry in poll loop",
+                self._config.wican_host, self._config.wican_port,
+            )
+
         self._running = True
         self._poll_task = asyncio.create_task(self._poll_loop())
         logger.info(
@@ -566,6 +577,10 @@ class OBDCollector(DataCollector):
 
     async def _poll_cycle(self) -> None:
         """Run one complete cycle through all PIDs."""
+        # If connection wasn't established on startup, try to connect now
+        if self._writer is None:
+            raise ConnectionError("Not connected to WiCAN Pro")
+
         for pid_def in PID_TABLE:
             if not self._running:
                 return

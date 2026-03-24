@@ -45,11 +45,18 @@ export function useVehicleSocket() {
 
           // Trip-end event from backend
           if (data.type === "trip_ended" && data.trip) {
-            emitTripEnd(data.trip);
+            // Guard against missing fields -- toFixed() on undefined would crash
+            const t = data.trip;
+            if (typeof t.distance_miles === "number" && typeof t.fuel_gallons === "number") {
+              emitTripEnd(t);
+            }
             return;
           }
 
-          // Normal sensor data
+          // Validate message structure before updating store
+          // Null d/health/fuel fields would crash downstream components
+          if (!data.d || !data.health || !data.fuel || typeof data.t !== "number") return;
+
           const msg = data as VehicleMessage;
           useVehicleStore.getState().updateFromMessage(msg);
           resetHeartbeat();

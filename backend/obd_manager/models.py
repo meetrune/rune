@@ -174,6 +174,9 @@ def calculate_instant_mpg(speed_kph: float, maf_gps: float) -> float | None:
     """Calculate instant MPG from speed and MAF.
 
     Returns None when speed is 0 (use idle_gph instead).
+    Capped at 199.9 MPG -- during deceleration/fuel-cutoff, very low MAF
+    values can produce 600+ MPG which is physically meaningless and would
+    overflow the hero display.
     """
     fuel_rate_lph = maf_to_fuel_rate_lph(maf_gps)
     if fuel_rate_lph <= 0:
@@ -184,7 +187,8 @@ def calculate_instant_mpg(speed_kph: float, maf_gps: float) -> float | None:
         return None
 
     fuel_rate_gph = fuel_rate_lph / LITERS_PER_GALLON
-    return speed_mph / fuel_rate_gph
+    mpg = speed_mph / fuel_rate_gph
+    return min(mpg, 199.9)
 
 
 def calculate_idle_gph(maf_gps: float) -> float:

@@ -332,8 +332,8 @@ class RuneDatabase:
 
         await conn.commit()
 
-        # Reclaim disk space
-        await conn.execute("PRAGMA incremental_vacuum(200)")
+        # Reclaim disk space -- VACUUM rewrites the DB file (works with any auto_vacuum mode)
+        await conn.execute("VACUUM")
         await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         await conn.commit()
 

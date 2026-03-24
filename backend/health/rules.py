@@ -87,15 +87,17 @@ def score_subsystems(snap: VehicleSnapshot) -> dict[str, float]:
     scores: dict[str, float] = {}
 
     # Engine: RPM-at-idle check + load-at-idle check
-    # During driving (speed > 5 kph), RPM and load vary widely -- skip threshold checks
+    # Only applies when engine is actually running AND car is stopped.
+    # RPM < 50 = engine off (not a health issue, just turned off).
+    # During driving (speed > 5 kph), RPM and load vary widely -- skip threshold checks.
     is_idle = snap.speed_kph < 5
-    if is_idle:
+    engine_running = snap.rpm >= 50
+    if is_idle and engine_running:
         rpm_score = score_range(snap.rpm, IDLE_RPM)
         load_score = score_range(snap.engine_load_pct, ENGINE_LOAD_IDLE)
         scores["engine"] = (rpm_score + load_score) / 2
     else:
-        # While driving, engine score is based on RPM stability
-        # (anomaly detection handles driving-mode issues)
+        # Engine off or driving -- anomaly detection handles issues
         scores["engine"] = 100.0
 
     # Transmission: CVT fluid temp (if available)

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.obd_manager.models import VehicleSnapshot, maf_to_fuel_rate_lph
+from backend.obd_manager.models import VehicleSnapshot, calculate_instant_mpg, maf_to_fuel_rate_lph
 
 LITERS_PER_GALLON = 3.78541
 
@@ -104,10 +104,6 @@ class TripStatsAccumulator:
 
         # --- MPG tracking (only while moving) ---
         if moving and snap.maf_gps > 0:
-            speed_mph = snap.speed_kph * 0.621371
-            instant_mpg = speed_mph / ((fuel_rate_lph / LITERS_PER_GALLON) * (1 / 3600)) if fuel_rate_lph > 0 else 0
-            # Simpler: use the same formula as models.py
-            from backend.obd_manager.models import calculate_instant_mpg
             mpg = calculate_instant_mpg(snap.speed_kph, snap.maf_gps)
             if mpg is not None and mpg > 0:
                 self._mpg_buffer.append(mpg)
@@ -152,7 +148,7 @@ class TripStatsAccumulator:
             "idle_fuel_gal": round(self._idle_fuel_gal, 4),
             "warmup_seconds": round(self._warmup_seconds, 1),
             "warmup_fuel_gal": round(self._warmup_fuel_gal, 4),
-            "max_mpg": round(self._max_mpg, 1) if self._max_mpg < 999 else None,
+            "max_mpg": round(self._max_mpg, 1) if 0 < self._max_mpg < 999 else None,
             "min_mpg": round(self._min_mpg, 1) if self._min_mpg < 999 else None,
             "stft_spikes": self._stft_spikes,
             "max_stft": round(self._max_stft, 1),

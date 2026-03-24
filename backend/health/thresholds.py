@@ -49,10 +49,13 @@ class AbsoluteThreshold:
 # Coolant temp: thermostat opens at ~82C, stabilizes 88-95C in normal driving.
 # City driving in summer heat can push to 100-103C -- still within Honda spec.
 # Warning starts at 100C. Critical at 108C (Honda fans go high-speed at ~107C).
+# Low-side thresholds: during warmup, temps below normal_low are expected.
+# warning_low acts as a "still warming up" floor.
+# critical_low is the genuine concern level (sensor failure or extreme cold).
 COOLANT_TEMP = RangeThreshold(
     normal_low=75, normal_high=100,
-    warning_low=75, warning_high=105,
-    critical_low=75, critical_high=110,
+    warning_low=40, warning_high=105,
+    critical_low=0, critical_high=110,
 )
 
 # Oil temp: ECU-calculated, not a physical sensor on L15BE.
@@ -60,8 +63,8 @@ COOLANT_TEMP = RangeThreshold(
 # driving can sustain 110-115C without issue.
 OIL_TEMP = RangeThreshold(
     normal_low=80, normal_high=120,
-    warning_low=80, warning_high=135,
-    critical_low=80, critical_high=135,
+    warning_low=40, warning_high=130,
+    critical_low=0, critical_high=140,
 )
 
 # Idle RPM (Park/Neutral, engine warm): Honda targets 700 RPM.

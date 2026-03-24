@@ -15,6 +15,9 @@ from fastapi import WebSocket
 logger = logging.getLogger(__name__)
 
 
+MAX_CONNECTIONS = 5  # Pi has limited resources, no need for more
+
+
 class ConnectionManager:
     """Manages WebSocket client connections for broadcasting."""
 
@@ -26,7 +29,11 @@ class ConnectionManager:
         return len(self._connections)
 
     async def connect(self, websocket: WebSocket) -> None:
-        """Accept and register a new client."""
+        """Accept and register a new client. Rejects if at capacity."""
+        if self.client_count >= MAX_CONNECTIONS:
+            await websocket.close(code=1013, reason="Too many connections")
+            logger.warning("Rejected WebSocket: %d/%d connections", self.client_count, MAX_CONNECTIONS)
+            return
         await websocket.accept()
         self._connections.add(websocket)
         logger.info("Client connected (%d total)", self.client_count)
@@ -43,7 +50,9 @@ class ConnectionManager:
         Message should be JSON string -- serialize ONCE, send to all.
         """
         dead: set[WebSocket] = set()
-        for ws in self._connections:
+        # Snapshot to avoid RuntimeError if another coroutine modifies the set
+        # during iteration (e.g., concurrent broadcast + trip_ended event)
+        for ws in list(self._connections):
             try:
                 await ws.send_text(message)
             except Exception:

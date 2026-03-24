@@ -15,7 +15,7 @@ from typing import AsyncIterator
 
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -138,16 +138,21 @@ async def obd_producer_loop(
                 active_trip_id = None
                 trip_stats_acc = None
 
-            # Fill-up detection -- query miles since last fill for MPG calculation
-            miles_since_fill: float | None = None
-            last_fill = await db.get_last_fillup()
-            if last_fill:
-                recent = await db.get_recent_trips(limit=100)
-                miles_since_fill = sum(
-                    t["distance_miles"] for t in recent
-                    if t["start_time"] >= last_fill["detected_at"]
-                )
-            fillup_event = fillup_detector.check(snap, miles_since_last_fill=miles_since_fill)
+            # Fill-up detection -- check once per second (not 10x/sec)
+            # DB queries for miles_since_fill are expensive on SD card
+            fillup_event = None
+            if tick_count % settings.ws_rate_hz == 0:
+                miles_since_fill: float | None = None
+                last_fill = await db.get_last_fillup()
+                if last_fill:
+                    recent = await db.get_recent_trips(limit=100)
+                    miles_since_fill = sum(
+                        t["distance_miles"] for t in recent
+                        if t["start_time"] >= last_fill["detected_at"]
+                    )
+                fillup_event = fillup_detector.check(snap, miles_since_last_fill=miles_since_fill)
+            else:
+                fillup_event = fillup_detector.check(snap, miles_since_last_fill=None)
             if fillup_event:
                 await db.insert_fillup(
                     detected_at_ms=int(fillup_event.detected_at * 1000),
@@ -162,7 +167,14 @@ async def obd_producer_loop(
             # Buffer readings, flush every 10 ticks (1 second)
             reading_buffer.append(snap)
             if len(reading_buffer) >= settings.ws_rate_hz:
-                await db.insert_readings(reading_buffer)
+                try:
+                    await db.insert_readings(reading_buffer)
+                except Exception:
+                    logger.exception("DB write failed, dropping %d readings", len(reading_buffer))
+                reading_buffer.clear()
+            elif len(reading_buffer) > 100:
+                # Safety cap: if buffer grows beyond 100 (DB writes failing), drop old data
+                logger.warning("Reading buffer overflow (%d), clearing", len(reading_buffer))
                 reading_buffer.clear()
 
             # Health scoring
@@ -310,7 +322,7 @@ async def health_check() -> JSONResponse:
     return JSONResponse({
         "status": "ok",
         "uptime_seconds": round(time.monotonic() - _start_time, 2),
-        "obd_connected": False,
+        "obd_connected": app.state.collector.is_running if hasattr(app.state.collector, 'is_running') else settings.use_simulator,
         "simulator_mode": settings.use_simulator,
         "ws_clients": app.state.connection_manager.client_count,
         "version": "0.1.0",
@@ -318,7 +330,7 @@ async def health_check() -> JSONResponse:
 
 
 @app.get("/api/trips")
-async def get_trips(limit: int = 20) -> JSONResponse:
+async def get_trips(limit: int = Query(default=20, ge=1, le=100)) -> JSONResponse:
     """Trip history for the Summary screen."""
     import json as _json
     db: RuneDatabase = app.state.db
@@ -377,7 +389,8 @@ async def debug_info() -> JSONResponse:
             "distance_miles": round(t.distance_miles, 4),
             "fuel_gallons": round(t.fuel_gallons, 6),
             "fuel_cost_usd": round(t.fuel_gallons * settings.gas_price_per_gallon, 2),
-            "idle_since": t.idle_since,
+            "engine_off_since": t.engine_off_since,
+            "speed_idle_since": t.speed_idle_since,
         }
 
     db_size = await db.get_db_size_bytes()

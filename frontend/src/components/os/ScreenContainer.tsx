@@ -67,7 +67,12 @@ export function ScreenContainer({ screens }: ScreenContainerProps) {
   }, [handleTouchStart, handleTouchEnd, handleKeyDown]);
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden" }}>
+    <div style={{
+      width: "100%", height: "100%", position: "relative", overflow: "hidden",
+      // Burn-in protection: entire UI shifts 1-2px every 5 minutes.
+      // Updated by useBurnInProtection hook via CSS variables.
+      transform: "translate(var(--burn-shift-x, 0px), var(--burn-shift-y, 0px))",
+    }}>
       {(Object.keys(screens) as ScreenId[]).map((id) => (
         <div
           key={id}
