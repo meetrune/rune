@@ -1,35 +1,92 @@
 import { Suspense, useMemo, useRef, useEffect, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, OrbitControls, ContactShadows, Environment, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useVehicleStore } from "@/stores/vehicleStore";
-import { getSensorState, getSensorLabel, getSensorUnit } from "@/constants/thresholds";
+import { SUBSYSTEM_SENSORS } from "@/constants/zones";
+import { TelemetrySensorCard } from "@/components/telemetry/TelemetrySensorCard";
 import type { SubsystemId } from "@/types/vehicle";
 
 const MODEL_PATH = "/models/accord.glb";
 
-const SUBS: { id: SubsystemId; label: string; pos: [number, number, number]; sensors: string[] }[] = [
-  { id: "engine", label: "Engine", pos: [0.4, 0.4, 1.6], sensors: ["RPM", "ENGINE_LOAD", "OIL_TEMP", "THROTTLE_POS"] },
-  { id: "transmission", label: "CVT", pos: [-0.3, 0, 1.4], sensors: ["RPM", "SPEED", "CVT_TEMP"] },
-  { id: "cooling", label: "Cooling", pos: [0, 0.3, 2.2], sensors: ["COOLANT_TEMP", "INTAKE_TEMP"] },
-  { id: "fuel", label: "Fuel", pos: [0, -0.1, -0.8], sensors: ["FUEL_LEVEL", "MAF", "STFT", "LTFT"] },
-  { id: "exhaust", label: "Exhaust", pos: [0.4, -0.3, -1.2], sensors: ["CATALYST_TEMP"] },
-  { id: "electrical", label: "Electrical", pos: [-0.5, 0.4, 1.8], sensors: ["BATTERY_V"] },
+// Zone positions for the real 2026 Honda Accord SE component layout.
+// Camera is 3/4 front-right: right/passenger side faces us, left/driver side is far.
+// Y=up, Z=front(+)/rear(-), X=right/passenger(+)/left/driver(-).
+const SUBS: { id: SubsystemId; label: string; short: string; pos: [number, number, number] }[] = [
+  { id: "engine", label: "Engine", short: "ENG", pos: [0.2, 0.0, 1.2] },          // on the hood, slight right
+  { id: "transmission", label: "CVT", short: "CVT", pos: [-0.3, -0.1, 1.0] },    // under hood, left/driver side
+  { id: "cooling", label: "Cooling", short: "COOL", pos: [0, -0.2, 1.7] },        // radiator at front grille, lower
+  { id: "fuel", label: "Fuel", short: "FUEL", pos: [-0.5, -0.1, -0.5] },          // fuel cap left rear quarter panel
+  { id: "exhaust", label: "Exhaust", short: "EXH", pos: [0.3, -0.3, -1.2] },      // rear exhaust outlet, right side
+  { id: "electrical", label: "Electrical", short: "ELEC", pos: [0.5, 0.0, 1.3] },  // battery front-right engine bay
 ];
 
-function stColor(s: number) {
+// Health score to color
+function healthColor(s: number): string {
   if (s === -1) return "rgba(255,255,255,0.15)";
-  if (s < 50) return "#c53030";
-  if (s < 70) return "#d4a017";
+  if (s < 50) return "#ef4444";
+  if (s < 70) return "#f59e0b";
   return "rgba(255,255,255,0.5)";
 }
 
-function fmt(k: string, v: number) {
-  if (k === "RPM") return Math.round(v).toLocaleString();
-  if (k === "BATTERY_V" || k === "MAF") return v.toFixed(1);
-  if (k === "STFT" || k === "LTFT") return `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
-  return String(Math.round(v));
+// Default overview sensors: unique OBD data Honda doesn't show
+const DEFAULT_SENSORS = ["STFT", "LTFT", "OIL_TEMP", "CATALYST_TEMP", "BATTERY_V", "ENGINE_LOAD"];
+
+// Camera positions
+const CAM_DEFAULT = new THREE.Vector3(6, 2.8, 4.5);
+const TARGET_DEFAULT = new THREE.Vector3(0, 0, 0);
+const ZOOM_DISTANCE = 2.8; // how close to get to a zone
+const LERP_SPEED = 3.5;    // animation smoothness (higher = faster)
+
+// Unified camera controller: cinematic zoom + auto-rotate + manual drag.
+// Uses OrbitControls ref to sync everything without fighting.
+function CameraController({ targetPos, controlsRef }: {
+  targetPos: [number, number, number] | null;
+  controlsRef: React.RefObject<any>;
+}) {
+  const { camera } = useThree();
+  const camGoal = useRef(new THREE.Vector3().copy(CAM_DEFAULT));
+  const lookGoal = useRef(new THREE.Vector3().copy(TARGET_DEFAULT));
+  const lookCurrent = useRef(new THREE.Vector3().copy(TARGET_DEFAULT));
+  const animating = useRef(false);
+
+  useEffect(() => {
+    animating.current = true;
+    if (targetPos) {
+      const zone = new THREE.Vector3(...targetPos);
+      const dir = new THREE.Vector3().copy(CAM_DEFAULT).sub(TARGET_DEFAULT).normalize();
+      camGoal.current.copy(zone).add(dir.multiplyScalar(ZOOM_DISTANCE));
+      lookGoal.current.copy(zone);
+    } else {
+      camGoal.current.copy(CAM_DEFAULT);
+      lookGoal.current.copy(TARGET_DEFAULT);
+    }
+  }, [targetPos]);
+
+  useFrame((_, delta) => {
+    if (!animating.current) return;
+
+    const t = 1 - Math.exp(-LERP_SPEED * delta);
+    camera.position.lerp(camGoal.current, t);
+    lookCurrent.current.lerp(lookGoal.current, t);
+    camera.lookAt(lookCurrent.current);
+
+    // Sync OrbitControls target so it knows where we are
+    if (controlsRef.current) {
+      controlsRef.current.target.copy(lookCurrent.current);
+      controlsRef.current.update();
+    }
+
+    // Stop animating once arrived (hand off to OrbitControls)
+    if (camera.position.distanceTo(camGoal.current) < 0.02) {
+      animating.current = false;
+    }
+  });
+
+  return null;
 }
+
+// ---- 3D Model (locked-in materials) ----
 
 function TelemetryModel() {
   const { scene } = useGLTF(MODEL_PATH);
@@ -64,23 +121,30 @@ function TelemetryModel() {
   return <primitive object={scene} />;
 }
 
+// ---- Zone Marker: dots-only, label only on selection ----
+
 function ZoneMarker({ sub, onClick, isSelected }: {
   sub: typeof SUBS[number]; onClick: () => void; isSelected: boolean;
 }) {
   const dotRef = useRef<HTMLDivElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
+  const scoreRef = useRef<HTMLSpanElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = useVehicleStore.subscribe((state) => {
       const s = state.health[sub.id];
-      const color = stColor(s);
+      const color = healthColor(s);
       if (dotRef.current) {
         dotRef.current.style.background = color;
-        dotRef.current.style.boxShadow = s < 70 && s !== -1 ? `0 0 16px ${color}` : "0 0 8px rgba(255,255,255,0.1)";
+        dotRef.current.style.boxShadow = `0 0 ${s < 70 && s !== -1 ? 14 : 6}px ${color}`;
       }
-      if (labelRef.current) {
-        labelRef.current.textContent = `${sub.label} ${s === -1 ? "--" : Math.round(s)}`;
-        labelRef.current.style.color = color;
+      if (scoreRef.current) {
+        scoreRef.current.textContent = s === -1 ? "--" : String(Math.round(s));
+        scoreRef.current.style.color = color;
+      }
+      if (ringRef.current) {
+        ringRef.current.style.borderColor = color;
+        ringRef.current.style.boxShadow = `0 0 12px ${color}, inset 0 0 8px ${color}`;
       }
     });
     return unsub;
@@ -89,64 +153,125 @@ function ZoneMarker({ sub, onClick, isSelected }: {
   return (
     <Html position={sub.pos} center>
       <div
-        onClick={onClick}
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
         style={{
-          display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
+          display: "flex", flexDirection: "column", alignItems: "center",
           cursor: "pointer", WebkitTapHighlightColor: "transparent",
-          transform: isSelected ? "scale(1.15)" : "scale(1)",
-          transition: "transform 200ms ease",
+          padding: 10, minWidth: 56, minHeight: 56, justifyContent: "center",
+          position: "relative",
         }}
       >
-        <div ref={dotRef} style={{
-          width: isSelected ? "14px" : "10px", height: isSelected ? "14px" : "10px",
-          borderRadius: "50%", background: "rgba(255,255,255,0.5)",
-          transition: "all 300ms",
-        }} />
-        <span ref={labelRef} style={{
-          fontFamily: "var(--font-data)", fontSize: "11px", fontWeight: 600,
-          color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap",
-          textShadow: "0 1px 4px rgba(0,0,0,0.8)",
-        }}>{sub.label} --</span>
+        {/* Marker: thin ring + center dot. Expands + glows on select. */}
+        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {/* Ring */}
+          <div ref={ringRef} style={{
+            width: isSelected ? 36 : 18, height: isSelected ? 36 : 18,
+            borderRadius: "50%",
+            border: isSelected ? "1.5px solid rgba(255,255,255,0.3)" : "1px solid rgba(255,255,255,0.15)",
+            boxShadow: "none",
+            transition: "all 400ms cubic-bezier(0.16, 1, 0.3, 1)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            {/* Center dot */}
+            <div ref={dotRef} style={{
+              width: isSelected ? 6 : 4, height: isSelected ? 6 : 4,
+              borderRadius: "50%", background: "rgba(255,255,255,0.4)",
+              transition: "all 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+            }} />
+          </div>
+        </div>
+
+        {/* Label */}
+        <span style={{
+          fontFamily: "var(--font-data)", fontSize: 11, fontWeight: 600,
+          color: isSelected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.18)",
+          whiteSpace: "nowrap", letterSpacing: "0.05em", marginTop: 3,
+          textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+          transition: "color 300ms",
+        }}>{sub.short}</span>
+
+        {/* Score -- fades in on selection */}
+        {isSelected && (
+          <span ref={scoreRef} style={{
+            fontFamily: "var(--font-data)", fontSize: 14, fontWeight: 700,
+            color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap",
+            textShadow: "0 1px 6px rgba(0,0,0,0.9)",
+            animation: "fade-in 300ms ease",
+          }}>--</span>
+        )}
       </div>
     </Html>
   );
 }
 
+// ---- Main Telemetry Screen ----
+
 export function TelemetryScreen() {
   const [selected, setSelected] = useState<SubsystemId | null>(null);
-  const sensorRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const controlsRef = useRef<any>(null);
+  const headerScoreRef = useRef<HTMLSpanElement>(null);
+  const headerBarRef = useRef<HTMLDivElement>(null);
+  const panelBorderRef = useRef<HTMLDivElement>(null);
 
   const selectedSub = SUBS.find((s) => s.id === selected);
-  const sensorKeys = selectedSub?.sensors ?? ["RPM", "SPEED", "COOLANT_TEMP", "BATTERY_V", "FUEL_LEVEL", "OIL_TEMP"];
+  const sensorKeys = selected ? (SUBSYSTEM_SENSORS[selected] ?? DEFAULT_SENSORS) : DEFAULT_SENSORS;
 
+  // Imperative health score + accent color updates
   useEffect(() => {
     const unsub = useVehicleStore.subscribe((state) => {
-      sensorKeys.forEach((key, i) => {
-        const el = sensorRefs.current[i];
-        if (!el) return;
-        const v = state.sensors[key]?.v;
-        const st = v !== undefined ? getSensorState(key, v) : "normal";
-        el.textContent = v !== undefined ? fmt(key, v) : "--";
-        el.style.color = st === "critical" ? "#c53030" : st === "warn" ? "#d4a017" : "rgba(255,255,255,0.9)";
-      });
+      const score = selected ? state.health[selected] : state.health.overall;
+      const color = healthColor(score);
+      if (headerScoreRef.current) {
+        headerScoreRef.current.textContent = score === -1 ? "--" : String(Math.round(score));
+        headerScoreRef.current.style.color = color;
+      }
+      if (headerBarRef.current) {
+        headerBarRef.current.style.width = score === -1 ? "0%" : `${Math.max(0, Math.min(100, score))}%`;
+        headerBarRef.current.style.background = color;
+      }
+      if (panelBorderRef.current) {
+        panelBorderRef.current.style.borderLeftColor = score === -1
+          ? "rgba(255,255,255,0.04)"
+          : color.replace(")", ",0.15)").replace("rgba", "rgba").replace("rgb(", "rgba(");
+      }
     });
     return unsub;
-  }, [sensorKeys]);
+  }, [selected]);
 
   return (
     <div style={{ width: "100%", height: "100%", background: "#000", display: "flex", overflow: "hidden" }}>
-      {/* 3D car view -- the telemetry IS the car */}
-      <div style={{ flex: 1, position: "relative", touchAction: "none" }}>
+      {/* 3D car -- tap empty space to deselect back to Overview */}
+      <div onClick={() => setSelected(null)} style={{ flex: 1, position: "relative", touchAction: "none" }}>
+        {/* Maker's bar -- architectural, part of the frame */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, pointerEvents: "none",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "10px 18px 8px",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+          background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%)",
+        }}>
+          <span style={{
+            fontFamily: "var(--font-data)", fontSize: 16, fontWeight: 600,
+            color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em",
+          }}>RUNE</span>
+          <span style={{
+            fontFamily: "var(--font-data)", fontSize: 14, fontWeight: 400,
+            color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em",
+          }}>Kuladeep M. <span style={{ fontWeight: 300, color: "rgba(255,255,255,0.2)" }}>/</span> <span style={{ fontSize: 13, fontWeight: 300, color: "rgba(255,255,255,0.25)", letterSpacing: "0.04em" }}>engineer</span></span>
+        </div>
         <Canvas
-          camera={{ position: [0, 8, 3], fov: 30, near: 0.1, far: 100 }}
+          camera={{ position: [6, 2.8, 4.5], fov: 28, near: 0.1, far: 100 }}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
           style={{ background: "transparent" }}
           dpr={[1, 2]}
         >
           <Environment preset="night" background={false} />
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[4, 6, -2]} intensity={3} color="#ffffff" />
-          <directionalLight position={[-4, 5, 3]} intensity={1.5} color="#d8d8ff" />
+          <ambientLight intensity={0.3} />
+          <directionalLight position={[6, 5, -2]} intensity={3} color="#ffffff" />
+          <directionalLight position={[-5, 4, 3]} intensity={1.5} color="#d8d8ff" />
+          <directionalLight position={[-1, 3, 7]} intensity={1.5} color="#e0e0ff" />
+
+          <CameraController targetPos={selectedSub?.pos ?? null} controlsRef={controlsRef} />
 
           <Suspense fallback={null}>
             <group position={[0, -0.8, 0]}>
@@ -163,63 +288,60 @@ export function TelemetryScreen() {
             <ContactShadows position={[0, -0.85, 0]} opacity={0.2} scale={14} blur={2.5} far={4} />
           </Suspense>
 
+          {/* Always mounted -- auto-rotates when idle, disabled during zoom */}
           <OrbitControls
+            ref={controlsRef}
             enableZoom={false} enablePan={false}
-            minPolarAngle={Math.PI * 0.1} maxPolarAngle={Math.PI * 0.45}
-            rotateSpeed={0.4} target={[0, 0, 0]}
+            enabled={!selected}
+            autoRotate={!selected}
+            autoRotateSpeed={0.3}
+            minPolarAngle={Math.PI * 0.35} maxPolarAngle={Math.PI * 0.55}
+            rotateSpeed={0.4}
           />
         </Canvas>
-
-        {/* Instruction hint */}
-        {!selected && (
-          <div style={{
-            position: "absolute", bottom: "32px", left: "50%", transform: "translateX(-50%)",
-            fontFamily: "var(--font-ui)", fontSize: "13px", fontWeight: 300,
-            color: "rgba(255,255,255,0.2)", pointerEvents: "none",
-          }}>
-            Tap a zone to inspect
-          </div>
-        )}
       </div>
 
-      {/* Right panel: sensor detail */}
-      <div style={{
-        width: "25%", minWidth: "200px", maxWidth: "300px", flexShrink: 0,
-        padding: "24px 20px 28px",
-        display: "flex", flexDirection: "column", gap: "12px",
-        borderLeft: "1px solid rgba(255,255,255,0.04)",
-        overflowY: "auto",
+      {/* Right panel: subsystem deep dive */}
+      <div ref={panelBorderRef} style={{
+        width: "28%", minWidth: "220px", maxWidth: "320px", flexShrink: 0,
+        padding: "12px 14px 10px",
+        display: "flex", flexDirection: "column", gap: 8,
+        borderLeft: "2px solid rgba(255,255,255,0.04)",
+        overflowY: "auto", transition: "border-left-color 400ms",
       }}>
-        <span style={{
-          fontFamily: "var(--font-data)", fontSize: "20px", fontWeight: 600,
-          color: "rgba(255,255,255,0.85)",
-        }}>
-          {selectedSub ? selectedSub.label : "Overview"}
-        </span>
-
-        {sensorKeys.map((key, i) => (
-          <div key={key} style={{
-            padding: "14px 16px", borderRadius: "12px",
-            background: "rgba(255,255,255,0.025)",
-            backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid rgba(255,255,255,0.04)",
-            display: "flex", flexDirection: "column", gap: "4px",
-          }}>
+        {/* Subsystem header: name + health score + bar */}
+        <div style={{ marginBottom: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{
-              fontFamily: "var(--font-ui)", fontSize: "12px", fontWeight: 500,
-              color: "rgba(255,255,255,0.3)",
+              fontFamily: "var(--font-data)", fontSize: 20, fontWeight: 600,
+              color: "rgba(255,255,255,0.85)",
             }}>
-              {getSensorLabel(key)} <span style={{ opacity: 0.5 }}>{getSensorUnit(key)}</span>
+              {selectedSub ? selectedSub.label : "Overview"}
             </span>
-            <span
-              ref={(el) => { sensorRefs.current[i] = el; }}
-              style={{
-                fontFamily: "var(--font-data)", fontSize: "28px", fontWeight: 600,
-                color: "rgba(255,255,255,0.9)", lineHeight: 1,
-                fontVariantNumeric: "tabular-nums", transition: "color 400ms",
-              }}
-            >--</span>
+            <span ref={headerScoreRef} style={{
+              fontFamily: "var(--font-data)", fontSize: 32, fontWeight: 700,
+              color: "rgba(255,255,255,0.5)", lineHeight: 1,
+              fontVariantNumeric: "tabular-nums", transition: "color 300ms",
+            }}>--</span>
           </div>
+          {/* Health bar */}
+          <div style={{
+            height: 3, borderRadius: 2, background: "rgba(255,255,255,0.04)",
+            marginTop: 6, overflow: "hidden",
+          }}>
+            <div ref={headerBarRef} style={{
+              height: "100%", borderRadius: 2, width: "0%",
+              background: "rgba(255,255,255,0.3)", transition: "width 400ms ease, background 400ms",
+            }} />
+          </div>
+        </div>
+
+        {/* Sensor cards with sparklines */}
+        {sensorKeys.map((key) => (
+          <TelemetrySensorCard
+            key={`${selected ?? "overview"}-${key}`}
+            sensorKey={key}
+          />
         ))}
       </div>
     </div>

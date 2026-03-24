@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useVehicleStore } from "@/stores/vehicleStore";
+import { emitTripEnd } from "@/components/trip/TripEndPopup";
 import type { VehicleMessage } from "@/types/vehicle";
 
 const MAX_BACKOFF_MS = 8000;
@@ -40,7 +41,16 @@ export function useVehicleSocket() {
 
       ws.onmessage = (event: MessageEvent) => {
         try {
-          const msg = JSON.parse(event.data as string) as VehicleMessage;
+          const data = JSON.parse(event.data as string);
+
+          // Trip-end event from backend
+          if (data.type === "trip_ended" && data.trip) {
+            emitTripEnd(data.trip);
+            return;
+          }
+
+          // Normal sensor data
+          const msg = data as VehicleMessage;
           useVehicleStore.getState().updateFromMessage(msg);
           resetHeartbeat();
         } catch {

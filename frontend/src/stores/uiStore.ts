@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { SubsystemId } from "@/types/vehicle";
 
-export type ScreenId = "rune" | "telemetry" | "settings";
+export type ScreenId = "telemetry" | "rune" | "trip-summary" | "settings";
 
 interface UiState {
   // Navigation
@@ -26,7 +26,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  activeScreen: "rune",
+  activeScreen: "telemetry",
   navVisible: true,
   bootComplete: false,
   focusedSubsystem: null,

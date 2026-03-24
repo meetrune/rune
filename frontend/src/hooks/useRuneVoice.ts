@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { useVehicleStore } from "@/stores/vehicleStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { generateVoiceMessage, type VoiceState } from "@/constants/voice";
 import { getWorstSubsystem } from "@/constants/thresholds";
 import type { HealthScores, SubsystemId } from "@/types/vehicle";
@@ -24,6 +25,9 @@ export function useRuneVoice(): RuneVoiceResult {
 
   useEffect(() => {
     const unsub = useVehicleStore.subscribe((store) => {
+      // Respect the runeVoice setting
+      if (!useSettingsStore.getState().runeVoice) return;
+
       const { health, connected } = store;
 
       // Disconnected overrides everything

@@ -316,27 +316,39 @@ class HealthScorer:
         return self._sample_count
 
     def score(self, snap: VehicleSnapshot) -> HealthSnapshot:
-        """Score a VehicleSnapshot. Called every tick (10Hz)."""
+        """Score a VehicleSnapshot. Called every tick (10Hz).
+
+        During calibration (first ~5 min), returns -1 sentinel for all scores
+        so the frontend can show "calibrating" instead of fake 100s.
+        """
         self._sample_count += 1
 
         if not self._calibration_complete and self._sample_count >= self._calibration_threshold:
             self._calibration_complete = True
             logger.info("Health scorer calibration complete after %d samples", self._sample_count)
 
-        # Update EWMA smoothers
+        # Update EWMA smoothers (always, even during calibration)
         for param, ewma in self._ewma.items():
             value = getattr(snap, param, None)
             if value is not None:
                 ewma.update(value)
 
-        # Layer 1: Threshold-based subsystem scoring
-        subsystem_scores = score_subsystems(snap)
-
-        # Layer 2: Online anomaly detection
+        # Feed HalfSpaceTrees even during calibration so it warms up
         features = _snap_to_features(snap)
         anomaly_score = self._hst.score_and_learn(features)
         self._last_anomaly_score = anomaly_score
 
+        # During calibration, return -1 sentinel -- the frontend knows to show "--"
+        if not self._calibration_complete:
+            return HealthSnapshot(
+                overall=-1, engine=-1, transmission=-1,
+                fuel=-1, cooling=-1, exhaust=-1, electrical=-1,
+            )
+
+        # Layer 1: Threshold-based subsystem scoring
+        subsystem_scores = score_subsystems(snap)
+
+        # Layer 2: anomaly_score already computed above (before calibration gate)
         # Track consecutive anomalies
         if anomaly_score > self._anomaly_threshold:
             self._consecutive_anomalies += 1

@@ -4,8 +4,12 @@ Tracks fuel consumption and distance over each driving session.
 Called on every 10Hz tick, accumulates trip state. The caller
 (producer loop in main.py) handles DB writes.
 
-Trip detection: speed >1 kph = start, speed <1 kph for 60s = end.
-The 60-second timeout prevents false endings at red lights.
+Trip detection:
+  START: speed > 5 kph (filters GPS jitter at 1-3 kph)
+  END:   RPM drops to 0 (engine off) for 10 seconds.
+         RPM is the primary signal -- engine running = trip active.
+         Speed-based idle timeout (5 min) is the fallback for RPM glitches.
+         This way traffic, red lights, and train crossings never end a trip.
 """
 
 from __future__ import annotations
@@ -26,9 +30,18 @@ from backend.obd_manager.models import (
 
 logger = logging.getLogger(__name__)
 
-# Speed threshold for "moving" -- must be above sensor noise and GPS jitter
-# Real GPS jitter can be 1-3 kph even when stationary
+# Speed threshold for trip start -- above GPS jitter noise
 SPEED_THRESHOLD_KPH = 5.0
+
+# RPM threshold for "engine running" -- idle is 650-750 on the L15BE
+# Below this for sustained period = engine is off
+RPM_OFF_THRESHOLD = 50.0
+
+# How long RPM must stay at 0 before trip ends (filters momentary dips)
+ENGINE_OFF_TIMEOUT_S = 10.0
+
+# Fallback: if RPM data glitches but speed is 0 for this long, end trip anyway
+SPEED_IDLE_FALLBACK_TIMEOUT_S = 300.0  # 5 minutes
 
 # Minimum trip distance to be considered real (not noise)
 MIN_TRIP_DISTANCE_MI = 0.05  # ~260 feet
@@ -41,7 +54,8 @@ class TripState:
     start_time: float
     distance_miles: float
     fuel_gallons: float
-    idle_since: float | None  # timestamp when speed dropped below threshold
+    engine_off_since: float | None   # timestamp when RPM dropped to ~0
+    speed_idle_since: float | None   # timestamp when speed dropped below threshold
 
 
 class FuelCalculator:
@@ -49,17 +63,18 @@ class FuelCalculator:
 
     Call update() on every tick. It returns a FuelSnapshot plus
     flags indicating trip start/end events.
+
+    Primary trip end signal: RPM = 0 (engine off) for 10 seconds.
+    Fallback: speed = 0 for 5 minutes (handles RPM sensor failure).
     """
 
     def __init__(
         self,
         tank_capacity_gal: float,
         gas_price_per_gallon: float,
-        idle_timeout_s: float = 60.0,
     ) -> None:
         self._tank_capacity = tank_capacity_gal
         self._gas_price = gas_price_per_gallon
-        self._idle_timeout_s = idle_timeout_s
         self._trip: TripState | None = None
         self._completed_trip: TripState | None = None
         self._last_update_time: float | None = None
@@ -71,6 +86,27 @@ class FuelCalculator:
     @property
     def current_trip(self) -> TripState | None:
         return self._trip
+
+    def _end_trip(self, reason: str) -> bool:
+        """End the current trip. Returns True if trip was real, False if junk."""
+        if self._trip is None:
+            return False
+
+        if self._trip.distance_miles < MIN_TRIP_DISTANCE_MI:
+            logger.debug(
+                "Discarding junk trip: %.4f mi (below %.2f threshold)",
+                self._trip.distance_miles, MIN_TRIP_DISTANCE_MI,
+            )
+            self._trip = None
+            return False
+
+        self._completed_trip = self._trip
+        self._trip = None
+        logger.info(
+            "Trip ended (%s): %.2f mi, %.3f gal",
+            reason, self._completed_trip.distance_miles, self._completed_trip.fuel_gallons,
+        )
+        return True
 
     def update(self, snap: VehicleSnapshot) -> tuple[FuelSnapshot, bool, bool]:
         """Process one VehicleSnapshot tick.
@@ -96,49 +132,47 @@ class FuelCalculator:
         distance_this_tick_mi = speed_mph * (dt / 3600)
 
         moving = snap.speed_kph >= SPEED_THRESHOLD_KPH
+        engine_running = snap.rpm >= RPM_OFF_THRESHOLD
 
-        # Trip start detection
+        # --- Trip start: speed above threshold ---
         if moving and self._trip is None:
             self._trip = TripState(
                 trip_id=None,
                 start_time=now,
                 distance_miles=0.0,
                 fuel_gallons=0.0,
-                idle_since=None,
+                engine_off_since=None,
+                speed_idle_since=None,
             )
             self._completed_trip = None
             trip_started = True
             logger.info("Trip started")
 
-        # Accumulate into active trip
+        # --- Accumulate into active trip ---
         if self._trip is not None:
             self._trip.distance_miles += distance_this_tick_mi
             self._trip.fuel_gallons += fuel_this_tick_gal
 
-            # Idle timeout detection
-            if not moving:
-                if self._trip.idle_since is None:
-                    self._trip.idle_since = now
-                elif now - self._trip.idle_since >= self._idle_timeout_s:
-                    # Discard junk trips caused by sensor noise
-                    if self._trip.distance_miles < MIN_TRIP_DISTANCE_MI:
-                        logger.debug(
-                            "Discarding junk trip: %.4f mi (below %.2f threshold)",
-                            self._trip.distance_miles, MIN_TRIP_DISTANCE_MI,
-                        )
-                        self._trip = None
-                    else:
-                        self._completed_trip = self._trip
-                        self._trip = None
-                        trip_ended = True
-                        logger.info(
-                            "Trip ended: %.2f mi, %.3f gal",
-                            self._completed_trip.distance_miles,
-                            self._completed_trip.fuel_gallons,
-                        )
+            # PRIMARY: Engine off detection (RPM near 0)
+            if not engine_running:
+                if self._trip.engine_off_since is None:
+                    self._trip.engine_off_since = now
+                elif now - self._trip.engine_off_since >= ENGINE_OFF_TIMEOUT_S:
+                    trip_ended = self._end_trip("engine_off")
             else:
+                # Engine is running -- reset the off timer
                 if self._trip is not None:
-                    self._trip.idle_since = None
+                    self._trip.engine_off_since = None
+
+            # FALLBACK: Speed idle timeout (handles RPM sensor failure)
+            if self._trip is not None:
+                if not moving:
+                    if self._trip.speed_idle_since is None:
+                        self._trip.speed_idle_since = now
+                    elif now - self._trip.speed_idle_since >= SPEED_IDLE_FALLBACK_TIMEOUT_S:
+                        trip_ended = self._end_trip("speed_idle_fallback")
+                else:
+                    self._trip.speed_idle_since = None
 
         # Build FuelSnapshot
         instant_mpg = calculate_instant_mpg(snap.speed_kph, snap.maf_gps)

@@ -27,19 +27,22 @@ logger = logging.getLogger(__name__)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS sensor_readings (
-    id          INTEGER PRIMARY KEY,
-    ts          INTEGER NOT NULL,
-    rpm         REAL NOT NULL,
-    speed_kph   REAL NOT NULL,
-    coolant_c   REAL NOT NULL,
-    engine_load REAL NOT NULL,
-    maf_gps     REAL NOT NULL,
-    stft_pct    REAL NOT NULL,
-    ltft_pct    REAL NOT NULL,
-    fuel_lvl    REAL NOT NULL,
-    catalyst_c  REAL NOT NULL,
-    oil_c       REAL NOT NULL,
-    battery_v   REAL NOT NULL
+    id              INTEGER PRIMARY KEY,
+    ts              INTEGER NOT NULL,
+    rpm             REAL NOT NULL,
+    speed_kph       REAL NOT NULL,
+    coolant_c       REAL NOT NULL,
+    engine_load     REAL NOT NULL,
+    maf_gps         REAL NOT NULL,
+    stft_pct        REAL NOT NULL,
+    ltft_pct        REAL NOT NULL,
+    fuel_lvl        REAL NOT NULL,
+    catalyst_c      REAL NOT NULL,
+    oil_c           REAL NOT NULL,
+    battery_v       REAL NOT NULL,
+    throttle_pct    REAL NOT NULL DEFAULT 0,
+    intake_temp_c   REAL NOT NULL DEFAULT 0,
+    intake_map_kpa  REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_readings_ts ON sensor_readings(ts);
 
@@ -51,7 +54,8 @@ CREATE TABLE IF NOT EXISTS trips (
     fuel_gallons    REAL NOT NULL DEFAULT 0,
     fuel_cost_usd   REAL NOT NULL DEFAULT 0,
     avg_mpg         REAL,
-    eco_score       REAL
+    eco_score       REAL,
+    trip_stats      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS fillups (
@@ -137,13 +141,15 @@ class RuneDatabase:
         await conn.execute(
             """INSERT INTO sensor_readings
                (ts, rpm, speed_kph, coolant_c, engine_load, maf_gps,
-                stft_pct, ltft_pct, fuel_lvl, catalyst_c, oil_c, battery_v)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                stft_pct, ltft_pct, fuel_lvl, catalyst_c, oil_c, battery_v,
+                throttle_pct, intake_temp_c, intake_map_kpa)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 int(snap.timestamp * 1000), snap.rpm, snap.speed_kph,
                 snap.coolant_temp_c, snap.engine_load_pct, snap.maf_gps,
                 snap.stft_pct, snap.ltft_pct, snap.fuel_level_pct,
                 snap.catalyst_temp_c, snap.oil_temp_c, snap.battery_voltage,
+                snap.throttle_pct, snap.intake_air_temp_c, snap.intake_manifold_kpa,
             ),
         )
         await conn.commit()
@@ -159,14 +165,16 @@ class RuneDatabase:
                 s.coolant_temp_c, s.engine_load_pct, s.maf_gps,
                 s.stft_pct, s.ltft_pct, s.fuel_level_pct,
                 s.catalyst_temp_c, s.oil_temp_c, s.battery_voltage,
+                s.throttle_pct, s.intake_air_temp_c, s.intake_manifold_kpa,
             )
             for s in snaps
         ]
         await conn.executemany(
             """INSERT INTO sensor_readings
                (ts, rpm, speed_kph, coolant_c, engine_load, maf_gps,
-                stft_pct, ltft_pct, fuel_lvl, catalyst_c, oil_c, battery_v)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                stft_pct, ltft_pct, fuel_lvl, catalyst_c, oil_c, battery_v,
+                throttle_pct, intake_temp_c, intake_map_kpa)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             rows,
         )
         await conn.commit()
@@ -193,13 +201,14 @@ class RuneDatabase:
         fuel_gallons: float,
         fuel_cost_usd: float,
         avg_mpg: float | None,
+        trip_stats: str | None = None,
     ) -> None:
-        """Finalize a trip with end time and totals."""
+        """Finalize a trip with end time, totals, and rich stats JSON."""
         conn = self._require_conn()
         await conn.execute(
             """UPDATE trips SET end_time=?, distance_miles=?, fuel_gallons=?,
-               fuel_cost_usd=?, avg_mpg=? WHERE trip_id=?""",
-            (end_time_ms, distance_miles, fuel_gallons, fuel_cost_usd, avg_mpg, trip_id),
+               fuel_cost_usd=?, avg_mpg=?, trip_stats=? WHERE trip_id=?""",
+            (end_time_ms, distance_miles, fuel_gallons, fuel_cost_usd, avg_mpg, trip_stats, trip_id),
         )
         await conn.commit()
 

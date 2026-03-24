@@ -16,11 +16,12 @@ def _snap(
     maf_gps: float = 2.5,
     fuel_level_pct: float = 75.0,
     timestamp: float | None = None,
+    rpm: float | None = None,
 ) -> VehicleSnapshot:
     """Build a minimal valid VehicleSnapshot."""
     return VehicleSnapshot(
         timestamp=timestamp or time.time(),
-        rpm=700 if speed_kph == 0 else 2000,
+        rpm=rpm if rpm is not None else (700 if speed_kph == 0 else 2000),
         speed_kph=speed_kph,
         coolant_temp_c=90,
         engine_load_pct=20 if speed_kph == 0 else 30,
@@ -105,23 +106,41 @@ class TestTripDetection:
         assert not ended
         assert calc.is_trip_active
 
-    def test_idle_60s_ends_trip(self) -> None:
+    def test_engine_off_ends_trip(self) -> None:
+        """RPM dropping to 0 for 10+ seconds = engine off = trip ends."""
         calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
         t = time.time()
 
-        # Drive for 30 seconds at 100 kph to build real distance (~0.5 miles)
+        # Drive for 30 seconds at 100 kph to build real distance
         for i in range(30):
             calc.update(_snap(speed_kph=100, maf_gps=15.0, timestamp=t + i))
 
-        # Stop for 61 seconds
+        # Engine off (RPM=0) for 11 seconds
         ended_at = None
-        for i in range(30, 92):
-            _, _, ended = calc.update(_snap(speed_kph=0, timestamp=t + i))
+        for i in range(30, 42):
+            _, _, ended = calc.update(_snap(speed_kph=0, rpm=0, timestamp=t + i))
             if ended:
                 ended_at = i
 
         assert ended_at is not None
         assert not calc.is_trip_active
+
+    def test_idle_in_traffic_no_false_end(self) -> None:
+        """Engine running at idle (RPM=700, speed=0) should NOT end trip,
+        even after 60+ seconds. This is the traffic/red light fix."""
+        calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
+        t = time.time()
+
+        # Drive
+        for i in range(10):
+            calc.update(_snap(speed_kph=80, maf_gps=12.0, timestamp=t + i))
+
+        # Sit in traffic for 120 seconds, engine running (RPM=700)
+        for i in range(10, 130):
+            _, _, ended = calc.update(_snap(speed_kph=0, rpm=700, timestamp=t + i))
+            assert not ended
+
+        assert calc.is_trip_active
 
     def test_junk_trip_discarded(self) -> None:
         """Trip with < 0.05 miles should be silently discarded, not ended."""
@@ -132,14 +151,14 @@ class TestTripDetection:
         calc.update(_snap(speed_kph=6, timestamp=t))
         calc.update(_snap(speed_kph=6, timestamp=t + 1))
 
-        # Stop for 61 seconds
+        # Engine off (RPM=0) for 12 seconds
         any_ended = False
-        for i in range(2, 63):
-            _, _, ended = calc.update(_snap(speed_kph=0, timestamp=t + i))
+        for i in range(2, 14):
+            _, _, ended = calc.update(_snap(speed_kph=0, rpm=0, timestamp=t + i))
             if ended:
                 any_ended = True
 
-        # Trip should be discarded, not ended
+        # Trip should be discarded, not ended (too short distance)
         assert not any_ended
         assert not calc.is_trip_active
         assert calc.get_completed_trip_summary() is None
@@ -216,9 +235,9 @@ class TestTripSummary:
         for i in range(30):
             calc.update(_snap(speed_kph=100, maf_gps=15.0, timestamp=t + i))
 
-        # Stop for 61s to end trip
-        for i in range(30, 92):
-            calc.update(_snap(speed_kph=0, timestamp=t + i))
+        # Engine off (RPM=0) for 12s to end trip
+        for i in range(30, 42):
+            calc.update(_snap(speed_kph=0, rpm=0, timestamp=t + i))
 
         summary = calc.get_completed_trip_summary()
         assert summary is not None

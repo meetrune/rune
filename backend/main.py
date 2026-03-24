@@ -24,6 +24,7 @@ from backend.config import settings
 from backend.database.db import RuneDatabase
 from backend.fuel.calculator import FuelCalculator
 from backend.fuel.fillup import FillupDetector
+from backend.fuel.trip_stats import TripStatsAccumulator
 from backend.health.scorer import HealthScorer
 from backend.obd_manager.collector import DataCollector, OBDCollector, SimulatedCollector
 from backend.obd_manager.models import WebSocketMessage
@@ -76,6 +77,7 @@ async def obd_producer_loop(
     tick_count = 0
     reading_buffer = []
     active_trip_id: int | None = None
+    trip_stats_acc: TripStatsAccumulator | None = None
 
     logger.info("Producer loop started at %dHz", settings.ws_rate_hz)
 
@@ -92,13 +94,20 @@ async def obd_producer_loop(
             # Trip lifecycle
             if trip_started:
                 active_trip_id = await db.start_trip(int(snap.timestamp * 1000))
+                trip_stats_acc = TripStatsAccumulator()
                 if fuel_calc.current_trip is not None:
                     fuel_calc.current_trip.trip_id = active_trip_id
+
+            # Accumulate trip stats every tick
+            if trip_stats_acc is not None:
+                trip_stats_acc.update(snap)
 
             if trip_ended:
                 summary = fuel_calc.get_completed_trip_summary()
                 if summary and active_trip_id is not None:
+                    import json
                     avg_mpg = summary.get("avg_mpg")
+                    stats_json = json.dumps(trip_stats_acc.finalize()) if trip_stats_acc else None
                     await db.end_trip(
                         trip_id=active_trip_id,
                         end_time_ms=int(snap.timestamp * 1000),
@@ -106,8 +115,28 @@ async def obd_producer_loop(
                         fuel_gallons=summary["fuel_gallons"],
                         fuel_cost_usd=summary["fuel_cost_usd"],
                         avg_mpg=avg_mpg,
+                        trip_stats=stats_json,
                     )
+                    # Broadcast trip_ended event to frontend
+                    if manager.client_count > 0:
+                        duration_min = 0.0
+                        if summary.get("start_time"):
+                            duration_min = (snap.timestamp - summary["start_time"]) / 60
+                        trip_event = json.dumps({
+                            "type": "trip_ended",
+                            "trip": {
+                                "trip_id": active_trip_id,
+                                "distance_miles": round(summary["distance_miles"], 1),
+                                "fuel_gallons": round(summary["fuel_gallons"], 3),
+                                "fuel_cost_usd": round(summary["fuel_cost_usd"], 2),
+                                "avg_mpg": round(avg_mpg, 1) if avg_mpg else None,
+                                "duration_minutes": round(duration_min, 1),
+                                "stats": trip_stats_acc.finalize() if trip_stats_acc else None,
+                            },
+                        })
+                        await manager.broadcast(trip_event)
                 active_trip_id = None
+                trip_stats_acc = None
 
             # Fill-up detection -- query miles since last fill for MPG calculation
             miles_since_fill: float | None = None
@@ -286,6 +315,22 @@ async def health_check() -> JSONResponse:
         "ws_clients": app.state.connection_manager.client_count,
         "version": "0.1.0",
     })
+
+
+@app.get("/api/trips")
+async def get_trips(limit: int = 20) -> JSONResponse:
+    """Trip history for the Summary screen."""
+    import json as _json
+    db: RuneDatabase = app.state.db
+    trips = await db.get_recent_trips(limit=limit)
+    # Parse trip_stats JSON blobs
+    for t in trips:
+        if t.get("trip_stats") and isinstance(t["trip_stats"], str):
+            try:
+                t["trip_stats"] = _json.loads(t["trip_stats"])
+            except (ValueError, TypeError):
+                t["trip_stats"] = None
+    return JSONResponse({"trips": trips})
 
 
 @app.get("/api/debug")
