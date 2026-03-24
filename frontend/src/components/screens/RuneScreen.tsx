@@ -1,340 +1,305 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useVehicleStore } from "@/stores/vehicleStore";
 import { useRuneVoice } from "@/hooks/useRuneVoice";
+import { LiveGraph } from "@/components/hud/LiveGraph";
+
+// Cockpit Gauges layout. Warm premium palette.
+// Left: circular gauge instruments. Center: hero data + waveforms. Right: sensor list.
+
+const WARM = "#c9952a";   // gold - primary accent
+const CREAM = "#f0e2c8";  // warm white - data values
+const COPPER = "#b87a3d";  // copper - secondary
+const DIM = "rgba(201,149,42,0.25)"; // dim gold for labels
+const BORDER = "rgba(201,149,42,0.08)";
+const GLASS = "rgba(201,149,42,0.03)";
+const WARN = "#ea580c";   // orange warning
+const CRIT = "#c53030";   // red critical
+
+function tc(v: number, wH: number, cH: number) { return v >= cH ? CRIT : v >= wH ? WARN : WARM; }
+function ftc(v: number) { return Math.abs(v) > 15 ? CRIT : Math.abs(v) > 8 ? WARN : WARM; }
 
 export function RuneScreen() {
-  const healthRef = useRef<HTMLSpanElement>(null);
-  const speedRef = useRef<HTMLSpanElement>(null);
-  const rpmRef = useRef<HTMLSpanElement>(null);
-  const mpgRef = useRef<HTMLSpanElement>(null);
-  const mpgLabelRef = useRef<HTMLSpanElement>(null);
-  const costRef = useRef<HTMLSpanElement>(null);
-  const distRef = useRef<HTMLSpanElement>(null);
-  const stateRef = useRef<HTMLSpanElement>(null);
-  const waveCanvasRef = useRef<HTMLCanvasElement>(null);
-  const waveBuffer = useRef<number[]>(new Array(200).fill(0));
+  const refs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const arcRefs = useRef<Record<string, SVGCircleElement | null>>({});
+  const barsRef = useRef<Record<string, HTMLDivElement | null>>({});
+  // Graph buffers managed by LiveGraph components
 
   const voice = useRuneVoice();
-  const [displayVoice, setDisplayVoice] = useState("");
-  const [voiceOpacity, setVoiceOpacity] = useState(0);
-  const prevVoice = useRef("");
-
-  // Smooth voice transition
+  const [dv, setDv] = useState("");
+  const [vo, setVo] = useState(0);
+  const pv = useRef("");
   useEffect(() => {
-    if (!voice.message || voice.message === prevVoice.current) return;
-    prevVoice.current = voice.message;
-    setVoiceOpacity(0);
-    const t = setTimeout(() => { setDisplayVoice(voice.message); setVoiceOpacity(1); }, 400);
+    if (!voice.message || voice.message === pv.current) return;
+    pv.current = voice.message; setVo(0);
+    const t = setTimeout(() => { setDv(voice.message); setVo(1); }, 300);
     return () => clearTimeout(t);
   }, [voice.message]);
+  useEffect(() => { if (voice.message && !dv) { setDv(voice.message); setTimeout(() => setVo(1), 150); } }, [voice.message, dv]);
+
+  const GR = 24, GC = 2 * Math.PI * GR, GA = (240 / 360) * GC;
 
   useEffect(() => {
-    if (voice.message && !displayVoice) {
-      setDisplayVoice(voice.message);
-      setTimeout(() => setVoiceOpacity(1), 200);
-    }
-  }, [voice.message, displayVoice]);
-
-  // 10Hz imperative updates + heartbeat waveform
-  useEffect(() => {
-    let prevThrottle = 0;
-    let prevSpeed = 0;
-    let animFrame = 0;
-
     const unsub = useVehicleStore.subscribe((state) => {
-      const h = state.health.overall;
-      if (healthRef.current) {
-        healthRef.current.textContent = h === -1 ? "--" : String(Math.round(h));
-        healthRef.current.style.color =
-          h < 50 ? "#c53030" : h < 70 ? "#d4a017" : "rgba(255,255,255,0.95)";
-      }
-
-      const speed = state.sensors["SPEED"]?.v ?? 0;
-      const rpm = state.sensors["RPM"]?.v ?? 0;
-      const throttle = state.sensors["THROTTLE_POS"]?.v ?? 0;
-
-      if (speedRef.current) speedRef.current.textContent = String(Math.round(speed));
-      if (rpmRef.current) rpmRef.current.textContent = Math.round(rpm).toLocaleString();
-
-      if (mpgRef.current && mpgLabelRef.current) {
-        if (speed > 2) {
-          const mpg = state.fuel.instant_mpg;
-          mpgRef.current.textContent = mpg != null ? mpg.toFixed(1) : "--";
-          mpgLabelRef.current.textContent = "MPG";
-        } else {
-          const gph = state.fuel.idle_gph;
-          mpgRef.current.textContent = gph != null ? gph.toFixed(2) : "--";
-          mpgLabelRef.current.textContent = "GPH idle";
+      const s = state.sensors, h = state.health;
+      const set = (id: string, txt: string, color?: string) => {
+        const el = refs.current[id]; if (el) { el.textContent = txt; if (color) el.style.color = color; }
+      };
+      const setArc = (id: string, pct: number, color: string) => {
+        const el = arcRefs.current[id]; if (el) {
+          el.style.strokeDashoffset = String(GA - (Math.min(pct, 1)) * GA);
+          el.style.stroke = color;
         }
-      }
+      };
+      const bar = (id: string, pct: number, c?: string) => {
+        const el = barsRef.current[id]; if (el) { el.style.width = `${pct}%`; if (c) el.style.background = c; }
+      };
 
-      if (costRef.current) costRef.current.textContent = `$${state.fuel.trip_cost_usd.toFixed(2)}`;
-      if (distRef.current) distRef.current.textContent = `${state.fuel.trip_distance_mi.toFixed(1)} mi`;
+      // Health gauge
+      const ho = h.overall;
+      set("health", ho === -1 ? "--" : String(Math.round(ho)), ho < 50 ? CRIT : ho < 70 ? WARN : CREAM);
+      setArc("healthArc", ho === -1 ? 0 : ho / 100, ho < 50 ? CRIT : ho < 70 ? WARN : WARM);
 
-      // Driving state
-      if (stateRef.current) {
-        if (speed < 2) stateRef.current.textContent = "Idle";
-        else if (throttle > 60) stateRef.current.textContent = "Accelerating";
-        else if (speed > 80) stateRef.current.textContent = "Highway";
-        else stateRef.current.textContent = "Cruising";
-      }
+      // Temperature gauges
+      const gauges: [string, string, number, number][] = [
+        ["oil", "OIL_TEMP", 120, 135],
+        ["cvt", "CVT_TEMP", 110, 125],
+        ["cool", "COOLANT_TEMP", 100, 110],
+        ["cat", "CATALYST_TEMP", 800, 900],
+      ];
+      gauges.forEach(([id, key, wH, cH]) => {
+        const v = s[key]?.v ?? 0;
+        const maxT = id === "cat" ? 1000 : 150;
+        set(id, `${Math.round(v)}°`, tc(v, wH, cH));
+        setArc(`${id}Arc`, v / maxT, tc(v, wH, cH));
+      });
 
-      // Push to heartbeat waveform buffer
-      const intensity = Math.abs(throttle - prevThrottle) + Math.abs(speed - prevSpeed) * 0.3;
-      prevThrottle = throttle;
-      prevSpeed = speed;
-      waveBuffer.current.push(Math.min(intensity, 40));
-      if (waveBuffer.current.length > 200) waveBuffer.current.shift();
+      // Center data
+      const speed = s["SPEED"]?.v ?? 0;
+      if (speed > 2) { set("fuel", state.fuel.instant_mpg?.toFixed(1) ?? "--", CREAM); set("fuelLbl", "INSTANT MPG"); }
+      else { set("fuel", state.fuel.idle_gph?.toFixed(2) ?? "--", WARM); set("fuelLbl", "GALLONS / HOUR"); }
+
+      const load = s["ENGINE_LOAD"]?.v ?? 0;
+      const throttle = s["THROTTLE_POS"]?.v ?? 0;
+      set("load", `${Math.round(load)}%`); bar("loadBar", load, load > 85 ? WARN : WARM);
+      set("throttle", `${Math.round(throttle)}%`); bar("throttleBar", throttle);
+
+      // Strip data
+      const stft = s["STFT"]?.v ?? 0; set("stft", `${stft >= 0 ? "+" : ""}${stft.toFixed(1)}%`, ftc(stft));
+      const ltft = s["LTFT"]?.v ?? 0; set("ltft", `${ltft >= 0 ? "+" : ""}${ltft.toFixed(1)}%`, ftc(ltft));
+      set("rpm", Math.round(s["RPM"]?.v ?? 0).toLocaleString());
+      set("maf", (s["MAF"]?.v ?? 0).toFixed(1));
+      set("map", String(Math.round(s["MAP"]?.v ?? 0)));
+      set("intake", `${Math.round(s["INTAKE_TEMP"]?.v ?? 0)}°`);
+      set("volts", (s["BATTERY_V"]?.v ?? 0).toFixed(1), (s["BATTERY_V"]?.v ?? 14) < 12.4 ? WARN : CREAM);
+      set("tank", `${Math.round(s["FUEL_LEVEL"]?.v ?? 0)}%`, (s["FUEL_LEVEL"]?.v ?? 100) < 15 ? WARN : CREAM);
+      set("cost", `$${state.fuel.trip_cost_usd.toFixed(2)}`);
+      set("dist", `${state.fuel.trip_distance_mi.toFixed(1)}mi`);
+      const gph = state.fuel.idle_gph ?? 0;
+      set("rate", `${(gph * 350 / 60).toFixed(1)}¢/m`);
+
+      // Graph data handled by LiveGraph components
     });
 
-    // Draw waveform at 30fps
-    const draw = () => {
-      const canvas = waveCanvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const w = canvas.width;
-          const h = canvas.height;
-          ctx.clearRect(0, 0, w, h);
+    return () => { unsub(); };
+  }, [GA]);
 
-          const buf = waveBuffer.current;
-          const len = buf.length;
-          if (len < 2) { animFrame = requestAnimationFrame(draw); return; }
+  // Dynamic color functions: value -> color based on severity
+  const throttleColor = useCallback((v: number) => v > 80 ? "#ef4444" : v > 50 ? "#ea580c" : v > 20 ? "#c9952a" : "#4ade80", []);
+  const loadColor = useCallback((v: number) => v > 85 ? "#ef4444" : v > 60 ? "#ea580c" : v > 30 ? "#c9952a" : "#60a5fa", []);
+  const mafColor = useCallback((v: number) => v > 20 ? "#ea580c" : v > 10 ? "#c9952a" : "#a78bfa", []);
+  const coolantColor = useCallback((v: number) => v > 110 ? "#ef4444" : v > 100 ? "#ea580c" : v > 60 ? "#38bdf8" : "#60a5fa", []);
 
-          // Gradient stroke
-          const grad = ctx.createLinearGradient(0, 0, w, 0);
-          grad.addColorStop(0, "rgba(234,179,8,0)");
-          grad.addColorStop(0.3, "rgba(234,179,8,0.25)");
-          grad.addColorStop(1, "rgba(234,179,8,0.6)");
+  const r = (id: string) => (el: HTMLSpanElement | null) => { refs.current[id] = el; };
+  const ra = (id: string) => (el: SVGCircleElement | null) => { arcRefs.current[id] = el; };
+  const rb = (id: string) => (el: HTMLDivElement | null) => { barsRef.current[id] = el; };
 
-          ctx.beginPath();
-          ctx.strokeStyle = grad;
-          ctx.lineWidth = 1.5;
-          ctx.lineJoin = "round";
-
-          for (let i = 0; i < len; i++) {
-            const x = (i / (len - 1)) * w;
-            const y = h / 2 - (buf[i]! / 40) * (h * 0.4);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.stroke();
-
-          // Subtle glow line on top
-          ctx.beginPath();
-          ctx.strokeStyle = "rgba(234,179,8,0.08)";
-          ctx.lineWidth = 6;
-          for (let i = 0; i < len; i++) {
-            const x = (i / (len - 1)) * w;
-            const y = h / 2 - (buf[i]! / 40) * (h * 0.4);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.stroke();
-        }
-      }
-      animFrame = requestAnimationFrame(draw);
-    };
-    animFrame = requestAnimationFrame(draw);
-
-    return () => { unsub(); cancelAnimationFrame(animFrame); };
-  }, []);
+  // Mini gauge component
+  const Gauge = ({ id, label }: { id: string; label: string }) => (
+    <div style={S.gauge}>
+      <div style={S.gaugeRing}>
+        <svg viewBox="0 0 56 56" style={{ width: 52, height: 52 }}>
+          <circle cx="28" cy="28" r={GR} fill="none" stroke="rgba(201,149,42,0.06)" strokeWidth="3"
+            strokeDasharray={`${GA} ${GC}`} strokeLinecap="round" transform="rotate(150 28 28)" />
+          <circle ref={ra(`${id}Arc`)} cx="28" cy="28" r={GR} fill="none" stroke={WARM} strokeWidth="3"
+            strokeDasharray={`${GA} ${GC}`} strokeDashoffset={String(GA)} strokeLinecap="round"
+            transform="rotate(150 28 28)"
+            style={{ transition: "stroke-dashoffset 150ms ease-out, stroke 200ms", filter: `drop-shadow(0 0 3px ${WARM}40)` }} />
+        </svg>
+        <span ref={r(id)} style={S.gaugeNum}>--</span>
+      </div>
+      <span style={S.gaugeLabel}>{label}</span>
+    </div>
+  );
 
   return (
     <div style={S.screen}>
-      {/* Top bar: health + driving state */}
-      <div style={S.topBar}>
-        <div style={S.healthBlock}>
-          <span ref={healthRef} style={S.healthNum}>--</span>
-          <div style={S.healthMeta}>
-            <span style={S.healthLabel}>HEALTH</span>
-            <span ref={stateRef} style={S.stateLabel}>Idle</span>
+      {/* LEFT: Gauge instruments */}
+      <div style={S.left}>
+        <div style={{ ...S.gauge, marginBottom: 4 }}>
+          <div style={{ ...S.gaugeRing, width: 68, height: 68 }}>
+            <svg viewBox="0 0 56 56" style={{ width: 68, height: 68 }}>
+              <circle cx="28" cy="28" r={GR} fill="none" stroke="rgba(201,149,42,0.06)" strokeWidth="3"
+                strokeDasharray={`${GA} ${GC}`} strokeLinecap="round" transform="rotate(150 28 28)" />
+              <circle ref={ra("healthArc")} cx="28" cy="28" r={GR} fill="none" stroke={WARM} strokeWidth="3.5"
+                strokeDasharray={`${GA} ${GC}`} strokeDashoffset={String(GA)} strokeLinecap="round"
+                transform="rotate(150 28 28)"
+                style={{ transition: "stroke-dashoffset 400ms ease, stroke 300ms", filter: `drop-shadow(0 0 4px ${WARM}50)` }} />
+            </svg>
+            <span ref={r("health")} style={{ ...S.gaugeNum, fontSize: 22, color: CREAM }}>--</span>
+          </div>
+          <span style={S.gaugeLabel}>HEALTH</span>
+        </div>
+        <Gauge id="oil" label="OIL" />
+        <Gauge id="cvt" label="CVT FL" />
+        <Gauge id="cool" label="COOLANT" />
+        <Gauge id="cat" label="CATALYST" />
+      </div>
+
+      {/* CENTER: Hero data + bars + waveforms */}
+      <div style={S.center}>
+        {/* Hero fuel number */}
+        <div style={S.heroBlock}>
+          <span ref={r("fuel")} style={S.heroNum}>--</span>
+          <span ref={r("fuelLbl")} style={S.heroLabel}>GPH</span>
+        </div>
+
+        {/* Live bars */}
+        <div style={S.barSection}>
+          <div style={S.barRow}>
+            <span style={S.barLabel}>THROTTLE</span>
+            <div style={S.barTrack}><div ref={rb("throttleBar")} style={{ ...S.barFill, background: `linear-gradient(90deg, ${WARM}, ${COPPER})` }} /></div>
+            <span ref={r("throttle")} style={S.barVal}>0%</span>
+          </div>
+          <div style={S.barRow}>
+            <span style={S.barLabel}>LOAD</span>
+            <div style={S.barTrack}><div ref={rb("loadBar")} style={{ ...S.barFill, background: `linear-gradient(90deg, ${WARM}, ${COPPER})` }} /></div>
+            <span ref={r("load")} style={S.barVal}>0%</span>
           </div>
         </div>
-        <div style={S.topRight}>
-          <div style={S.statBox}>
-            <span ref={mpgRef} style={S.statNum}>--</span>
-            <span ref={mpgLabelRef} style={S.statLabel}>MPG</span>
-          </div>
+
+        {/* Compact data strip */}
+        <div style={S.strip}>
+          {[["STFT", "stft"], ["LTFT", "ltft"], ["RPM", "rpm"], ["MAF", "maf"], ["MAP", "map"]].map(([label, id]) => (
+            <div key={id} style={S.stripCell}>
+              <span style={S.stripLabel}>{label}</span>
+              <span ref={r(id!)} style={S.stripVal}>--</span>
+            </div>
+          ))}
+        </div>
+
+        {/* 4 Premium SVG Graphs -- each with distinct dynamic color */}
+        <div style={S.waveStack}>
+          <LiveGraph label="THROTTLE" unit="%" sensorKey="THROTTLE_POS" max={100} getColor={throttleColor} />
+          <LiveGraph label="ENGINE LOAD" unit="%" sensorKey="ENGINE_LOAD" max={100} getColor={loadColor} />
+          <LiveGraph label="AIR FLOW" unit="g/s" sensorKey="MAF" max={30} getColor={mafColor} />
+          <LiveGraph label="COOLANT" unit="°C" sensorKey="COOLANT_TEMP" max={130} getColor={coolantColor} />
+        </div>
+
+        {/* Voice */}
+        <div style={S.voiceRow}>
+          <div style={{ width: 5, height: 5, borderRadius: "50%", background: WARM, boxShadow: `0 0 6px ${WARM}60`, animation: "pulse-voice 2s ease-in-out infinite", flexShrink: 0, marginTop: 2 }} />
+          <span style={{ ...S.voiceText, opacity: vo, transition: "opacity 400ms" }}>{dv || "Monitoring..."}</span>
         </div>
       </div>
 
-      {/* Center: Rune's voice -- the hero */}
-      <div style={S.voiceSection}>
-        <div style={S.voiceTag}>
-          <div style={S.voiceDot} />
-          <span style={S.voiceTagText}>RUNE</span>
-        </div>
-        <p style={{
-          ...S.voiceMessage,
-          opacity: voiceOpacity,
-          transform: voiceOpacity ? "translateY(0)" : "translateY(6px)",
-          transition: "opacity 600ms ease, transform 600ms ease",
-        }}>
-          {displayVoice || "Listening..."}
-        </p>
-      </div>
-
-      {/* Bottom: Trip heartbeat + live stats */}
-      <div style={S.bottomSection}>
-        {/* Trip stats row */}
-        <div style={S.tripRow}>
-          <div style={S.tripStat}>
-            <span ref={speedRef} style={S.tripNum}>0</span>
-            <span style={S.tripUnit}>KPH</span>
+      {/* RIGHT: Sensor list */}
+      <div style={S.right}>
+        {[
+          ["INTAKE", "intake"], ["VOLTS", "volts"], ["TANK", "tank"],
+          ["COST", "cost"], ["¢/MIN", "rate"], ["DIST", "dist"],
+        ].map(([label, id]) => (
+          <div key={id} style={S.listRow}>
+            <span style={S.listKey}>{label}</span>
+            <span ref={r(id!)} style={S.listVal}>--</span>
           </div>
-          <div style={S.tripStat}>
-            <span ref={rpmRef} style={S.tripNum}>--</span>
-            <span style={S.tripUnit}>RPM</span>
-          </div>
-          <div style={S.tripStat}>
-            <span ref={costRef} style={S.tripNum}>$0.00</span>
-            <span style={S.tripUnit}>TRIP COST</span>
-          </div>
-          <div style={S.tripStat}>
-            <span ref={distRef} style={S.tripNum}>0.0 mi</span>
-            <span style={S.tripUnit}>DISTANCE</span>
-          </div>
-        </div>
-
-        {/* Heartbeat waveform */}
-        <div style={S.waveWrap}>
-          <span style={S.waveLabel}>HEARTBEAT</span>
-          <canvas
-            ref={waveCanvasRef}
-            width={1200}
-            height={100}
-            style={{ width: "100%", height: "50px", display: "block" }}
-          />
-        </div>
-      </div>
-
-      {/* Branding */}
-      <div style={S.brand}>
-        <span style={S.brandName}>Rune</span>
-        <span style={S.brandBy}>by <span style={{ fontFamily: "var(--font-signature)", fontSize: "18px" }}>Kuladeep Mantri</span></span>
+        ))}
       </div>
     </div>
   );
 }
 
+const MONO = "'JetBrains Mono', 'SF Mono', monospace";
+
 const S = {
   screen: {
     width: "100%", height: "100%",
-    background: "radial-gradient(ellipse at 15% 20%, rgba(234,160,8,0.08) 0%, rgba(197,120,8,0.03) 30%, #000 65%)",
-    display: "flex", flexDirection: "column" as const,
-    padding: "20px 28px 24px", overflow: "hidden",
-    position: "relative" as const,
+    background: "radial-gradient(ellipse at 30% 40%, rgba(201,149,42,0.03) 0%, #000 50%)",
+    display: "flex", padding: "10px 14px", gap: "12px", overflow: "hidden",
+    fontFamily: MONO,
   },
 
-  // Top bar
-  topBar: {
-    display: "flex", justifyContent: "space-between" as const, alignItems: "flex-start" as const,
+  // LEFT gauges
+  left: {
+    width: "90px", flexShrink: 0, display: "flex", flexDirection: "column" as const,
+    alignItems: "center" as const, gap: "6px", justifyContent: "center" as const,
   },
-  healthBlock: {
-    display: "flex", alignItems: "baseline" as const, gap: "12px",
+  gauge: {
+    display: "flex", flexDirection: "column" as const, alignItems: "center" as const, gap: "2px",
   },
-  healthNum: {
-    fontFamily: "var(--font-data)", fontSize: "64px", fontWeight: 700,
-    color: "rgba(255,255,255,0.95)", lineHeight: 1, fontVariantNumeric: "tabular-nums" as const,
-    textShadow: "0 0 50px rgba(234,160,8,0.2)",
+  gaugeRing: {
+    position: "relative" as const, width: 52, height: 52,
+    display: "flex", alignItems: "center" as const, justifyContent: "center" as const,
   },
-  healthMeta: {
-    display: "flex", flexDirection: "column" as const, gap: "2px",
+  gaugeNum: {
+    position: "absolute" as const, fontSize: 14, fontWeight: 700, color: WARM,
+    fontVariantNumeric: "tabular-nums" as const, transition: "color 200ms",
   },
-  healthLabel: {
-    fontFamily: "var(--font-ui)", fontSize: "11px", fontWeight: 600,
-    letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)",
-  },
-  stateLabel: {
-    fontFamily: "var(--font-ui)", fontSize: "14px", fontWeight: 400,
-    color: "rgba(255,255,255,0.4)",
-  },
-  topRight: {
-    display: "flex", gap: "20px",
-  },
-  statBox: {
-    display: "flex", flexDirection: "column" as const, alignItems: "flex-end" as const, gap: "2px",
-  },
-  statNum: {
-    fontFamily: "var(--font-data)", fontSize: "36px", fontWeight: 600,
-    color: "rgba(255,255,255,0.85)", lineHeight: 1, fontVariantNumeric: "tabular-nums" as const,
-  },
-  statLabel: {
-    fontFamily: "var(--font-ui)", fontSize: "11px", fontWeight: 600,
-    letterSpacing: "0.12em", color: "rgba(255,255,255,0.2)",
+  gaugeLabel: {
+    fontSize: 8, fontWeight: 600, letterSpacing: "0.1em", color: DIM,
   },
 
-  // Voice section -- the hero
-  voiceSection: {
-    flex: 1, display: "flex", flexDirection: "column" as const,
-    justifyContent: "center" as const, alignItems: "center" as const,
-    padding: "0 40px",
+  // CENTER
+  center: {
+    flex: 1, display: "flex", flexDirection: "column" as const, gap: "6px",
   },
-  voiceTag: {
-    display: "flex", alignItems: "center" as const, gap: "8px", marginBottom: "16px",
-  },
-  voiceDot: {
-    width: "8px", height: "8px", borderRadius: "4px",
-    background: "#eab308",
-    boxShadow: "0 0 14px rgba(234,179,8,0.5)",
-    animation: "pulse-voice 2.5s ease-in-out infinite",
-  },
-  voiceTagText: {
-    fontFamily: "var(--font-ui)", fontSize: "12px", fontWeight: 600,
-    letterSpacing: "0.15em", color: "rgba(255,255,255,0.2)",
-  },
-  voiceMessage: {
-    fontFamily: "var(--font-ui)", fontSize: "24px", fontWeight: 300,
-    lineHeight: 1.6, color: "rgba(255,235,200,0.85)",
-    textAlign: "center" as const, maxWidth: "600px", margin: 0,
-  },
-
-  // Bottom section
-  bottomSection: {
-    display: "flex", flexDirection: "column" as const, gap: "12px",
-  },
-  tripRow: {
-    display: "flex", justifyContent: "space-between" as const, gap: "12px",
-    padding: "14px 0",
-    borderTop: "1px solid rgba(234,179,8,0.08)",
-  },
-  tripStat: {
-    display: "flex", flexDirection: "column" as const, alignItems: "center" as const, gap: "3px",
-    flex: 1, padding: "8px 0", borderRadius: "10px",
-    background: "rgba(255,255,255,0.02)",
-    backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-  },
-  tripNum: {
-    fontFamily: "var(--font-data)", fontSize: "22px", fontWeight: 600,
-    color: "rgba(255,255,255,0.85)", fontVariantNumeric: "tabular-nums" as const,
-  },
-  tripUnit: {
-    fontFamily: "var(--font-ui)", fontSize: "9px", fontWeight: 600,
-    letterSpacing: "0.12em", color: "rgba(255,255,255,0.15)",
-  },
-
-  // Waveform
-  waveWrap: {
-    position: "relative" as const,
-  },
-  waveLabel: {
-    position: "absolute" as const, top: "0", left: "0",
-    fontFamily: "var(--font-ui)", fontSize: "9px", fontWeight: 600,
-    letterSpacing: "0.12em", color: "rgba(255,255,255,0.08)",
-  },
-
-  // Brand
-  brand: {
-    position: "absolute" as const, bottom: "24px", right: "28px",
+  heroBlock: {
     display: "flex", alignItems: "baseline" as const, gap: "8px",
+    padding: "6px 14px", borderRadius: "8px", border: `1px solid ${BORDER}`, background: GLASS,
+    alignSelf: "flex-start" as const,
   },
-  brandName: {
-    fontFamily: "var(--font-data)", fontSize: "14px", fontWeight: 600,
-    color: "rgba(255,255,255,0.12)",
+  heroNum: {
+    fontSize: 36, fontWeight: 700, color: CREAM, fontVariantNumeric: "tabular-nums" as const,
+    textShadow: `0 0 12px ${WARM}20`,
   },
-  brandBy: {
-    fontFamily: "var(--font-ui)", fontSize: "11px", fontWeight: 300,
-    color: "rgba(255,255,255,0.08)",
+  heroLabel: { fontSize: 10, color: DIM, letterSpacing: "0.1em" },
+
+  barSection: { display: "flex", flexDirection: "column" as const, gap: "4px" },
+  barRow: { display: "flex", alignItems: "center" as const, gap: "8px" },
+  barLabel: { fontSize: 9, color: DIM, width: 65, letterSpacing: "0.06em" },
+  barTrack: { flex: 1, height: 4, borderRadius: 2, background: "rgba(201,149,42,0.06)", overflow: "hidden" as const },
+  barFill: { height: "100%", borderRadius: 2, transition: "width 80ms ease-out", width: "0%" } as React.CSSProperties,
+  barVal: { fontSize: 13, fontWeight: 600, color: CREAM, width: 32, textAlign: "right" as const, fontVariantNumeric: "tabular-nums" as const },
+
+  strip: { display: "flex", gap: "4px" },
+  stripCell: {
+    flex: 1, padding: "4px 6px", borderRadius: "4px", border: `1px solid ${BORDER}`,
+    display: "flex", flexDirection: "column" as const, alignItems: "center" as const,
   },
+  stripLabel: { fontSize: 8, color: DIM, letterSpacing: "0.06em" },
+  stripVal: { fontSize: 15, fontWeight: 600, color: WARM, fontVariantNumeric: "tabular-nums" as const, transition: "color 200ms" },
+
+  waveStack: { flex: 1, display: "flex", flexDirection: "column" as const, gap: "4px", minHeight: 0 },
+  waveBox: {
+    flex: 1, borderRadius: "6px", border: `1px solid ${BORDER}`, background: GLASS,
+    position: "relative" as const, overflow: "hidden" as const, minHeight: 0,
+  },
+  waveTag: { position: "absolute" as const, top: 3, left: 8, fontSize: 7, letterSpacing: "0.08em", color: `${WARM}30` },
+
+  voiceRow: {
+    display: "flex", alignItems: "flex-start" as const, gap: "8px", flexShrink: 0, paddingTop: "4px",
+    borderTop: `1px solid ${BORDER}`,
+  },
+  voiceText: { fontSize: 11, color: "rgba(240,226,200,0.45)", fontFamily: "'Inter',sans-serif" },
+
+  // RIGHT list
+  right: {
+    width: "110px", flexShrink: 0, display: "flex", flexDirection: "column" as const,
+    justifyContent: "center" as const, gap: "6px",
+  },
+  listRow: {
+    display: "flex", justifyContent: "space-between" as const, alignItems: "center" as const,
+    padding: "3px 0", borderBottom: `1px solid ${BORDER}`,
+  },
+  listKey: { fontSize: 9, color: DIM, letterSpacing: "0.06em" },
+  listVal: { fontSize: 15, fontWeight: 600, color: CREAM, fontVariantNumeric: "tabular-nums" as const, transition: "color 200ms" },
 } as const;

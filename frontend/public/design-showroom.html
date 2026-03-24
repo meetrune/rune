@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rune -- 5 Different Designs</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#050505;color:#fff;font-family:'Inter',sans-serif;padding:30px 40px 60px}
+  h1{font-family:'Space Grotesk';font-size:24px;color:rgba(255,255,255,0.9);text-align:center;margin-bottom:6px}
+  .sub{text-align:center;font-size:13px;color:rgba(255,255,255,0.25);margin-bottom:30px}
+  .card{border-radius:12px;border:1px solid rgba(255,255,255,0.06);margin-bottom:36px;overflow:hidden}
+  .lbl{padding:12px 16px;background:rgba(255,255,255,0.02);display:flex;justify-content:space-between;align-items:center}
+  .lbl h2{font-family:'Space Grotesk';font-size:16px;font-weight:600}
+  .lbl span{font-size:11px;color:rgba(255,255,255,0.25)}
+
+  /* ========== A: COCKPIT GAUGES ========== */
+  .a{height:340px;background:#000;font-family:'JetBrains Mono',monospace;display:flex;padding:12px;gap:12px;color:#10b981}
+  .a .gauges{display:flex;flex-direction:column;gap:8px;width:200px}
+  .a .gauge{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid rgba(16,185,129,0.08)}
+  .a .gauge .ring{width:48px;height:48px;border-radius:50%;border:3px solid rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;position:relative}
+  .a .gauge .ring::before{content:'';position:absolute;inset:3px;border-radius:50%;border:2px solid #10b981;border-right-color:transparent;border-bottom-color:transparent}
+  .a .gauge .ring .n{font-size:14px;font-weight:700}
+  .a .gauge .info .t{font-size:8px;color:rgba(16,185,129,0.35);letter-spacing:0.08em;display:block}
+  .a .gauge .info .val{font-size:16px;font-weight:600}
+  .a .center{flex:1;display:flex;flex-direction:column;gap:6px}
+  .a .center .hero{display:flex;align-items:baseline;gap:8px;padding:6px 0}
+  .a .center .hero .big{font-size:42px;font-weight:700}
+  .a .center .hero .unit{font-size:11px;color:rgba(16,185,129,0.4)}
+  .a .center .strip{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+  .a .center .strip .c{padding:5px 6px;border:1px solid rgba(16,185,129,0.06);border-radius:3px;font-size:8px}
+  .a .center .strip .c .v{font-size:15px;font-weight:600;display:block}
+  .a .center .strip .c .l{color:rgba(16,185,129,0.3)}
+  .a .center .wave{flex:1;border:1px solid rgba(16,185,129,0.06);border-radius:6px;position:relative;overflow:hidden}
+  .a .center .wave .ln{position:absolute;bottom:12px;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,#10b981,transparent)}
+  .a .right{width:140px;display:flex;flex-direction:column;gap:4px;font-size:10px}
+  .a .right .r{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(16,185,129,0.04)}
+  .a .right .r .k{color:rgba(16,185,129,0.3)}
+  .a .right .r .val{font-weight:600}
+  .a .voice{font-size:10px;color:rgba(16,185,129,0.3);margin-top:auto;padding-top:6px;border-top:1px solid rgba(16,185,129,0.06)}
+
+  /* ========== B: CHANNEL STRIPS (mixing console) ========== */
+  .b{height:340px;background:#000;font-family:'IBM Plex Mono',monospace;display:flex;flex-direction:column;padding:10px 12px;gap:6px;color:#d4a017}
+  .b .hdr{font-size:9px;color:rgba(212,160,23,0.25);letter-spacing:0.08em;display:flex;justify-content:space-between}
+  .b .channels{display:flex;gap:4px;flex:1}
+  .b .ch{flex:1;border:1px solid rgba(212,160,23,0.06);border-radius:4px;padding:6px 8px;display:flex;flex-direction:column;background:rgba(212,160,23,0.01)}
+  .b .ch .cht{font-size:8px;color:rgba(212,160,23,0.3);letter-spacing:0.08em;margin-bottom:4px;text-align:center;border-bottom:1px solid rgba(212,160,23,0.04);padding-bottom:3px}
+  .b .ch .cv{font-size:20px;font-weight:600;text-align:center;margin:auto 0}
+  .b .ch .cl{font-size:8px;color:rgba(212,160,23,0.2);text-align:center}
+  .b .ch .meter{height:3px;border-radius:2px;background:rgba(212,160,23,0.06);margin-top:4px}
+  .b .ch .meter .fill{height:100%;border-radius:2px;background:#d4a017}
+  .b .bottom{display:flex;gap:6px;height:50px}
+  .b .bottom .wv{flex:1;border:1px solid rgba(212,160,23,0.06);border-radius:4px;position:relative;overflow:hidden}
+  .b .bottom .wv .t{position:absolute;top:2px;left:6px;font-size:7px;color:rgba(212,160,23,0.2)}
+  .b .bottom .wv .ln{position:absolute;bottom:8px;left:6px;right:6px;height:1px;background:#d4a017}
+  .b .ft{font-size:9px;color:rgba(212,160,23,0.2);display:flex;justify-content:space-between;padding-top:4px}
+
+  /* ========== C: WAVEFORM HERO (visual-first) ========== */
+  .c{height:340px;background:#020810;font-family:'JetBrains Mono',monospace;display:flex;flex-direction:column;color:#38bdf8;position:relative;overflow:hidden}
+  .c .overlay{position:absolute;inset:0;display:flex;flex-direction:column;padding:12px 16px;z-index:2}
+  .c .overlay .top{display:flex;justify-content:space-between}
+  .c .overlay .top .health{font-size:48px;font-weight:700;text-shadow:0 0 20px rgba(56,189,248,0.2)}
+  .c .overlay .top .metrics{display:flex;gap:20px;text-align:right}
+  .c .overlay .top .metrics .m{display:flex;flex-direction:column}
+  .c .overlay .top .metrics .m .v{font-size:22px;font-weight:600}
+  .c .overlay .top .metrics .m .l{font-size:8px;color:rgba(56,189,248,0.3)}
+  .c .overlay .data{display:flex;gap:12px;margin-top:auto;padding:8px 0}
+  .c .overlay .data .d{font-size:10px}
+  .c .overlay .data .d .v{font-size:16px;font-weight:600;display:block}
+  .c .overlay .data .d .l{color:rgba(56,189,248,0.25)}
+  .c .waves{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column}
+  .c .waves .w{flex:1;position:relative;border-bottom:1px solid rgba(56,189,248,0.03)}
+  .c .waves .w .ln{position:absolute;bottom:30%;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(56,189,248,0.15) 20%,rgba(56,189,248,0.4) 60%,rgba(56,189,248,0.6) 90%,#38bdf8);filter:drop-shadow(0 0 4px rgba(56,189,248,0.3))}
+  .c .waves .w .ln2{position:absolute;bottom:50%;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.08),transparent)}
+
+  /* ========== D: SPLIT DASHBOARD ========== */
+  .d{height:340px;background:#000;font-family:'Space Grotesk',sans-serif;display:flex;color:rgba(255,255,255,0.9)}
+  .d .left{width:35%;background:rgba(255,255,255,0.015);border-right:1px solid rgba(255,255,255,0.04);padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+  .d .left .h{font-size:56px;font-weight:700;line-height:1}
+  .d .left .hl{font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:0.12em;font-weight:600}
+  .d .left .subs{display:flex;flex-direction:column;gap:6px;flex:1}
+  .d .left .subs .sr{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .d .left .subs .sr .sn{font-size:13px;color:rgba(255,255,255,0.4)}
+  .d .left .subs .sr .sv{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+  .d .left .voice{font-size:12px;color:rgba(255,255,255,0.3);font-weight:300;margin-top:auto}
+  .d .right{flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+  .d .right .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex:1}
+  .d .right .grid .gc{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;justify-content:center}
+  .d .right .grid .gc .gv{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+  .d .right .grid .gc .gl{font-size:9px;color:rgba(255,255,255,0.2);letter-spacing:0.06em}
+  .d .right .grid .gc.warn .gv{color:#f59e0b}
+  .d .right .wstrip{height:40px;border-radius:8px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03);position:relative;overflow:hidden}
+  .d .right .wstrip .ln{position:absolute;bottom:10px;left:16px;right:16px;height:1.5px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)}
+
+  /* ========== E: DENSE MATRIX ========== */
+  .e{height:340px;background:#000;font-family:'JetBrains Mono',monospace;padding:8px 10px;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto 1fr auto;gap:4px;color:#10b981}
+  .e .header{grid-column:1/-1;font-size:9px;color:rgba(16,185,129,0.25);letter-spacing:0.06em;padding:2px 6px;border-bottom:1px solid rgba(16,185,129,0.06);display:flex;justify-content:space-between}
+  .e .col{display:flex;flex-direction:column;gap:3px;overflow:hidden}
+  .e .col .title{font-size:8px;color:rgba(16,185,129,0.2);letter-spacing:0.1em;padding:3px 6px;background:rgba(16,185,129,0.03);border-radius:2px;text-align:center}
+  .e .col .row{display:flex;justify-content:space-between;align-items:center;padding:3px 6px;border-bottom:1px solid rgba(16,185,129,0.03)}
+  .e .col .row .k{font-size:9px;color:rgba(16,185,129,0.3)}
+  .e .col .row .val{font-size:15px;font-weight:600}
+  .e .col .row.w .val{color:#f59e0b}
+  .e .col .wv{flex:1;border:1px solid rgba(16,185,129,0.04);border-radius:3px;position:relative;overflow:hidden;min-height:30px}
+  .e .col .wv .t{position:absolute;top:2px;left:4px;font-size:7px;color:rgba(16,185,129,0.15)}
+  .e .col .wv .ln{position:absolute;bottom:6px;left:4px;right:4px;height:1px;background:#10b981;box-shadow:0 0 3px rgba(16,185,129,0.3)}
+  .e .footer{grid-column:1/-1;font-size:9px;color:rgba(16,185,129,0.2);display:flex;justify-content:space-between;padding:2px 6px;border-top:1px solid rgba(16,185,129,0.06)}
+</style>
+</head>
+<body>
+
+<h1>5 Different Designs</h1>
+<p class="sub">Different layouts, different hierarchy, different personality. Same OBD data.</p>
+
+<!-- A: COCKPIT GAUGES -->
+<div class="card"><div class="lbl"><h2>A. Cockpit Gauges</h2><span>Circular instruments left, data center, list right</span></div>
+<div class="a">
+  <div class="gauges">
+    <div class="gauge"><div class="ring"><div class="n">92</div></div><div class="info"><span class="t">HEALTH</span><span class="val">92</span></div></div>
+    <div class="gauge"><div class="ring"><div class="n">81</div></div><div class="info"><span class="t">OIL °C</span><span class="val">81°</span></div></div>
+    <div class="gauge"><div class="ring"><div class="n">89</div></div><div class="info"><span class="t">CVT °C</span><span class="val">89°</span></div></div>
+    <div class="gauge"><div class="ring"><div class="n">83</div></div><div class="info"><span class="t">COOLANT</span><span class="val">83°</span></div></div>
+  </div>
+  <div class="center">
+    <div class="hero"><span class="big">0.35</span><span class="unit">GPH</span></div>
+    <div class="strip">
+      <div class="c"><span class="l">STFT</span><span class="v">+4.7%</span></div>
+      <div class="c"><span class="l">LTFT</span><span class="v">+0.0%</span></div>
+      <div class="c"><span class="l">LOAD</span><span class="v">20%</span></div>
+      <div class="c"><span class="l">THRTL</span><span class="v">0%</span></div>
+      <div class="c"><span class="l">CAT</span><span class="v">440°</span></div>
+    </div>
+    <div class="wave"><div class="ln"></div></div>
+    <div class="voice">FUEL is off. Sitting at 60.</div>
+  </div>
+  <div class="right">
+    <div class="r"><span class="k">RPM</span><span class="val">701</span></div>
+    <div class="r"><span class="k">MAF</span><span class="val">4.2</span></div>
+    <div class="r"><span class="k">MAP</span><span class="val">44</span></div>
+    <div class="r"><span class="k">INTAKE</span><span class="val">30°</span></div>
+    <div class="r"><span class="k">VOLTS</span><span class="val">14.1</span></div>
+    <div class="r"><span class="k">TANK</span><span class="val">74%</span></div>
+    <div class="r"><span class="k">COST</span><span class="val">$0.23</span></div>
+    <div class="r"><span class="k">¢/MIN</span><span class="val">2.1</span></div>
+    <div class="r"><span class="k">DIST</span><span class="val">3.0mi</span></div>
+  </div>
+</div></div>
+
+<!-- B: CHANNEL STRIPS -->
+<div class="card"><div class="lbl"><h2>B. Channel Strips</h2><span>Mixing console style -- each system is a vertical channel</span></div>
+<div class="b">
+  <div class="hdr"><span>RUNE // HONDA ACCORD SE 2026 // OBD-II LIVE</span><span>10Hz CONNECTED</span></div>
+  <div class="channels">
+    <div class="ch"><div class="cht">HEALTH</div><div class="cv">92</div><div class="cl">OVERALL</div></div>
+    <div class="ch"><div class="cht">OIL</div><div class="cv">81°</div><div class="cl">NORMAL</div><div class="meter"><div class="fill" style="width:60%"></div></div></div>
+    <div class="ch"><div class="cht">CVT</div><div class="cv">89°</div><div class="cl">NORMAL</div><div class="meter"><div class="fill" style="width:72%"></div></div></div>
+    <div class="ch"><div class="cht">CAT</div><div class="cv">440°</div><div class="cl">NORMAL</div><div class="meter"><div class="fill" style="width:49%"></div></div></div>
+    <div class="ch"><div class="cht">COOL</div><div class="cv">83°</div><div class="cl">NORMAL</div><div class="meter"><div class="fill" style="width:75%"></div></div></div>
+    <div class="ch"><div class="cht">FUEL</div><div class="cv">0.35</div><div class="cl">GPH</div><div class="meter"><div class="fill" style="width:20%"></div></div></div>
+    <div class="ch"><div class="cht">STFT</div><div class="cv" style="color:#f59e0b">+35.9</div><div class="cl">HIGH</div><div class="meter"><div class="fill" style="width:90%;background:#f59e0b"></div></div></div>
+    <div class="ch"><div class="cht">LTFT</div><div class="cv">+0.0</div><div class="cl">OK</div><div class="meter"><div class="fill" style="width:50%"></div></div></div>
+    <div class="ch"><div class="cht">LOAD</div><div class="cv">20%</div><div class="cl">&nbsp;</div><div class="meter"><div class="fill" style="width:20%"></div></div></div>
+    <div class="ch"><div class="cht">VOLTS</div><div class="cv">14.1</div><div class="cl">&nbsp;</div><div class="meter"><div class="fill" style="width:90%"></div></div></div>
+    <div class="ch"><div class="cht">TANK</div><div class="cv">74%</div><div class="cl">&nbsp;</div><div class="meter"><div class="fill" style="width:74%"></div></div></div>
+    <div class="ch"><div class="cht">COST</div><div class="cv">$0.23</div><div class="cl">2.1¢/m</div></div>
+  </div>
+  <div class="bottom">
+    <div class="wv"><div class="t">THROTTLE</div><div class="ln"></div></div>
+    <div class="wv"><div class="t">MAF FLOW</div><div class="ln"></div></div>
+    <div class="wv"><div class="t">RPM</div><div class="ln"></div></div>
+  </div>
+  <div class="ft"><span>FUEL is off. Sitting at 60.</span><span>RPM 701 // MAF 4.2 // MAP 44</span></div>
+</div></div>
+
+<!-- C: WAVEFORM HERO -->
+<div class="card"><div class="lbl"><h2>C. Waveform Hero</h2><span>Waveforms ARE the interface. Data overlaid on top.</span></div>
+<div class="c">
+  <div class="waves">
+    <div class="w"><div class="ln"></div><div class="ln2"></div></div>
+    <div class="w"><div class="ln" style="bottom:40%;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.1),rgba(56,189,248,0.3),transparent)"></div><div class="ln2" style="bottom:60%"></div></div>
+    <div class="w"><div class="ln" style="bottom:20%;opacity:0.4"></div><div class="ln2" style="bottom:70%"></div></div>
+  </div>
+  <div class="overlay">
+    <div class="top">
+      <div class="health">92</div>
+      <div class="metrics">
+        <div class="m"><div class="v">0.35</div><div class="l">GPH</div></div>
+        <div class="m"><div class="v">81°</div><div class="l">OIL</div></div>
+        <div class="m"><div class="v">89°</div><div class="l">CVT</div></div>
+        <div class="m"><div class="v">440°</div><div class="l">CAT</div></div>
+        <div class="m"><div class="v">83°</div><div class="l">COOL</div></div>
+      </div>
+    </div>
+    <div class="data">
+      <div class="d"><div class="l">STFT</div><div class="v" style="color:#f59e0b">+35.9%</div></div>
+      <div class="d"><div class="l">LTFT</div><div class="v">+0.0%</div></div>
+      <div class="d"><div class="l">LOAD</div><div class="v">20%</div></div>
+      <div class="d"><div class="l">RPM</div><div class="v">701</div></div>
+      <div class="d"><div class="l">MAF</div><div class="v">4.2</div></div>
+      <div class="d"><div class="l">VOLTS</div><div class="v">14.1</div></div>
+      <div class="d"><div class="l">TANK</div><div class="v">74%</div></div>
+      <div class="d"><div class="l">COST</div><div class="v">$0.23</div></div>
+      <div class="d"><div class="l">DIST</div><div class="v">3.0mi</div></div>
+    </div>
+  </div>
+</div></div>
+
+<!-- D: SPLIT DASHBOARD -->
+<div class="card"><div class="lbl"><h2>D. Split Dashboard</h2><span>Left panel = health + voice. Right = sensor cards.</span></div>
+<div class="d">
+  <div class="left">
+    <div class="h">92</div>
+    <div class="hl">OVERALL HEALTH</div>
+    <div class="subs">
+      <div class="sr"><span class="sn">Engine</span><span class="sv">93</span></div>
+      <div class="sr"><span class="sn">CVT</span><span class="sv">100</span></div>
+      <div class="sr"><span class="sn">Cooling</span><span class="sv">100</span></div>
+      <div class="sr"><span class="sn">Fuel</span><span class="sv" style="color:#f59e0b">60</span></div>
+      <div class="sr"><span class="sn">Exhaust</span><span class="sv">100</span></div>
+      <div class="sr"><span class="sn">Electrical</span><span class="sv">100</span></div>
+    </div>
+    <div class="voice">FUEL is off. Sitting at 60.</div>
+  </div>
+  <div class="right">
+    <div class="grid">
+      <div class="gc"><div class="gl">OIL °C</div><div class="gv">81</div></div>
+      <div class="gc"><div class="gl">CVT °C</div><div class="gv">89</div></div>
+      <div class="gc"><div class="gl">CAT °C</div><div class="gv">440</div></div>
+      <div class="gc"><div class="gl">COOL °C</div><div class="gv">83</div></div>
+      <div class="gc warn"><div class="gl">STFT %</div><div class="gv">+35.9</div></div>
+      <div class="gc"><div class="gl">LTFT %</div><div class="gv">+0.0</div></div>
+      <div class="gc"><div class="gl">GPH</div><div class="gv">0.35</div></div>
+      <div class="gc"><div class="gl">LOAD %</div><div class="gv">20</div></div>
+      <div class="gc"><div class="gl">RPM</div><div class="gv">701</div></div>
+      <div class="gc"><div class="gl">VOLTS</div><div class="gv">14.1</div></div>
+      <div class="gc"><div class="gl">TANK %</div><div class="gv">74</div></div>
+      <div class="gc"><div class="gl">COST</div><div class="gv">$0.23</div></div>
+    </div>
+    <div class="wstrip"><div class="ln"></div></div>
+  </div>
+</div></div>
+
+<!-- E: DENSE MATRIX -->
+<div class="card"><div class="lbl"><h2>E. Dense Matrix</h2><span>3-column split: Temps / Engine / Fuel. Waveform per column.</span></div>
+<div class="e">
+  <div class="header"><span>RUNE v0.1.0 // OBD-II LIVE TELEMETRY</span><span>HEALTH: 92</span></div>
+  <div class="col">
+    <div class="title">THERMAL</div>
+    <div class="row"><span class="k">OIL</span><span class="val">81°</span></div>
+    <div class="row"><span class="k">CVT</span><span class="val">89°</span></div>
+    <div class="row"><span class="k">CAT</span><span class="val">440°</span></div>
+    <div class="row"><span class="k">COOL</span><span class="val">83°</span></div>
+    <div class="row"><span class="k">INTAKE</span><span class="val">30°</span></div>
+    <div class="wv"><div class="t">COOLANT</div><div class="ln"></div></div>
+  </div>
+  <div class="col">
+    <div class="title">ENGINE</div>
+    <div class="row"><span class="k">RPM</span><span class="val">701</span></div>
+    <div class="row"><span class="k">LOAD</span><span class="val">20%</span></div>
+    <div class="row"><span class="k">THRTL</span><span class="val">0%</span></div>
+    <div class="row"><span class="k">MAF</span><span class="val">4.2</span></div>
+    <div class="row"><span class="k">MAP</span><span class="val">44</span></div>
+    <div class="wv"><div class="t">THROTTLE</div><div class="ln"></div></div>
+  </div>
+  <div class="col">
+    <div class="title">FUEL + BALANCE</div>
+    <div class="row"><span class="k">GPH</span><span class="val">0.35</span></div>
+    <div class="row w"><span class="k">STFT</span><span class="val">+35.9%</span></div>
+    <div class="row"><span class="k">LTFT</span><span class="val">+0.0%</span></div>
+    <div class="row"><span class="k">VOLTS</span><span class="val">14.1</span></div>
+    <div class="row"><span class="k">TANK</span><span class="val">74%</span></div>
+    <div class="wv"><div class="t">FUEL FLOW</div><div class="ln" style="background:#60a5fa;box-shadow:0 0 3px rgba(96,165,250,0.3)"></div></div>
+  </div>
+  <div class="footer"><span>> FUEL is off. Sitting at 60.</span><span>$0.23 // 3.0mi // 10Hz</span></div>
+</div></div>
+
+</body>
+</html>

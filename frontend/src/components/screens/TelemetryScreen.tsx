@@ -184,7 +184,7 @@ export function TelemetryScreen() {
 
       {/* Right panel: sensor detail */}
       <div style={{
-        width: "280px", flexShrink: 0,
+        width: "25%", minWidth: "200px", maxWidth: "300px", flexShrink: 0,
         padding: "24px 20px 28px",
         display: "flex", flexDirection: "column", gap: "12px",
         borderLeft: "1px solid rgba(255,255,255,0.04)",
