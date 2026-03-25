@@ -38,13 +38,15 @@ export const useVehicleStore = create<VehicleState>((set) => ({
   fuel: DEFAULT_FUEL,
 
   updateFromMessage: (msg: VehicleMessage) => {
-    set({
-      sensors: msg.d,
+    set((state) => ({
+      // Merge sensors: keep last-known values for sensors not in this message.
+      // Prevents flicker if backend sends partial data during OBD polling cycle.
+      sensors: { ...state.sensors, ...msg.d },
       health: msg.health,
       fuel: msg.fuel,
       lastMessageAt: msg.t,
       connected: true,
-    });
+    }));
   },
 
   setConnected: (connected: boolean) => {

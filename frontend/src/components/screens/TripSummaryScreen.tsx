@@ -248,7 +248,7 @@ function TripDetail({ trip, avgMpg, avgCostPerMi }: { trip: Trip; avgMpg: number
 }
 
 export function TripSummaryScreen() {
-  const { trips, loading } = useTripHistory();
+  const { trips, loading, error, refresh } = useTripHistory();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selected = trips.find((t) => t.trip_id === selectedId);
 
@@ -268,7 +268,16 @@ export function TripSummaryScreen() {
         </div>
         <div style={{ flex: 1, overflowY: "auto" }}>
           {loading && <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, padding: 30, textAlign: "center" }}>Loading...</div>}
-          {!loading && trips.length === 0 && <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, padding: 30, textAlign: "center" }}>No trips yet.</div>}
+          {!loading && error && (
+            <button onClick={refresh} style={{
+              color: "rgba(239,68,68,0.6)", fontSize: 15, padding: 30, textAlign: "center",
+              background: "none", border: "none", cursor: "pointer", width: "100%",
+              fontFamily: "var(--font-ui)", minHeight: 56,
+            }}>
+              Could not load trips. Tap to retry.
+            </button>
+          )}
+          {!loading && !error && trips.length === 0 && <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, padding: 30, textAlign: "center" }}>No trips yet.</div>}
           {trips.map((trip) => {
             const active = trip.trip_id === selectedId;
             const color = mpgColor(trip.avg_mpg);

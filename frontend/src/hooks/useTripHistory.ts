@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export interface TripStats {
   idle_seconds: number;
@@ -26,22 +26,44 @@ export interface Trip {
   trip_stats: TripStats | null;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 5000;
+
 export function useTripHistory() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const retryCount = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const refresh = useCallback(() => {
     setLoading(true);
+    setError(false);
     fetch("/api/trips?limit=50")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setTrips(data.trips ?? []);
         setLoading(false);
+        retryCount.current = 0;
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setLoading(false);
+        setError(true);
+        // Auto-retry up to MAX_RETRIES
+        if (retryCount.current < MAX_RETRIES) {
+          retryCount.current++;
+          retryTimer.current = setTimeout(refresh, RETRY_DELAY_MS);
+        }
+      });
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+    return () => { if (retryTimer.current) clearTimeout(retryTimer.current); };
+  }, [refresh]);
 
-  return { trips, loading, refresh };
+  return { trips, loading, error, refresh };
 }
