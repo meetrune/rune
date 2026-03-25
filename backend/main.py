@@ -27,7 +27,9 @@ from backend.fuel.fillup import FillupDetector
 from backend.fuel.trip_stats import TripStatsAccumulator
 from backend.health.scorer import HealthScorer
 from backend.obd_manager.collector import DataCollector, OBDCollector, SimulatedCollector
-from backend.obd_manager.models import WebSocketMessage
+from backend.obd_manager.models import VehicleSnapshot, WebSocketMessage
+from backend.sensors.thermal import ThermalManager
+from backend.sensors.wittypi import SimulatedWittyPiReader, WittyPiReader
 from backend.ws_manager import ConnectionManager
 
 # Structured JSON logging
@@ -67,26 +69,74 @@ async def obd_producer_loop(
     health_scorer: HealthScorer,
     db: RuneDatabase,
     manager: ConnectionManager,
+    pi_reader: WittyPiReader | SimulatedWittyPiReader,
+    thermal_mgr: ThermalManager,
 ) -> None:
     """Background task: collect OBD data at 10Hz, process, broadcast, persist.
 
     Uses drift-compensated timing to maintain consistent 10Hz rate.
     Buffers sensor readings and flushes to DB every 1 second (10 ticks).
+    Pi sensors (Witty Pi I2C) are read once per second (tick_count % ws_rate == 0).
+    Thermal manager evaluates once per second and can reduce WebSocket rate.
     """
     next_tick = time.monotonic()
     tick_count = 0
-    reading_buffer = []
+    reading_buffer: list[VehicleSnapshot] = []
     active_trip_id: int | None = None
     trip_stats_acc: TripStatsAccumulator | None = None
+    effective_ws_hz = settings.ws_rate_hz  # can be reduced by thermal manager
 
     logger.info("Producer loop started at %dHz", settings.ws_rate_hz)
 
     while True:
         try:
-            next_tick += 1.0 / settings.ws_rate_hz
+            next_tick += 1.0 / max(effective_ws_hz, 1)
 
-            # Collect snapshot
+            # Collect OBD snapshot
             snap = await collector.get_snapshot()
+
+            # Read Pi-side sensors once per second (not 10Hz -- I2C is slow)
+            if tick_count % settings.ws_rate_hz == 0:
+                pi_snap = pi_reader.read_snapshot()
+                snap.vin_voltage = pi_snap.vin_voltage
+                snap.armrest_temp_c = pi_snap.armrest_temp_c
+                snap.pi_cpu_temp_c = pi_snap.cpu_temp_c
+                snap.pi_current_a = pi_snap.iout_amps
+
+                # Thermal management -- evaluate once per second
+                thermal_state = thermal_mgr.update(
+                    cpu_temp_c=pi_snap.cpu_temp_c,
+                    armrest_temp_c=pi_snap.armrest_temp_c,
+                    vin_voltage=pi_snap.vin_voltage,
+                )
+
+                # Adjust WebSocket rate based on thermal status
+                if thermal_state.recommended_ws_hz != effective_ws_hz:
+                    effective_ws_hz = thermal_state.recommended_ws_hz
+                    logger.info(
+                        "Thermal %s: WebSocket rate adjusted to %dHz",
+                        thermal_state.overall_status.value, effective_ws_hz,
+                    )
+
+                # Log thermal warnings
+                if thermal_state.message:
+                    logger.warning("Thermal: %s", thermal_state.message)
+
+                # Thermal shutdown
+                if thermal_state.should_shutdown:
+                    logger.critical(
+                        "THERMAL SHUTDOWN: CPU=%.1fC armrest=%.1fC -- initiating graceful shutdown",
+                        thermal_state.cpu_temp_filtered, thermal_state.armrest_temp_filtered,
+                    )
+                    # Flush buffer before shutdown
+                    if reading_buffer:
+                        await db.insert_readings(reading_buffer)
+                        reading_buffer.clear()
+                    # Import here to avoid circular -- shutdown is a rare path
+                    import subprocess
+                    subprocess.Popen(["sudo", "shutdown", "-h", "+1",
+                                      "Rune thermal shutdown: armrest too hot"])
+                    return
 
             # Fuel calculation
             fuel_snap, trip_started, trip_ended = fuel_calc.update(snap)
@@ -242,6 +292,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     manager = ConnectionManager()
 
+    # Pi-side sensors (Witty Pi 4 I2C + CPU thermal zone)
+    pi_reader: WittyPiReader | SimulatedWittyPiReader = (
+        SimulatedWittyPiReader() if settings.use_simulator else WittyPiReader()
+    )
+    await pi_reader.start()
+
+    thermal_mgr = ThermalManager()
+
     # Store on app.state for access in route handlers
     app.state.db = db
     app.state.collector = collector
@@ -249,10 +307,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.fillup_detector = fillup_detector
     app.state.health_scorer = health_scorer
     app.state.connection_manager = manager
+    app.state.pi_reader = pi_reader
+    app.state.thermal_mgr = thermal_mgr
 
     # Start background tasks
     producer_task = asyncio.create_task(
-        obd_producer_loop(collector, fuel_calc, fillup_detector, health_scorer, db, manager)
+        obd_producer_loop(
+            collector, fuel_calc, fillup_detector, health_scorer,
+            db, manager, pi_reader, thermal_mgr,
+        )
     )
     maintenance_task = asyncio.create_task(db_maintenance_loop(db))
 
@@ -276,6 +339,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         pass
 
     await collector.stop()
+    await pi_reader.stop()
     await db.close()
     logger.info("Rune shut down")
 
@@ -350,7 +414,6 @@ async def debug_info() -> JSONResponse:
     """Full system state for the debug dashboard."""
     db: RuneDatabase = app.state.db
     fuel_calc: FuelCalculator = app.state.fuel_calc
-    fillup_det: FillupDetector = app.state.fillup_detector
     collector = app.state.collector
     manager: ConnectionManager = app.state.connection_manager
 
@@ -418,6 +481,10 @@ async def debug_info() -> JSONResponse:
             "tank_capacity_gal": settings.fuel_tank_capacity_gal,
         },
         "health_scorer": app.state.health_scorer.get_debug_state(),
+        "thermal": app.state.thermal_mgr.get_debug_state(),
+        "pi_sensors": {
+            "witty_pi_available": app.state.pi_reader.is_available,
+        },
         "websocket": {
             "clients_connected": manager.client_count,
             "rate_hz": settings.ws_rate_hz,

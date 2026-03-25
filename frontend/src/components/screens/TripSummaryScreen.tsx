@@ -18,7 +18,7 @@ function dur(startMs: number, endMs: number | null): string {
 }
 
 function mpgColor(mpg: number | null): string {
-  if (!mpg) return "rgba(255,255,255,0.15)";
+  if (mpg == null) return "rgba(255,255,255,0.15)";
   if (mpg >= 33) return "#4ade80";
   if (mpg >= 28) return "#c9952a";
   if (mpg >= 22) return "#f59e0b";
@@ -29,7 +29,8 @@ function mpgColor(mpg: number | null): string {
 function BigArc({ mpg }: { mpg: number | null }) {
   const r = 52, cx = 60, cy = 60, sz = 120;
   const circ = 2 * Math.PI * r, arc = circ * 0.75;
-  const pct = mpg != null ? Math.min(mpg / 50, 1) : 0;
+  const hasMpg = mpg != null;
+  const pct = hasMpg ? Math.min(mpg / 50, 1) : 0;
   const color = mpgColor(mpg);
   return (
     <div style={{ position: "relative", width: sz, height: sz, flexShrink: 0 }}>
@@ -41,7 +42,7 @@ function BigArc({ mpg }: { mpg: number | null }) {
           transform={`rotate(135 ${cx} ${cy})`} style={{ transition: "all 600ms ease", filter: `drop-shadow(0 0 10px ${color}30)` }} />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontFamily: MONO, fontSize: 42, fontWeight: 700, color, lineHeight: 1 }}>{mpg != null ? Math.round(mpg) : "--"}</span>
+        <span style={{ fontFamily: MONO, fontSize: 42, fontWeight: 700, color, lineHeight: 1 }}>{hasMpg ? Math.round(mpg) : "--"}</span>
         <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>MPG</span>
       </div>
     </div>
@@ -252,7 +253,7 @@ export function TripSummaryScreen() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selected = trips.find((t) => t.trip_id === selectedId);
 
-  const ct = trips.filter((t) => t.end_time && t.avg_mpg);
+  const ct = trips.filter((t) => t.end_time && t.avg_mpg != null);
   const avgMpg = ct.length > 0 ? ct.reduce((s, t) => s + (t.avg_mpg ?? 0), 0) / ct.length : 28;
   const avgCpm = ct.length > 0 ? ct.reduce((s, t) => s + (t.distance_miles > 0 ? t.fuel_cost_usd / t.distance_miles : 0), 0) / ct.length : 0.12;
 

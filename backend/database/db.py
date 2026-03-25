@@ -42,7 +42,11 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
     battery_v       REAL NOT NULL,
     throttle_pct    REAL NOT NULL DEFAULT 0,
     intake_temp_c   REAL NOT NULL DEFAULT 0,
-    intake_map_kpa  REAL NOT NULL DEFAULT 0
+    intake_map_kpa  REAL NOT NULL DEFAULT 0,
+    vin_voltage     REAL,
+    armrest_temp_c  REAL,
+    pi_cpu_temp_c   REAL,
+    pi_current_a    REAL
 );
 CREATE INDEX IF NOT EXISTS idx_readings_ts ON sensor_readings(ts);
 
@@ -142,14 +146,16 @@ class RuneDatabase:
             """INSERT INTO sensor_readings
                (ts, rpm, speed_kph, coolant_c, engine_load, maf_gps,
                 stft_pct, ltft_pct, fuel_lvl, catalyst_c, oil_c, battery_v,
-                throttle_pct, intake_temp_c, intake_map_kpa)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                throttle_pct, intake_temp_c, intake_map_kpa,
+                vin_voltage, armrest_temp_c, pi_cpu_temp_c, pi_current_a)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 int(snap.timestamp * 1000), snap.rpm, snap.speed_kph,
                 snap.coolant_temp_c, snap.engine_load_pct, snap.maf_gps,
                 snap.stft_pct, snap.ltft_pct, snap.fuel_level_pct,
                 snap.catalyst_temp_c, snap.oil_temp_c, snap.battery_voltage,
                 snap.throttle_pct, snap.intake_air_temp_c, snap.intake_manifold_kpa,
+                snap.vin_voltage, snap.armrest_temp_c, snap.pi_cpu_temp_c, snap.pi_current_a,
             ),
         )
         await conn.commit()
@@ -166,6 +172,7 @@ class RuneDatabase:
                 s.stft_pct, s.ltft_pct, s.fuel_level_pct,
                 s.catalyst_temp_c, s.oil_temp_c, s.battery_voltage,
                 s.throttle_pct, s.intake_air_temp_c, s.intake_manifold_kpa,
+                s.vin_voltage, s.armrest_temp_c, s.pi_cpu_temp_c, s.pi_current_a,
             )
             for s in snaps
         ]
@@ -173,8 +180,9 @@ class RuneDatabase:
             """INSERT INTO sensor_readings
                (ts, rpm, speed_kph, coolant_c, engine_load, maf_gps,
                 stft_pct, ltft_pct, fuel_lvl, catalyst_c, oil_c, battery_v,
-                throttle_pct, intake_temp_c, intake_map_kpa)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                throttle_pct, intake_temp_c, intake_map_kpa,
+                vin_voltage, armrest_temp_c, pi_cpu_temp_c, pi_current_a)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             rows,
         )
         await conn.commit()

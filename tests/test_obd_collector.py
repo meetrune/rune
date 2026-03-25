@@ -16,7 +16,6 @@ from backend.obd_manager.collector import (
     OBDCollector,
     PID_TABLE,
     PIDDef,
-    _PIDState,
     decode_pid,
     parse_elm_response,
     parse_mode22_cvt_response,

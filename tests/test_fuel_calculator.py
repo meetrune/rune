@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 
 from backend.fuel.calculator import FuelCalculator
 from backend.fuel.fillup import FillupDetector, FillupEvent

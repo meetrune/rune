@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 
 from backend.health.rules import (
     compute_overall,
@@ -30,10 +29,8 @@ from backend.health.thresholds import (
     LTFT,
     OIL_TEMP,
     STFT,
-    SUBSYSTEM_WEIGHTS,
 )
 from backend.obd_manager.models import VehicleSnapshot
-from backend.obd_manager.simulator import AnomalyConfig, HondaAccordSimulator
 
 
 def _snap(**overrides: float) -> VehicleSnapshot:

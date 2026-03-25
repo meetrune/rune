@@ -1,0 +1,46 @@
+[Unit]
+Description=Rune -- Car OS backend (FastAPI + OBD-II)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=rune
+Group=rune
+WorkingDirectory=/opt/rune
+EnvironmentFile=/etc/rune/rune.env
+ExecStart=/opt/rune/.venv/bin/uvicorn backend.main:app \
+    --host 0.0.0.0 \
+    --port 8080 \
+    --ws websockets \
+    --log-level warning \
+    --no-access-log
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+# Graceful shutdown: SIGTERM first, SIGKILL after timeout
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/rune
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+
+# Resource limits for Pi 4B (4GB)
+MemoryMax=512M
+CPUQuota=80%
+
+# Watchdog: systemd restarts if no notify within 60s
+WatchdogSec=60
+
+[Install]
+WantedBy=multi-user.target

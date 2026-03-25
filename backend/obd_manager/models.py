@@ -73,6 +73,12 @@ class VehicleSnapshot(BaseModel):
     # Mode 22 PID 2201 byte 27: byte-40 (optional, needs 11th gen verification)
     cvt_fluid_temp_c: float | None = Field(default=None, ge=-40, le=215)
 
+    # Pi-side sensors (Witty Pi 4 I2C + CPU thermal zone)
+    vin_voltage: float | None = Field(default=None, ge=0, le=30)       # 12V rail input (Witty Pi ADC)
+    armrest_temp_c: float | None = Field(default=None, ge=-55, le=125) # LM75B on Witty Pi board
+    pi_cpu_temp_c: float | None = Field(default=None, ge=-40, le=120)  # BCM2711 junction temp
+    pi_current_a: float | None = Field(default=None, ge=0, le=5)       # Pi current draw (Witty Pi shunt)
+
 
 class HealthSnapshot(BaseModel):
     """Health scores for the vehicle and its subsystems.
@@ -140,6 +146,14 @@ class WebSocketMessage(BaseModel):
         }
         if vehicle.cvt_fluid_temp_c is not None:
             d["CVT_TEMP"] = {"v": round(vehicle.cvt_fluid_temp_c, 1), "u": "degC"}
+        if vehicle.vin_voltage is not None:
+            d["VIN_VOLTAGE"] = {"v": round(vehicle.vin_voltage, 2), "u": "V"}
+        if vehicle.armrest_temp_c is not None:
+            d["ARMREST_TEMP"] = {"v": round(vehicle.armrest_temp_c, 1), "u": "degC"}
+        if vehicle.pi_cpu_temp_c is not None:
+            d["PI_CPU_TEMP"] = {"v": round(vehicle.pi_cpu_temp_c, 1), "u": "degC"}
+        if vehicle.pi_current_a is not None:
+            d["PI_CURRENT"] = {"v": round(vehicle.pi_current_a, 2), "u": "A"}
 
         return WebSocketMessage(
             t=vehicle.timestamp,

@@ -1,9 +1,9 @@
 # After Buying -- Hardware Readiness Checklist
 
-**Last updated: March 24, 2026**
-**Current status: v1 complete on simulator, 272 backend tests passing, 4 frontend screens shipped.**
+**Last updated: March 24, 2026 (Session 10)**
+**Current status: v1 code-complete. 280 tests passing. PWA service worker built. Pi deployment scripts ready.**
 
-This document tells you exactly what works, what doesn't, and what needs to be built when you plug in the real hardware.
+This document tells you exactly what works, what doesn't, and what to do when you get the car.
 
 ---
 
@@ -12,249 +12,320 @@ This document tells you exactly what works, what doesn't, and what needs to be b
 | Component | Status | Notes |
 |-----------|--------|-------|
 | SafeOBDConnection (safety gate) | READY | 57 tests. Read-only whitelist enforced. |
-| OBDCollector (ELM327 over TCP) | READY | TCP connection, init sequence, PID polling, circuit breaker. Tested with mocks. |
+| OBDCollector (ELM327 over TCP) | READY | TCP connection, init sequence, PID polling, circuit breaker, reconnect. |
 | OBD Simulator | READY | Honda L15BE thermal dynamics, anomaly injection, driving phases. |
 | SQLite Database | READY | WAL mode, batch writes, 90-day retention cleanup. |
-| Fuel Calculator | READY | MAF-based fuel rate, trip detection, fill-up detection. |
+| Fuel Calculator | READY | MAF-based fuel rate, trip detection, fill-up detection (3-sample noise filter). |
 | Health Scorer | READY | HalfSpaceTrees anomaly detection, Honda threshold scoring, EWMA. |
 | WebSocket Streaming | READY | 10Hz producer, drift-compensated timing, multi-client broadcast. |
 | FastAPI Backend | READY | Health check, trip API, debug dashboard, WebSocket endpoint. |
 | React Frontend | READY | 4 screens: Telemetry 3D, Trace Matrix, Trip Summary, Settings. |
 | 3D Car Visualization | READY | Interactive Honda Accord .glb model with zone markers. |
-| PWA | PARTIAL | Manifest configured, icons exist. No service worker for offline yet. |
-| Pi WiFi AP | NOT BUILT | Need to configure hostapd on Pi. |
-| OverlayFS | NOT BUILT | Need to configure read-only root filesystem. |
-| Witty Pi 4 Integration | NOT BUILT | Graceful shutdown on ignition off. |
-| Rune Launcher (Android) | NOT BUILT | Kiosk mode APK for Pixel. |
+| PWA Service Worker | READY | Workbox precache (all assets + 3D model). Offline app shell. Auto-update. |
+| systemd Service | READY | `deploy/rune.service` -- security hardened, auto-restart, resource limits. |
+| Pi WiFi AP Setup | READY | `deploy/setup.sh` -- NetworkManager AP, DHCP leases, no-NAT dispatcher. |
+| OverlayFS Prep | READY | Bind-mount unit for /var/lib/rune persistence through overlay. |
+| Witty Pi 4 Integration | NOT BUILT | Graceful shutdown on ignition off. Build during hardware install. |
+| Rune Launcher (Android) | NOT BUILT | Kiosk mode APK for Pixel. Build during deployment phase. |
+
+---
+
+## Your Pi Situation
+
+**You have:** A 4-year-old Pi 4B running an old version of Ubuntu.
+**Target OS:** Raspberry Pi OS Trixie (Debian 13) 64-bit Lite.
+
+### You MUST reflash the SD card.
+
+The deploy script, WiFi AP setup (NetworkManager), OverlayFS, and systemd service are all built for Trixie. Ubuntu Server uses different network stacks (netplan), different paths, and different package versions. Trying to make it work on old Ubuntu would mean rewriting all the deploy scripts and debugging compatibility issues with every package.
+
+A fresh Trixie flash takes 10 minutes. Fighting Ubuntu compatibility takes hours.
+
+### What you need before car delivery:
+
+1. **A new SD card** (32GB+ Class A2 recommended) OR reuse the existing one
+2. **Raspberry Pi Imager** on your Mac (free download)
+3. **Ethernet cable or keyboard+monitor** for initial Pi setup (WiFi isn't configured yet)
+
+---
+
+## Day-by-Day Plan (Car Delivery in ~2 Days)
+
+### Day 0: TODAY (before the car arrives)
+
+**Goal: Pi ready to go, nothing left to do on delivery day.**
+
+#### Step 1: Flash Trixie (10 min)
+
+1. Download **Raspberry Pi Imager** on your Mac
+2. Insert SD card
+3. Choose: **Raspberry Pi OS Lite (64-bit)** -- make sure it says Trixie/Debian 13
+4. Click the gear icon BEFORE flashing and set:
+   - Hostname: `rune`
+   - Enable SSH: yes
+   - Username: `pi` (or whatever you want for your admin account)
+   - Password: something you'll remember
+   - WiFi: your home WiFi (temporary, just for initial setup)
+   - Locale/timezone: your timezone
+5. Flash it
+
+#### Step 2: First boot + SSH in (5 min)
+
+1. Put SD card in Pi, plug in power + ethernet (or use the home WiFi you configured)
+2. Find the Pi on your network: `ping rune.local` or check your router
+3. SSH in: `ssh pi@rune.local`
+
+#### Step 3: Clone Rune and run setup (15 min)
+
+```bash
+# On the Pi:
+sudo apt-get update && sudo apt-get upgrade -y
+
+# Clone the repo
+git clone https://github.com/meetrune/rune.git /tmp/rune-install
+
+# Run the deployment script
+cd /tmp/rune-install/deploy
+sudo bash setup.sh --wifi-pass "YOUR_SECURE_PASSPHRASE"
+```
+
+The setup script does everything: creates user, installs venv, deploys code, configures WiFi AP, installs systemd service.
+
+**You won't know the WiCAN Pro or Pixel MAC addresses yet** -- that's fine. Skip `--wican-mac` and `--pixel-mac` for now. Add them later after first boot with the real devices.
+
+#### Step 4: Verify (5 min)
+
+```bash
+# Check the WiFi AP is broadcasting
+nmcli con show Rune
+
+# Start Rune in simulator mode (just to verify it works)
+sudo systemctl start rune
+sudo journalctl -u rune -f
+# Should see: "Rune started: simulator_mode=True"
+
+# From your Mac, connect to "Rune" WiFi
+# Open browser: http://192.168.4.1:8080
+# You should see the boot screen -> Telemetry 3D
+```
+
+If all that works, the Pi is ready. Turn it off and wait for the car.
+
+### Day 1: CAR DELIVERY DAY
+
+**Goal: WiCAN Pro installed, first connection verified, first real drive.**
+
+#### Morning (before pickup/delivery)
+
+1. **Charge the Pixel 6 Pro** to 100%
+2. **Pack:**
+   - Pi 4B (with SD card, ready to go)
+   - Witty Pi 4 + CR2032 battery
+   - YONHAN 12V plug
+   - WiCAN Pro (still in box)
+   - bbfly-B6 Y-Splitter
+   - Miracase phone mount
+   - Scotch Dual-Lock strips
+   - USB-C cable for Pixel
+   - A laptop (optional, for SSH troubleshooting)
+
+#### At the car
+
+**Step 1: Install WiCAN Pro (5 min)**
+
+1. Find the OBD-II port (under the dash, driver's side, left of steering column)
+2. Plug the Y-splitter into the OBD-II port
+3. Plug WiCAN Pro into Y-splitter Port 1
+4. Leave Port 2 empty (for dealer scanner access)
+5. The WiCAN Pro LED should light up when you turn the ignition to ON
+
+**Step 2: Change WiCAN Pro WiFi password (5 min)**
+
+1. On your phone, connect to the WiCAN Pro's default AP (password: `@meatpi#`)
+2. Open browser: `http://192.168.80.1` (WiCAN Pro web UI)
+3. Go to WiFi settings
+4. Switch from AP mode to **Station mode**
+5. Connect it to the "Rune" network with the passphrase you set
+6. Note the WiCAN Pro's MAC address while you're in the web UI
+7. Save and reboot the WiCAN Pro
+
+**Step 3: Power up the Pi (5 min)**
+
+1. Plug YONHAN 12V plug into the armrest 12V outlet
+2. Connect Witty Pi 4 to Pi via GPIO header
+3. Connect YONHAN output to Witty Pi 4 input
+4. Pi should boot (green LED flickering)
+5. Secure Pi + Witty with Dual-Lock in armrest compartment
+
+**Step 4: Connect Pixel and verify (5 min)**
+
+1. Mount Pixel on Miracase vent mount
+2. Connect Pixel to "Rune" WiFi
+3. Open Chrome: `http://192.168.4.1:8080`
+4. You should see the Rune boot screen
+
+**Step 5: Switch to real OBD (2 min)**
+
+SSH into the Pi from your phone or laptop:
+```bash
+ssh pi@192.168.4.1
+
+# Edit the env file to disable simulator
+sudo nano /etc/rune/rune.env
+# Change RUNE_USE_SIMULATOR=false (should already be false)
+
+# Restart the service
+sudo systemctl restart rune
+
+# Watch the logs
+sudo journalctl -u rune -f
+# Should see: "Connecting to WiCAN Pro at 192.168.4.100:3333"
+# Then: "WiCAN Pro connection established and initialized"
+# Then: PID data flowing
+```
+
+**Step 6: First drive verification**
+
+```
+BEFORE MOVING:
+  [ ] Boot screen shows "Rune" then transitions
+  [ ] 3D car renders on Telemetry screen
+  [ ] Swipe to Trace Matrix -- waveforms alive
+  [ ] RPM showing ~700 (warm idle) or ~1100 (cold)
+  [ ] Coolant temp showing (20-40C if cold start)
+  [ ] Battery voltage showing (12.4-14.8V)
+  [ ] "Getting a feel for things" in Rune Voice (calibrating)
+
+WHILE DRIVING:
+  [ ] Speed reading matches speedometer (roughly)
+  [ ] Instant MPG appears on hero strip
+  [ ] Fuel cost accumulating
+  [ ] Waveforms moving in real-time
+  [ ] No lag or freezing on the Pixel
+
+AFTER 5 MINUTES:
+  [ ] Health scores appear (numbers, not "--")
+  [ ] Voice changes to "All good. XX across the board"
+
+AFTER STOPPING (engine off 10+ seconds):
+  [ ] Trip end popup appears
+  [ ] Trip shows in Trip Summary screen
+  [ ] Distance/fuel/cost look reasonable
+```
+
+### Day 2+: Hardening
+
+Once the basics work:
+
+1. **Add static DHCP leases** (now that you know the MAC addresses):
+   ```bash
+   sudo nano /etc/NetworkManager/dnsmasq-shared.d/rune-leases.conf
+   # Add: dhcp-host=XX:XX:XX:XX:XX:XX,wican,192.168.4.100,infinite
+   # Add: dhcp-host=YY:YY:YY:YY:YY:YY,pixel,192.168.4.50,infinite
+   sudo nmcli con down Rune && sudo nmcli con up Rune
+   ```
+
+2. **Enable OverlayFS** (SD card write protection):
+   ```bash
+   sudo raspi-config
+   # Performance -> Overlay File System -> Enable
+   # Then:
+   echo 'overlayroot="tmpfs:recurse=0"' | sudo tee /etc/overlayroot.local.conf
+   sudo update-initramfs -u
+   sudo reboot
+   ```
+
+3. **Witty Pi 4 setup** (graceful shutdown):
+   - Install Witty Pi software
+   - Configure shutdown on 12V power loss (ignition off)
+   - We'll build this together when you have the hardware in hand
+
+4. **Pixel kiosk mode** (Rune Launcher APK):
+   - Lock Pixel to Chrome in fullscreen
+   - Auto-launch on boot
+   - We'll build this APK together
 
 ---
 
 ## What Will Work Immediately (Day 1)
 
-### Backend on Pi
-
-1. **OBD-II data collection** -- `OBDCollector` is built and tested for WiCAN Pro TCP:3333. It will:
-   - Connect via TCP to 192.168.4.100:3333
-   - Run ELM327 init: ATZ, ATE0, ATL0, ATS0, ATSP6 (mandatory), ATSH7E0, ATCRA7E8
-   - Poll all 14 confirmed Mode 01 PIDs (RPM, speed, coolant, load, throttle, MAF, fuel trims, fuel level, catalyst, oil, battery, intake temp, MAP)
-   - Attempt Mode 22 CVT temp (auto-disables on negative UDS response)
-   - Reconnect on disconnect with exponential backoff (1s -> 30s max)
-   - Circuit breaker: 5 consecutive failures -> 10s cooldown
-   - Stale data warning if PID not updated in 5s
-
-2. **Data pipeline** -- 10Hz polling -> FuelCalculator -> HealthScorer -> WebSocket broadcast + DB writes. This entire pipeline is already built and tested.
-
-3. **Fuel intelligence** -- Trip detection (start on speed > 5 kph, end on RPM = 0 for 10s), fuel accumulation from MAF, fill-up detection (>20% tank jump), cost tracking.
-
-4. **Health scoring** -- Calibrates over first ~5 minutes (3000 samples), then provides real health scores. HalfSpaceTrees anomaly detection + Honda-specific threshold scoring.
-
-5. **Frontend** -- All 4 screens work. Just needs the phone browser pointed at the Pi's IP.
-
-### To Switch from Simulator to Real Hardware
-
-**One config change:**
-```bash
-# Set environment variable before starting
-export RUNE_USE_SIMULATOR=false
-
-# Or edit the default in config.py:
-# use_simulator: bool = False  (currently True for dev)
-```
-
-That's it. The `lifespan` function in `main.py` checks `settings.use_simulator` and creates either `SimulatedCollector` or `OBDCollector`.
+1. **OBD-II data collection** -- all 14 PIDs, TCP to WiCAN Pro, auto-reconnect
+2. **Full data pipeline** -- 10Hz polling -> fuel calc -> health scoring -> WebSocket -> phone
+3. **Fuel intelligence** -- instant MPG, trip cost, fill-up detection
+4. **Health scoring** -- calibrates in ~5 min, then real scores for all 6 subsystems
+5. **All 4 frontend screens** -- 3D telemetry, trace matrix, trip summary, settings
+6. **Offline PWA** -- app shell cached, loads even if backend is slow to start
 
 ---
 
 ## What Needs Verification on Real Hardware
 
-### PID Support (Week 5 Checklist)
+### PID Support (First Drive)
 
-Run these tests with the WiCAN Pro connected to the 2026 Accord:
+The OBDCollector polls all 14 PIDs automatically. Check the debug dashboard at `http://192.168.4.1:8080/debug` to see which ones return data vs NO DATA.
 
-```
-1. Send 0100 / 0120 / 0140 / 0160 for PID support bitmasks
-2. Test each of the 14 confirmed PIDs individually:
-   - 0104 (load) -> expect 41 04 XX
-   - 0105 (coolant) -> expect 41 05 XX
-   - 0106 (STFT B1) -> expect 41 06 XX
-   - 0107 (LTFT B1) -> expect 41 07 XX
-   - 010B (MAP) -> expect 41 0B XX
-   - 010C (RPM) -> expect 41 0C XX XX
-   - 010D (speed) -> expect 41 0D XX
-   - 010F (intake temp) -> expect 41 0F XX
-   - 0110 (MAF) -> expect 41 10 XX XX
-   - 0111 (throttle) -> expect 41 11 XX
-   - 012F (fuel level) -> expect 41 2F XX
-   - 013C (catalyst) -> expect 41 3C XX XX
-   - 0142 (voltage) -> expect 41 42 XX XX
-   - 015C (oil temp) -> expect 41 5C XX
-3. Test 015E (fuel rate) -> expect NO DATA or 7F (NOT SUPPORTED on Honda)
-4. Test Mode 22 CVT temp: send "22 22 01" -> parse byte 27 as (byte - 40)
-   WARNING: Byte offset is confirmed on 10th gen only. May be different on 11th gen (2026).
-5. Log TRIP_FUEL_CONSUMED counter at CAN ID 0x324 over a known distance
-```
+**Critical PIDs to verify:**
+- `010C` (RPM) -- if this doesn't work, nothing works
+- `010D` (speed) -- trip detection depends on this
+- `0110` (MAF) -- fuel calculation depends on this
+- `012F` (fuel level) -- fill-up detection depends on this
+
+**Nice-to-have PIDs:**
+- `013C` (catalyst temp) -- feeds exhaust health
+- `015C` (oil temp) -- feeds engine health
+- `0142` (battery voltage) -- feeds electrical health
+
+**Expected to fail:**
+- `015E` (fuel rate) -- NOT SUPPORTED on Honda, this is fine (we use MAF calculation)
+- Mode 22 CVT temp -- unverified on 11th gen, auto-disables if unsupported
 
 ### Honda CAN Protocol
 
-- **MUST use manual protocol selection**: `ATSP6` (ISO 15765-4, 11-bit, 500 kbaud)
-- **NEVER use auto-detect**: 2025-2026 Hondas have enhanced CAN bus security that causes auto-detect failures
-- The OBDCollector already sends ATSP6 in its init sequence -- verified in code
-
-### Mode 22 CVT Fluid Temperature
-
-- **Status: UNVERIFIED on 11th gen (2026)**
-- Byte offset is confirmed on 10th gen Accords only
-- The code auto-disables Mode 22 if the UDS response is negative (NAK)
-- If it works: CVT temp feeds into transmission health score
-- If it doesn't: transmission health defaults to 100 (no data = assume healthy)
-- No safety risk either way -- it's read-only
-
----
-
-## What Is NOT Built Yet
-
-### Must Build Before First Real Drive
-
-| Feature | Effort | Priority | Notes |
-|---------|--------|----------|-------|
-| Pi WiFi AP "Rune" (192.168.4.1) | ~1h | P0 | hostapd + dnsmasq config |
-| DB path for Pi: `/var/lib/rune/rune.db` | 5min | P0 | Create dir with correct permissions |
-| systemd service for Rune backend | ~30min | P0 | Auto-start on boot |
-| `RUNE_USE_SIMULATOR=false` | 1min | P0 | Switch to real OBD |
-
-### Should Build Before Daily Use
-
-| Feature | Effort | Priority | Notes |
-|---------|--------|----------|-------|
-| WiCAN Pro WiFi password change | 5min | P1 | Default is `@meatpi#` -- CHANGE IT |
-| OverlayFS (read-only root) | ~2h | P1 | Prevents SD card corruption on power loss |
-| Witty Pi 4 graceful shutdown | ~2h | P1 | RTC + shutdown on ignition off |
-| PWA service worker (offline) | ~2h | P1 | Frontend works when WebSocket disconnects |
-| Rune Launcher APK | ~4h | P2 | Kiosk mode for Pixel 6 Pro |
-| CI/CD pipeline (GitHub Actions) | ~2h | P2 | lint + type check + unit tests on push |
-
-### Future Phases (Not Needed for v1)
-
-| Feature | Phase | Notes |
-|---------|-------|-------|
-| Driving style classification | v2 | Random Forest on OBD features |
-| Eco-score | v2 | Post-trip scoring 0-100 |
-| MPU-6050 IMU (vibration) | v3 | I2C sensor under driver's seat |
-| INMP441 microphone (engine audio) | v3 | I2S sensor behind dash |
-| BME280 (cabin temp/humidity) | v3 | I2C sensor in armrest |
-| LSTM autoencoder | v3 | TFLite inference on Pi |
-| PDF diagnostic reports | v4 | Jinja2 + matplotlib + WeasyPrint |
-| Mac training workstation | v5 | MLX training, Prophet forecasting |
+- `ATSP6` is mandatory and already in the init sequence
+- NEVER use auto-detect on 2025-2026 Hondas
+- This is already handled in the code
 
 ---
 
 ## Known Limitations
 
-### Hardware Limitations
-
-1. **ELM327 polling speed**: 2-5 PIDs/second in normal mode, ~7/s with fast timeout. Full 14-PID cycle takes 2-3 seconds. WebSocket still runs at 10Hz but reuses last-known values until updated.
-
-2. **Latency budget**: OBD poll (~200ms per PID) + processing (~1ms) + WebSocket (~10ms) = end-to-end ~140ms. Within budget.
-
-3. **Pi 4B CPU**: Health scorer + SQLite writes + WebSocket broadcast at 10Hz should stay under 30% CPU. Anomaly detection is O(depth * n_trees) per sample = ~25 * 6 = 150 node traversals, sub-millisecond.
-
-4. **Pi 4B RAM**: Entire Python process should use ~200-400MB. OS ~150MB. Plenty of headroom on 4GB.
-
-### Software Limitations
-
-1. **No offline frontend**: If the WebSocket drops, the frontend shows "Offline" but has no cached data. Adding a service worker would fix this.
-
-2. **No persistent trips across restarts**: Trips are in SQLite, but the in-memory trip state resets on backend restart. If the backend crashes mid-trip, that trip data is lost (only the buffered-but-not-yet-flushed readings, max 1 second worth).
-
-3. **Health calibration resets on restart**: The HalfSpaceTrees needs ~5 minutes to calibrate. Every backend restart means 5 minutes of "-1" health scores.
-
-4. **No DTC reading UI**: The backend can read DTCs (Mode 03 is allowed), but there's no frontend screen for it yet.
-
-5. **No route fingerprinting**: Fuel intelligence tracks trips but doesn't group by route yet (v2+).
-
-6. **Float precision on fuel costs**: Trip costs use Python float math. For a $100 trip this is fine (~$0.01 precision). Not financial-grade but adequate for fuel tracking.
-
----
-
-## First Drive Checklist
-
-```
-BEFORE LEAVING THE DRIVEWAY:
-  [ ] WiCAN Pro installed in OBD-II Y-splitter port 1
-  [ ] WiCAN Pro WiFi password changed from default
-  [ ] WiCAN Pro connected to Pi WiFi AP "Rune"
-  [ ] Pi running in armrest with Witty Pi 4
-  [ ] Pi WiFi AP "Rune" at 192.168.4.1 broadcasting
-  [ ] Pixel 6 Pro connected to "Rune" WiFi
-  [ ] Chrome open to http://192.168.4.1:8080
-  [ ] Rune backend running (systemd service)
-  [ ] RUNE_USE_SIMULATOR=false
-  [ ] BootScreen shows "Rune" then transitions to Telemetry
-  [ ] 3D car renders, zone markers appear
-  [ ] "Getting a feel for things" appears in Rune Voice
-
-DURING FIRST 5 MINUTES:
-  [ ] Health scores show "--" (calibrating)
-  [ ] Sensor data appears in Trace Matrix (live waveforms)
-  [ ] Coolant temp climbing (cold start warmup)
-  [ ] RPM settles from ~1100 to ~700 as engine warms
-  [ ] Speed reads correctly when you move
-
-AFTER 5 MINUTES:
-  [ ] Health scores appear (0-100, not -1)
-  [ ] "All good. XX across the board" appears in voice
-  [ ] Fuel cost accumulating on hero strip
-  [ ] Instant MPG showing while driving
-  [ ] Cost per mile showing while driving
-
-AFTER FIRST TRIP:
-  [ ] Trip end popup appears when engine off for 10s
-  [ ] Trip appears in Trip Summary screen
-  [ ] Distance, fuel, cost, avg MPG look reasonable
-  [ ] Data persists in SQLite (survives backend restart)
-
-MODES TO VERIFY:
-  [ ] 0104 (load) -- expect 15-40% idle, higher while driving
-  [ ] 0105 (coolant) -- expect 20-40C cold start, 85-95C warm
-  [ ] 0106 (STFT) -- expect ±3% normal, ±5% max
-  [ ] 0107 (LTFT) -- expect ±2% on new car
-  [ ] 010C (RPM) -- expect 700-750 warm idle
-  [ ] 010D (speed) -- compare to speedometer
-  [ ] 0110 (MAF) -- expect 2-4 g/s idle, 10-30 g/s highway
-  [ ] 0142 (voltage) -- expect 12.4-14.8V (Honda ELD cycles)
-  [ ] 015E (fuel rate) -- expect NO DATA (confirm not supported)
-  [ ] Mode 22 CVT temp -- expect response or NAK (either is fine)
-```
+1. **ELM327 polling speed**: Full 14-PID cycle takes 2-3 seconds. WebSocket reuses last-known values between updates.
+2. **Health calibration resets on restart**: ~5 minutes of "-1" scores after every backend restart.
+3. **No DTC reading UI**: Backend can read DTCs (Mode 03) but no frontend screen for it yet.
+4. **No route fingerprinting**: Trips tracked but not grouped by route (v2+).
+5. **Mid-trip crash**: If backend crashes during a trip, up to 1 second of buffered readings are lost.
 
 ---
 
 ## Troubleshooting
 
 ### WiCAN Pro won't connect
-- Verify it's on the Rune WiFi network (not its own AP mode)
-- Check TCP port 3333 is reachable: `nc -zv 192.168.4.100 3333`
-- Try firmware update to v4.40+
+- Check it's in Station mode (not AP mode) and on the "Rune" network
+- Verify TCP: `nc -zv 192.168.4.100 3333` from the Pi
+- Check WiCAN Pro firmware is v4.40+
+- Try power cycling the WiCAN Pro (unplug from Y-splitter, wait 10s, replug)
 
 ### No OBD data after connection
-- **Most common**: auto-protocol detection failed. The code sends `ATSP6` which is correct for Honda.
-- Try `ATZ` reset, then manual init sequence
-- Check that the Y-splitter is properly seated in the OBD-II port
+- Check logs: `sudo journalctl -u rune -f`
+- Look for "ELM327 init failed" -- means ATSP6 or another AT command failed
+- Look for "Circuit breaker tripped" -- means too many consecutive PID failures
+- Verify Y-splitter is fully seated in OBD-II port (click sound)
 
 ### Health scores stuck at -1
-- Normal for first 5 minutes (calibration phase)
-- If it persists: check that sensor data is actually flowing (debug dashboard at /debug)
+- Normal for first 5 minutes (3000-sample calibration)
+- If it persists: check `/debug` dashboard for sensor data flow
+- If sensors show 0s: OBD connection issue
 
 ### Frontend shows "Offline"
-- Check Pixel is on the Rune WiFi network
-- Check backend is running: `curl http://192.168.4.1:8080/api/health`
-- WebSocket URL is auto-detected from page URL
+- Check Pixel is on Rune WiFi: Settings -> WiFi -> "Rune"
+- Check backend: `curl http://192.168.4.1:8080/api/health`
+- Try refreshing Chrome
 
 ### High CPU on Pi
-- Expected: 15-30% sustained during normal operation
-- If higher: check SQLite WAL size (`/api/debug` shows DB size)
-- Health scorer anomaly detection should be sub-millisecond per tick
+- Normal: 15-30% sustained
+- Check with `htop` on the Pi
+- If >50%: check SQLite WAL size at `/api/debug`
 
 ### SD card corruption
-- Enable OverlayFS (read-only root) before daily use
-- DB path should be on a writable partition with proper wear leveling
-- The cleanup task runs hourly, keeps DB under control
+- Enable OverlayFS (Day 2 task)
+- The bind-mount keeps /var/lib/rune writable while protecting everything else

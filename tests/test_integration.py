@@ -9,14 +9,12 @@ These are the "test the wiring" tests called out in CLAUDE.md.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import time
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.config import RuneSettings
 from backend.database.db import RuneDatabase
 from backend.fuel.calculator import FuelCalculator
 from backend.fuel.fillup import FillupDetector

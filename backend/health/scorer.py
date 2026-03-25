@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import logging
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from backend.health.rules import compute_overall, score_subsystems
-from backend.health.thresholds import EWMA_ALPHAS, SUBSYSTEM_WEIGHTS
+from backend.health.thresholds import EWMA_ALPHAS
 from backend.obd_manager.models import HealthSnapshot, VehicleSnapshot
 
 logger = logging.getLogger(__name__)

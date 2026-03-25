@@ -20,9 +20,9 @@ Rune is the car -- a 2026 Honda Accord SE. What we're building is the translatio
 See `PRD.md` for full specifications. See `docs/superpowers/specs/2026-03-24-rune-os-frontend-design.md` for the complete frontend design spec.
 
 ```
-CURRENT PHASE: v1 -- First words (Desktop Development, Simulated Data)
-STATUS: Sessions 1-9 complete. 279 tests (272 unit + 7 integration). Full audit session: 4 deep QA agents, 31 edge cases found, 25 bugs fixed. Frontend: 4 screens + OfflineIndicator + burn-in protection active. Backend: OBD non-blocking startup, buffer overflow protection, fillup query optimization, health scoring hardened. Branch: feat/rune-os-frontend.
-QUALITY: Production-grade. Battle-tested. Full algorithm verification against primary sources. Security audit complete (0 critical findings).
+CURRENT PHASE: v1 -- First words (Desktop Dev complete, Pi deployment ready)
+STATUS: Sessions 1-10 complete. 326 tests. PWA service worker built. Pi deployment scripts ready (setup.sh, systemd, WiFi AP, OverlayFS). Witty Pi 4 I2C sensor integration (Vin, armrest temp, CPU temp, current). Adaptive thermal management (OpenPilot-based: 5-level bands, IIR filter, hysteresis, rate-of-change, Welford baseline). CI pipeline (GitHub Actions). Car delivery ~2 days. Branch: feat/rune-os-frontend.
+QUALITY: Production-grade. 326 tests. All algorithms research-verified. Thermal thresholds from Stanford/ASU/EPA car studies + Pi 4B datasheet + OpenPilot source.
 ```
 Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).
 
