@@ -823,6 +823,8 @@
 
     if (action === "go-live") {
       if (!confirm("WARNING: This will DELETE ALL simulated data and switch to real OBD hardware.\n\nThis cannot be undone. Are you sure?")) return;
+    } else if (action === "reset-data") {
+      if (!confirm("This will DELETE ALL stored data (readings, trips, health scores, logs) and reset calibration.\n\nThe system will keep running in its current mode. Are you sure?")) return;
     } else if (action === "recalibrate" || action === "restart-producer") {
       var msg = action === "recalibrate" ? "Health scores will show -1 for ~5 minutes. Continue?" : "Producer loop will stop and restart. Continue?";
       if (!confirm(msg)) return;
@@ -856,6 +858,7 @@
     document.getElementById("btn-checkpoint").addEventListener("click", function() { executeControl("checkpoint"); });
     document.getElementById("btn-recalibrate").addEventListener("click", function() { executeControl("recalibrate"); });
     document.getElementById("btn-restart-producer").addEventListener("click", function() { executeControl("restart-producer"); });
+    document.getElementById("btn-reset-data").addEventListener("click", function() { executeControl("reset-data"); });
     document.getElementById("btn-go-live").addEventListener("click", function() { executeControl("go-live"); });
   }
 

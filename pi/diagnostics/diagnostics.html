@@ -510,9 +510,15 @@ body {
       <button class="control-btn destructive" id="btn-restart-producer">Restart Producer</button>
       <div class="control-result" id="result-restart-producer" style="display:none"></div>
     </div>
+    <div class="control-card" style="border: 1px solid #f59e0b;">
+      <div class="control-card-title" style="color: #f59e0b;">Reset All Data</div>
+      <div class="control-card-desc">Wipe all stored data (readings, trips, fillups, health scores, logs) and reset health calibration. Works in any mode. Use after hardware testing to start fresh before daily driving. Does not change sim/live mode.</div>
+      <button class="control-btn" id="btn-reset-data" style="background: #f59e0b; color: #000; font-weight: 700;">Reset All Data</button>
+      <div class="control-result" id="result-reset-data" style="display:none"></div>
+    </div>
     <div class="control-card" style="border: 1px solid #dc2626;">
       <div class="control-card-title" style="color: #dc2626;">Remove Complete Simulation</div>
-      <div class="control-card-desc">Delete ALL simulated data and switch to real OBD hardware. This purges sensor readings, trips, fillups, and health scores. The producer loop will reconnect to the WiCAN Pro. This cannot be undone.</div>
+      <div class="control-card-desc">Delete ALL simulated data, clear logs, and switch to real OBD hardware. The producer loop will reconnect to the WiCAN Pro. Only works in simulator mode. Cannot be undone.</div>
       <button class="control-btn" id="btn-go-live" style="background: #dc2626; color: #fff; font-weight: 700;">Remove Complete Simulation</button>
       <div class="control-result" id="result-go-live" style="display:none"></div>
     </div>

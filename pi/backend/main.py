@@ -793,6 +793,22 @@ async def control_go_live() -> JSONResponse:
     return JSONResponse(result, status_code=status_code)
 
 
+@app.post("/api/control/reset-data")
+async def control_reset_data() -> JSONResponse:
+    """Wipe all stored data and reset calibration. Works in any mode.
+
+    Use after hardware testing to start fresh before daily driving.
+    Does not change collector mode (sim/live stays as-is).
+    """
+    from backend.api.controls import reset_all_data
+    result = await reset_all_data(
+        db=app.state.db,
+        scorer=app.state.health_scorer,
+    )
+    status_code = 200 if result["success"] else 500
+    return JSONResponse(result, status_code=status_code)
+
+
 @app.websocket("/ws/vehicle-data")
 async def vehicle_data_ws(websocket: WebSocket) -> None:
     """WebSocket endpoint for streaming vehicle data to the frontend.

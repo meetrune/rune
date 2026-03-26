@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from backend.api.controls import force_checkpoint, go_live, recalibrate_health_scorer
+from backend.api.controls import force_checkpoint, go_live, recalibrate_health_scorer, reset_all_data
 from backend.api.logs import RuneLogBuffer
 from backend.api.system import get_system_info
 from backend.database.db import RuneDatabase
@@ -393,3 +393,26 @@ class TestGoLive:
         assert result["success"] is False
         assert "Already in live mode" in result["error"]
         assert not event.is_set()
+
+
+class TestResetAllData:
+    """Tests for the reset-all-data control action."""
+
+    @pytest.mark.anyio
+    async def test_reset_purges_data(self, db, health_scorer):
+        """reset_all_data should purge DB and reset scorer in any mode."""
+        snap = VehicleSnapshot(
+            rpm=700, speed_kph=0, coolant_temp_c=90, engine_load_pct=20,
+            throttle_pct=0, intake_air_temp_c=25, intake_manifold_kpa=30,
+            maf_gps=3.5, stft_pct=0, ltft_pct=0, fuel_level_pct=75,
+            catalyst_temp_c=400, oil_temp_c=85, battery_voltage=14.1,
+        )
+        await db.insert_reading(snap)
+
+        result = await reset_all_data(db=db, scorer=health_scorer)
+        assert result["success"] is True
+        assert result["purged"]["sensor_readings"] == 1
+        assert result["logs"] == "cleared"
+
+        counts = await db.get_table_counts()
+        assert counts["sensor_readings"] == 0

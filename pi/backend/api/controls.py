@@ -115,6 +115,10 @@ async def go_live(
         # Purge all simulated data
         purged = await db.purge_all()
 
+        # Clear in-memory log buffer (old simulator logs)
+        from backend.api.logs import log_buffer
+        log_buffer.clear()
+
         # Reset health scorer for fresh calibration on real data
         scorer.reset_calibration()
 
@@ -137,6 +141,48 @@ async def go_live(
     except Exception as e:
         elapsed = (time.monotonic() - t) * 1000
         logger.error("Go live failed: %s", e)
+        return {
+            "success": False,
+            "error": str(e),
+            "duration_ms": round(elapsed, 2),
+        }
+
+
+async def reset_all_data(
+    db: Any,
+    scorer: Any,
+) -> dict[str, Any]:
+    """Wipe all stored data and reset calibration. Works in any mode.
+
+    Use this after hardware testing to start fresh before daily driving.
+    Does NOT change the collector mode (sim vs live stays as-is).
+    """
+    t = time.monotonic()
+    try:
+        purged = await db.purge_all()
+
+        # Clear in-memory log buffer
+        from backend.api.logs import log_buffer
+        log_buffer.clear()
+
+        # Reset health scorer so it recalibrates from scratch
+        scorer.reset_calibration()
+
+        elapsed = (time.monotonic() - t) * 1000
+        logger.warning(
+            "RESET ALL DATA: purged %s, logs cleared, health scorer reset (%.1fms)",
+            purged, elapsed,
+        )
+        return {
+            "success": True,
+            "purged": purged,
+            "logs": "cleared",
+            "health_scorer": "recalibrating",
+            "duration_ms": round(elapsed, 2),
+        }
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        logger.error("Reset all data failed: %s", e)
         return {
             "success": False,
             "error": str(e),
