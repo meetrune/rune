@@ -112,7 +112,7 @@ export function ScreenContainer({ screens }: ScreenContainerProps) {
                 ? "rgba(255,255,255,0.4)"
                 : "rgba(255,255,255,0.1)",
               border: "none",
-              padding: 0,
+              padding: "18px 12px",
               cursor: "pointer",
               transition: "all 300ms ease",
               WebkitTapHighlightColor: "transparent",

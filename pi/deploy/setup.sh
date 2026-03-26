@@ -156,6 +156,8 @@ nmcli con modify Rune \
     802-11-wireless.band bg \
     802-11-wireless.channel 6 \
     wifi-sec.key-mgmt wpa-psk \
+    wifi-sec.proto rsn \
+    wifi-sec.pairwise ccmp \
     wifi-sec.psk "$WIFI_PASS" \
     ipv4.method shared \
     ipv4.addresses 192.168.4.1/24 \

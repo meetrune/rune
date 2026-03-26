@@ -75,7 +75,7 @@ export function useHeartbeat(): HeartbeatPoint[] {
       // Normalize: find max in buffer, scale to fit height
       const max = Math.max(...values, 1);
       const newPoints: HeartbeatPoint[] = values.map((v, i) => ({
-        x: (i / (BUFFER_SIZE - 1)) * 100,
+        x: (i / (values.length - 1)) * 100,
         y: MAX_HEIGHT - (v / max) * (MAX_HEIGHT - 4),
       }));
 

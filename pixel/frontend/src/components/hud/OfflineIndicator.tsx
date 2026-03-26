@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { useVehicleStore } from "@/stores/vehicleStore";
 
 // Prominent but non-intrusive offline indicator for driving screens.
-// Shows a pulsing red dot + "OFFLINE" when the WebSocket disconnects.
+// Shows a pulsing red dot + "Lost connection" when the WebSocket disconnects.
 // Tap to dismiss temporarily (reappears after 15 seconds if still offline).
 
 export function OfflineIndicator() {
@@ -69,7 +69,7 @@ export function OfflineIndicator() {
           letterSpacing: "0.1em",
         }}
       >
-        OFFLINE
+        Lost connection
       </span>
     </div>
   );

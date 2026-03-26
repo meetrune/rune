@@ -44,7 +44,12 @@ export function useBurnInProtection() {
       document.documentElement.style.setProperty("--burn-shift-y", `${dy.toFixed(1)}px`);
     }, PIXEL_SHIFT_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.documentElement.style.opacity = "1";
+      document.documentElement.style.removeProperty("--burn-shift-x");
+      document.documentElement.style.removeProperty("--burn-shift-y");
+    };
   }, []);
 
   // Brightness reduction after 30 minutes idle (not during warnings)

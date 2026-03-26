@@ -62,7 +62,7 @@ const TEMPLATES: VoiceTemplate[] = [
     state: "disconnected",
     messages: [
       "Lost connection. Working on it.",
-      "Can't hear the car right now. Reconnecting.",
+      "Can't hear anything right now. Reconnecting.",
     ],
   },
 ];

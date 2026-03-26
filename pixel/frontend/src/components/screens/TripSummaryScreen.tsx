@@ -204,12 +204,12 @@ function TripDetail({ trip, avgMpg, avgCostPerMi }: { trip: Trip; avgMpg: number
           ? `Below average by ${(avgMpg - trip.avg_mpg).toFixed(0)} MPG. Probably stop-and-go.`
           : trip.avg_mpg != null
           ? `Typical run for you.`
-          : `No fuel data for this trip.`}
+          : `Couldn't track fuel on that one.`}
       </div>
 
       {/* MPG RANGE -- gradient bar visualization */}
       {s && s.max_mpg !== null && s.min_mpg !== null && (
-        <MpgRangeBar min={s.min_mpg} max={s.max_mpg} avg={trip.avg_mpg ?? 28} />
+        <MpgRangeBar min={Math.round(s.min_mpg)} max={Math.round(s.max_mpg)} avg={trip.avg_mpg ?? 28} />
       )}
 
       {/* TIME SPLIT -- donut chart */}
@@ -268,17 +268,17 @@ export function TripSummaryScreen() {
           <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.4)", letterSpacing: "0.06em" }}>TRIPS</span>
         </div>
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {loading && <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, padding: 30, textAlign: "center" }}>Loading...</div>}
+          {loading && <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, padding: 30, textAlign: "center" }}>Pulling up trips...</div>}
           {!loading && error && (
             <button onClick={refresh} style={{
               color: "rgba(239,68,68,0.6)", fontSize: 15, padding: 30, textAlign: "center",
               background: "none", border: "none", cursor: "pointer", width: "100%",
               fontFamily: "var(--font-ui)", minHeight: 56,
             }}>
-              Could not load trips. Tap to retry.
+              Couldn't pull up trips. Tap to try again.
             </button>
           )}
-          {!loading && !error && trips.length === 0 && <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, padding: 30, textAlign: "center" }}>No trips yet.</div>}
+          {!loading && !error && trips.length === 0 && <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 16, padding: 30, textAlign: "center" }}>Haven't gone anywhere yet.</div>}
           {trips.map((trip) => {
             const active = trip.trip_id === selectedId;
             const color = mpgColor(trip.avg_mpg);

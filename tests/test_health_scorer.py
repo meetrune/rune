@@ -324,12 +324,11 @@ class TestEWMA:
             ewma.update(50.0)
         assert abs(ewma.value - 50.0) < 0.1
 
-    def test_bias_correction_early(self) -> None:
+    def test_first_value_seeded(self) -> None:
         ewma = EWMA(alpha=0.1)
         ewma.update(100.0)
-        # Without bias correction, first value would be 10 (alpha * 100)
-        # With correction, it should be close to 100
-        assert ewma.value > 90
+        # First value is seeded directly (no bias correction needed)
+        assert ewma.value == 100.0
 
     def test_tracks_step_change(self) -> None:
         ewma = EWMA(alpha=0.3)

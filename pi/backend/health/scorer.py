@@ -218,31 +218,30 @@ class HalfSpaceTrees:
 
 
 class EWMA:
-    """Exponentially Weighted Moving Average with bias correction."""
+    """Exponentially Weighted Moving Average.
+
+    Seeds from the first observation, so no bias correction is needed.
+    """
 
     def __init__(self, alpha: float = 0.1) -> None:
         self._alpha = alpha
-        self._value = 0.0
+        self._value: float | None = None
         self._count = 0
 
     def update(self, value: float) -> float:
         """Update with new value, return smoothed result."""
         self._count += 1
-        if self._count == 1:
+        if self._value is None:
             self._value = value
         else:
             self._value = self._alpha * value + (1 - self._alpha) * self._value
-
-        # Bias correction for early samples
-        correction = 1.0 - (1.0 - self._alpha) ** self._count
-        return self._value / correction if correction > 0 else self._value
+        return self._value
 
     @property
     def value(self) -> float:
-        if self._count == 0:
+        if self._value is None:
             return 0.0
-        correction = 1.0 - (1.0 - self._alpha) ** self._count
-        return self._value / correction if correction > 0 else self._value
+        return self._value
 
 
 # --- Main Health Scorer ---

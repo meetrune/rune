@@ -36,10 +36,10 @@ export function useTripHistory() {
   const retryCount = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(false);
-    fetch("/api/trips?limit=50")
+    fetch("/api/trips?limit=50", signal ? { signal } : undefined)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -49,7 +49,8 @@ export function useTripHistory() {
         setLoading(false);
         retryCount.current = 0;
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.name === "AbortError") return;
         setLoading(false);
         setError(true);
         // Auto-retry up to MAX_RETRIES
@@ -61,8 +62,12 @@ export function useTripHistory() {
   }, []);
 
   useEffect(() => {
-    refresh();
-    return () => { if (retryTimer.current) clearTimeout(retryTimer.current); };
+    const controller = new AbortController();
+    refresh(controller.signal);
+    return () => {
+      controller.abort();
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
   }, [refresh]);
 
   return { trips, loading, error, refresh };

@@ -18,10 +18,7 @@ class RuneSettings(BaseSettings):
     server_host: str = "0.0.0.0"
     server_port: int = 8080
 
-    # OBD-II connection -- WiCAN Pro ELM327 TCP port on the Rune WiFi network
-    obd_port: str = "192.168.4.100:3333"
-    obd_baudrate: int = 500000
-    obd_protocol: str = "6"  # ISO 15765-4, 11-bit, 500 kbaud
+    # OBD-II connection -- WiCAN Pro ELM327 TCP on the Rune WiFi network
     obd_fast: bool = True
 
     # WiCAN Pro TCP connection

@@ -28,7 +28,7 @@ from backend.fuel.fillup import FillupDetector
 from backend.fuel.trip_stats import TripStatsAccumulator
 from backend.health.scorer import HealthScorer
 from backend.obd_manager.collector import DataCollector, OBDCollector, SimulatedCollector
-from backend.obd_manager.models import VehicleSnapshot, WebSocketMessage
+from backend.obd_manager.models import FuelSnapshot, HealthSnapshot, VehicleSnapshot, WebSocketMessage
 from backend.sensors.thermal import ThermalManager
 from backend.sensors.wittypi import SimulatedWittyPiReader, WittyPiReader
 from backend.ws_manager import ConnectionManager
@@ -125,8 +125,10 @@ async def obd_producer_loop(
             snap = await collector.get_snapshot()
 
             # Read Pi-side sensors once per second (not 10Hz -- I2C is slow)
+            # Wrapped in to_thread to avoid blocking the async loop with
+            # time.sleep() retries in the I2C read methods.
             if tick_count % settings.ws_rate_hz == 0:
-                pi_snap = pi_reader.read_snapshot()
+                pi_snap = await asyncio.to_thread(pi_reader.read_snapshot)
                 last_vin = pi_snap.vin_voltage
                 last_armrest = pi_snap.armrest_temp_c
                 last_cpu_temp = pi_snap.cpu_temp_c
@@ -185,11 +187,21 @@ async def obd_producer_loop(
             snap.pi_current_a = last_current
 
             # Fuel calculation
-            fuel_snap, trip_started, trip_ended = fuel_calc.update(snap)
+            try:
+                fuel_snap, trip_started, trip_ended = fuel_calc.update(snap)
+            except Exception:
+                logger.warning("Fuel calculation failed, using defaults", exc_info=True)
+                fuel_snap = FuelSnapshot(tank_pct=snap.fuel_level_pct)
+                trip_started = False
+                trip_ended = False
 
             # Trip lifecycle
             if trip_started:
-                active_trip_id = await db.start_trip(int(snap.timestamp * 1000))
+                try:
+                    active_trip_id = await db.start_trip(int(snap.timestamp * 1000))
+                except Exception:
+                    logger.warning("Failed to start trip in DB", exc_info=True)
+                    active_trip_id = None
                 trip_stats_acc = TripStatsAccumulator()
                 if fuel_calc.current_trip is not None:
                     fuel_calc.current_trip.trip_id = active_trip_id
@@ -199,66 +211,72 @@ async def obd_producer_loop(
                 trip_stats_acc.update(snap)
 
             if trip_ended:
-                summary = fuel_calc.get_completed_trip_summary()
-                if summary and active_trip_id is not None:
-                    import json
-                    avg_mpg = summary.get("avg_mpg")
-                    stats_json = json.dumps(trip_stats_acc.finalize()) if trip_stats_acc else None
-                    await db.end_trip(
-                        trip_id=active_trip_id,
-                        end_time_ms=int(snap.timestamp * 1000),
-                        distance_miles=summary["distance_miles"],
-                        fuel_gallons=summary["fuel_gallons"],
-                        fuel_cost_usd=summary["fuel_cost_usd"],
-                        avg_mpg=avg_mpg,
-                        trip_stats=stats_json,
-                    )
-                    # Broadcast trip_ended event to frontend
-                    if manager.client_count > 0:
-                        duration_min = 0.0
-                        if summary.get("start_time"):
-                            duration_min = (snap.timestamp - summary["start_time"]) / 60
-                        trip_event = json.dumps({
-                            "type": "trip_ended",
-                            "trip": {
-                                "trip_id": active_trip_id,
-                                "distance_miles": round(summary["distance_miles"], 1),
-                                "fuel_gallons": round(summary["fuel_gallons"], 3),
-                                "fuel_cost_usd": round(summary["fuel_cost_usd"], 2),
-                                "avg_mpg": round(avg_mpg, 1) if avg_mpg else None,
-                                "duration_minutes": round(duration_min, 1),
-                                "stats": trip_stats_acc.finalize() if trip_stats_acc else None,
-                            },
-                        })
-                        await manager.broadcast(trip_event)
+                try:
+                    summary = fuel_calc.get_completed_trip_summary()
+                    if summary and active_trip_id is not None:
+                        import json
+                        avg_mpg = summary.get("avg_mpg")
+                        stats_json = json.dumps(trip_stats_acc.finalize()) if trip_stats_acc else None
+                        await db.end_trip(
+                            trip_id=active_trip_id,
+                            end_time_ms=int(snap.timestamp * 1000),
+                            distance_miles=summary["distance_miles"],
+                            fuel_gallons=summary["fuel_gallons"],
+                            fuel_cost_usd=summary["fuel_cost_usd"],
+                            avg_mpg=avg_mpg,
+                            trip_stats=stats_json,
+                        )
+                        # Broadcast trip_ended event to frontend
+                        if manager.client_count > 0:
+                            duration_min = 0.0
+                            if summary.get("start_time"):
+                                duration_min = (snap.timestamp - summary["start_time"]) / 60
+                            trip_event = json.dumps({
+                                "type": "trip_ended",
+                                "trip": {
+                                    "trip_id": active_trip_id,
+                                    "distance_miles": round(summary["distance_miles"], 1),
+                                    "fuel_gallons": round(summary["fuel_gallons"], 3),
+                                    "fuel_cost_usd": round(summary["fuel_cost_usd"], 2),
+                                    "avg_mpg": round(avg_mpg, 1) if avg_mpg else None,
+                                    "duration_minutes": round(duration_min, 1),
+                                    "stats": trip_stats_acc.finalize() if trip_stats_acc else None,
+                                },
+                            })
+                            await manager.broadcast(trip_event)
+                except Exception:
+                    logger.warning("Failed to end trip in DB", exc_info=True)
                 active_trip_id = None
                 trip_stats_acc = None
 
             # Fill-up detection -- check once per second (not 10x/sec)
             # DB queries for miles_since_fill are expensive on SD card
-            fillup_event = None
-            if tick_count % settings.ws_rate_hz == 0:
-                miles_since_fill: float | None = None
-                last_fill = await db.get_last_fillup()
-                if last_fill:
-                    recent = await db.get_recent_trips(limit=100)
-                    miles_since_fill = sum(
-                        t["distance_miles"] for t in recent
-                        if t["start_time"] >= last_fill["detected_at"]
+            try:
+                fillup_event = None
+                if tick_count % settings.ws_rate_hz == 0:
+                    miles_since_fill: float | None = None
+                    last_fill = await db.get_last_fillup()
+                    if last_fill:
+                        recent = await db.get_recent_trips(limit=100)
+                        miles_since_fill = sum(
+                            t["distance_miles"] for t in recent
+                            if t["start_time"] >= last_fill["detected_at"]
+                        )
+                    fillup_event = fillup_detector.check(snap, miles_since_last_fill=miles_since_fill)
+                else:
+                    fillup_event = fillup_detector.check(snap, miles_since_last_fill=None)
+                if fillup_event:
+                    await db.insert_fillup(
+                        detected_at_ms=int(fillup_event.detected_at * 1000),
+                        fuel_level_before=fillup_event.fuel_level_before,
+                        fuel_level_after=fillup_event.fuel_level_after,
+                        estimated_gallons=fillup_event.estimated_gallons,
+                        cost_usd=fillup_event.cost_usd,
+                        mpg_since_last_fill=fillup_event.mpg_since_last_fill,
                     )
-                fillup_event = fillup_detector.check(snap, miles_since_last_fill=miles_since_fill)
-            else:
-                fillup_event = fillup_detector.check(snap, miles_since_last_fill=None)
-            if fillup_event:
-                await db.insert_fillup(
-                    detected_at_ms=int(fillup_event.detected_at * 1000),
-                    fuel_level_before=fillup_event.fuel_level_before,
-                    fuel_level_after=fillup_event.fuel_level_after,
-                    estimated_gallons=fillup_event.estimated_gallons,
-                    cost_usd=fillup_event.cost_usd,
-                    mpg_since_last_fill=fillup_event.mpg_since_last_fill,
-                )
-                logger.info("Rune: %s", fillup_event.rune_message)
+                    logger.info("Rune: %s", fillup_event.rune_message)
+            except Exception:
+                logger.warning("Fillup detection failed, skipping this tick", exc_info=True)
 
             # Buffer readings, flush every 10 ticks (1 second)
             reading_buffer.append(snap)
@@ -274,7 +292,14 @@ async def obd_producer_loop(
                 reading_buffer.clear()
 
             # Health scoring
-            health_snap = health_scorer.score(snap)
+            try:
+                health_snap = health_scorer.score(snap)
+            except Exception:
+                logger.warning("Health scoring failed, using sentinel values", exc_info=True)
+                health_snap = HealthSnapshot(
+                    overall=-1, engine=-1, transmission=-1,
+                    fuel=-1, cooling=-1, exhaust=-1, electrical=-1,
+                )
 
             # Broadcast to all connected clients
             if manager.client_count > 0:
@@ -675,7 +700,7 @@ async def get_config() -> JSONResponse:
         "categories": {
             "server": ["server_host", "server_port", "log_level"],
             "obd": [
-                "obd_port", "obd_baudrate", "obd_protocol", "obd_fast",
+                "obd_fast",
                 "wican_host", "wican_port", "obd_cmd_timeout",
                 "obd_reconnect_max_backoff", "obd_circuit_breaker_threshold",
                 "obd_circuit_breaker_cooldown", "obd_stale_threshold",

@@ -53,7 +53,7 @@ export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labe
 
     const render = () => {
       // Skip rendering when screen is not visible (save GPU/battery)
-      if (!activeRef.current) { af = requestAnimationFrame(render); return; }
+      if (!activeRef.current) { return; }
       const buf = buffer.current;
       if (buf.length < 2 || !pathRef.current) { af = requestAnimationFrame(render); return; }
 
@@ -139,6 +139,96 @@ export function LiveGraph({ label, unit, sensorKey, min = 0, max, getColor, labe
 
     return () => { unsub(); cancelAnimationFrame(af); clearTimeout(glowTimeout.current); };
   }, [sensorKey, min, max, getColor]);
+
+  // Restart rAF loop when active becomes true
+  useEffect(() => {
+    if (!active) return;
+    let af = 0;
+    const restart = () => {
+      if (!activeRef.current) return;
+      // Trigger a re-render cycle by reading buffer; actual render logic is in the main useEffect's rAF
+      af = requestAnimationFrame(restart);
+    };
+    // The main useEffect's render function handles all drawing;
+    // we just need to kick it off again when active flips to true.
+    // Re-mount the main effect by forcing the component to recognize activity.
+    // Actually, the main effect's render stops when inactive. We need to restart it.
+    // Simplest: dispatch a store read to trigger the subscription, then the render loop picks up.
+    af = requestAnimationFrame(function loop() {
+      if (!activeRef.current) return;
+      const buf = buffer.current;
+      if (buf.length < 2 || !pathRef.current) { af = requestAnimationFrame(loop); return; }
+
+      const pad = 2;
+      const range = max - min;
+      let d = "", fd = `M 0 ${H}`;
+      for (let i = 0; i < buf.length; i++) {
+        const x = (i / (buf.length - 1)) * W;
+        const normalized = range > 0 ? (Math.min(Math.max(buf[i]!, min), max) - min) / range : 0;
+        const y = H - pad - normalized * (H - pad * 2);
+        if (i === 0) { d += `M ${x} ${y}`; fd += ` L ${x} ${y}`; }
+        else { d += ` L ${x} ${y}`; fd += ` L ${x} ${y}`; }
+      }
+      fd += ` L ${W} ${H} Z`;
+
+      const lastVal = buf[buf.length - 1]!;
+      const lastNorm = range > 0 ? (Math.min(Math.max(lastVal, min), max) - min) / range : 0;
+      const lastX = W - 2;
+      const lastY = H - pad - lastNorm * (H - pad * 2);
+      const color = getColor(lastVal);
+
+      pathRef.current.setAttribute("d", d);
+      pathRef.current.setAttribute("stroke", color);
+      if (fillRef.current) {
+        fillRef.current.setAttribute("d", fd);
+        fillRef.current.setAttribute("fill", color);
+        fillRef.current.setAttribute("fill-opacity", "0.03");
+      }
+      if (dotRef.current) {
+        dotRef.current.setAttribute("cx", String(lastX));
+        dotRef.current.setAttribute("cy", String(lastY));
+        dotRef.current.setAttribute("fill", color);
+      }
+      if (glowRef.current) {
+        glowRef.current.setAttribute("cx", String(lastX));
+        glowRef.current.setAttribute("cy", String(lastY));
+        if (color !== prevColor.current && prevColor.current !== "") {
+          glowRef.current.setAttribute("r", "12");
+          glowRef.current.setAttribute("opacity", "0.4");
+          glowRef.current.setAttribute("fill", color);
+          clearTimeout(glowTimeout.current);
+          glowTimeout.current = window.setTimeout(() => {
+            if (glowRef.current) {
+              glowRef.current.setAttribute("r", "6");
+              glowRef.current.setAttribute("opacity", "0.08");
+            }
+          }, 600);
+        }
+        prevColor.current = color;
+      }
+      if (valTextRef.current) {
+        const displayVal = Math.min(lastVal, max * 1.5);
+        valTextRef.current.textContent = !Number.isFinite(displayVal) ? "--"
+          : displayVal < 1 && max < 50 ? displayVal.toFixed(1)
+          : String(Math.round(displayVal));
+        valTextRef.current.style.color = color;
+      }
+      if (trendRef.current && buf.length > 30) {
+        const prev = buf[buf.length - 31]!;
+        const delta = lastVal - prev;
+        const threshold = range * 0.02;
+        let arrow: string, arrowColor: string;
+        if (delta > threshold) { arrow = "\u25B2"; arrowColor = color; }
+        else if (delta < -threshold) { arrow = "\u25BC"; arrowColor = color; }
+        else { arrow = "\u2014"; arrowColor = "rgba(255,255,255,0.1)"; }
+        trendRef.current.textContent = arrow;
+        trendRef.current.style.color = arrowColor;
+      }
+
+      af = requestAnimationFrame(loop);
+    });
+    return () => cancelAnimationFrame(af);
+  }, [active, min, max, getColor]);
 
   return (
     <div style={{
