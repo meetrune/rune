@@ -11,7 +11,7 @@ name = "rune"
 version = "0.1.0"
 description = "The translation layer between Rune and the human who drives him"
 requires-python = ">=3.13"
-license = "MIT"
+license = "Apache-2.0"
 authors = [
     { name = "Kuladeep Mantri" },
 ]

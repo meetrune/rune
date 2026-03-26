@@ -24,6 +24,12 @@ pixel/frontend/dist/
 .DS_Store
 Thumbs.db
 
+# Blender backups
+*.blend1
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
 # Environment
 .env
 .env.local
