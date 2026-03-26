@@ -21,8 +21,8 @@ See `PRD.md` for full specifications. See `docs/superpowers/specs/2026-03-24-run
 
 ```
 CURRENT PHASE: v1 -- First words (Desktop Dev complete, Pi deployment ready)
-STATUS: Sessions 1-10 complete. 326 tests. PWA service worker built. Pi deployment scripts ready (setup.sh, systemd, WiFi AP, OverlayFS). Witty Pi 4 I2C sensor integration (Vin, armrest temp, CPU temp, current). Adaptive thermal management (OpenPilot-based: 5-level bands, IIR filter, hysteresis, rate-of-change, Welford baseline). CI pipeline (GitHub Actions). Car delivery ~2 days. Branch: feat/rune-os-frontend.
-QUALITY: Production-grade. 326 tests. All algorithms research-verified. Thermal thresholds from Stanford/ASU/EPA car studies + Pi 4B datasheet + OpenPilot source.
+STATUS: Sessions 1-11 complete. 347 tests. Advanced diagnostics dashboard with 19 features: interactive draggable topology (hub-and-spoke, breathing glow lines, glassmorphism nodes), 9 new API endpoints, sensor sparklines, thermal gauges, log viewer, config viewer, manual controls, integration testing. mDNS (rune.local) for MacBook diagnostics access. Branch: feat/rune-os-frontend.
+QUALITY: Production-grade. 347 tests. Mypy strict. Code reviewed. All algorithms research-verified.
 ```
 Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).
 
