@@ -134,8 +134,19 @@ async def obd_producer_loop(
                         reading_buffer.clear()
                     # Import here to avoid circular -- shutdown is a rare path
                     import subprocess
-                    subprocess.Popen(["sudo", "shutdown", "-h", "+1",
-                                      "Rune thermal shutdown: armrest too hot"])
+                    try:
+                        result = subprocess.run(
+                            ["sudo", "shutdown", "-h", "+1",
+                             "Rune thermal shutdown: armrest too hot"],
+                            capture_output=True, text=True, timeout=5,
+                        )
+                        if result.returncode != 0:
+                            logger.critical(
+                                "Thermal shutdown command failed (rc=%d): %s",
+                                result.returncode, result.stderr,
+                            )
+                    except Exception:
+                        logger.critical("Failed to execute thermal shutdown", exc_info=True)
                     return
 
             # Fuel calculation
@@ -495,6 +506,30 @@ async def debug_info() -> JSONResponse:
             "version": "0.1.0",
         },
     })
+
+
+@app.get("/api/diagnostics")
+async def diagnostics() -> JSONResponse:
+    """Run comprehensive system diagnostics."""
+    from backend.diagnostics import run_all_checks
+    results = await run_all_checks(app.state)
+    passed = sum(1 for r in results if r.status == "pass")
+    failed = sum(1 for r in results if r.status == "fail")
+    warned = sum(1 for r in results if r.status == "warn")
+    return JSONResponse({
+        "summary": {"total": len(results), "pass": passed, "fail": failed, "warn": warned},
+        "checks": [r.to_dict() for r in results],
+        "timestamp": time.time(),
+    })
+
+
+@app.get("/diagnostics")
+async def serve_diagnostics() -> FileResponse:
+    """Serve the diagnostic dashboard."""
+    diag_path = Path(__file__).parent.parent / "diagnostics.html"
+    return FileResponse(diag_path, media_type="text/html")
+
+
 
 
 @app.websocket("/ws/vehicle-data")

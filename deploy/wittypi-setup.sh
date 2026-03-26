@@ -103,7 +103,8 @@ echo "[4/4] Configuring Witty Pi registers for automotive use..."
 #   Reg 1,2  = Vin (integer, decimal) -- read-only
 #   Reg 3,4  = Vout (integer, decimal) -- read-only
 #   Reg 5,6  = Iout (integer, decimal) -- read-only
-#   Reg 7    = Temperature -- read-only (LM75B)
+#   Reg 7    = POWER_MODE (1 = DC input, 0 = USB 5V) -- read-only
+#   Reg 50   = LM75B temperature -- virtual register, 2 bytes, 0.125C resolution
 #   Reg 8    = LV_SHUTDOWN flag (1 = last shutdown was low-voltage)
 #   Reg 17   = DEFAULT_ON (1 = auto-boot when power arrives)
 #   Reg 19   = LOW_VOLTAGE threshold (value = volts * 10)

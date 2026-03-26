@@ -39,8 +39,8 @@ ProtectControlGroups=yes
 MemoryMax=512M
 CPUQuota=80%
 
-# Watchdog: systemd restarts if no notify within 60s
-WatchdogSec=60
+# No WatchdogSec -- uvicorn doesn't call sd_notify().
+# Restart=on-failure + RestartSec=5 handles crash recovery.
 
 [Install]
 WantedBy=multi-user.target

@@ -78,6 +78,11 @@ mkdir -p "$CONFIG_DIR"
 chown "$RUNE_USER:$RUNE_USER" "$DATA_DIR"
 chmod 750 "$DATA_DIR"
 
+# Allow rune user to call shutdown without password (for thermal shutdown)
+echo "rune ALL=(ALL) NOPASSWD: /sbin/shutdown" > /etc/sudoers.d/rune-shutdown
+chmod 440 /etc/sudoers.d/rune-shutdown
+echo "  Sudoers entry added for thermal shutdown."
+
 # ── 4. Deploy application ────────────────────────
 echo "[4/7] Deploying application..."
 # Copy backend + built frontend

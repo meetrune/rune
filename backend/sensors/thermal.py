@@ -260,10 +260,12 @@ class ThermalManager:
             )
 
         # Rate-of-change can escalate status by one level
+        # Use list index for comparison (string enum values don't sort correctly)
+        status_order = list(ThermalStatus)
         if state.cpu_rate_per_min > RATE_CRITICAL:
             self._cpu_status = self._escalate(self._cpu_status)
         elif state.cpu_rate_per_min > RATE_WARNING:
-            if self._cpu_status.value < ThermalStatus.ORANGE.value:
+            if status_order.index(self._cpu_status) < status_order.index(ThermalStatus.ORANGE):
                 self._cpu_status = ThermalStatus.YELLOW
 
         state.cpu_status = self._cpu_status
