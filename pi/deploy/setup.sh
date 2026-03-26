@@ -83,7 +83,7 @@ chown "$RUNE_USER:$RUNE_USER" "$DATA_DIR"
 chmod 750 "$DATA_DIR"
 
 # Allow rune user to call shutdown without password (for thermal shutdown)
-echo "rune ALL=(ALL) NOPASSWD: /sbin/shutdown" > /etc/sudoers.d/rune-shutdown
+echo "rune ALL=(root) NOPASSWD: /sbin/shutdown" > /etc/sudoers.d/rune-shutdown
 chmod 440 /etc/sudoers.d/rune-shutdown
 echo "  Sudoers entry added for thermal shutdown."
 
@@ -91,22 +91,27 @@ echo "  Sudoers entry added for thermal shutdown."
 echo "[4/7] Deploying application..."
 # Copy backend + built frontend
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(dirname "$SCRIPT_DIR")"
+# Script is at repo/pi/deploy/ -- go up two levels to reach repo root
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Copy backend source
-rsync -a --delete "$REPO_DIR/backend/" "$RUNE_DIR/backend/"
+# Copy backend source (from pi/backend/)
+rsync -a --delete "$REPO_DIR/pi/backend/" "$RUNE_DIR/backend/"
 
-# Copy built frontend (must run `npm run build` in frontend/ first)
-if [[ -d "$REPO_DIR/frontend/dist" ]]; then
-    rsync -a --delete "$REPO_DIR/frontend/dist/" "$RUNE_DIR/frontend/dist/"
+# Copy diagnostics dashboard (from pi/diagnostics/)
+rsync -a --delete "$REPO_DIR/pi/diagnostics/" "$RUNE_DIR/diagnostics/"
+echo "  Diagnostics dashboard copied."
+
+# Copy built frontend (must run `npm run build` in pixel/frontend/ first)
+if [[ -d "$REPO_DIR/pixel/frontend/dist" ]]; then
+    rsync -a --delete "$REPO_DIR/pixel/frontend/dist/" "$RUNE_DIR/frontend/dist/"
     echo "  Frontend dist copied."
 else
-    echo "  WARNING: frontend/dist not found. Run 'cd frontend && npm run build' first."
+    echo "  WARNING: pixel/frontend/dist not found. Run 'cd pixel/frontend && npm run build' first."
 fi
 
 # Copy frontend public assets (3D model, icons)
-if [[ -d "$REPO_DIR/frontend/public" ]]; then
-    rsync -a "$REPO_DIR/frontend/public/" "$RUNE_DIR/frontend/public/"
+if [[ -d "$REPO_DIR/pixel/frontend/public" ]]; then
+    rsync -a "$REPO_DIR/pixel/frontend/public/" "$RUNE_DIR/frontend/public/"
 fi
 
 # Copy pyproject.toml for dependency installation
@@ -118,7 +123,7 @@ if [[ ! -d "$RUNE_DIR/.venv" ]]; then
     echo "  Created Python venv."
 fi
 "$RUNE_DIR/.venv/bin/pip" install --quiet --upgrade pip
-"$RUNE_DIR/.venv/bin/pip" install --quiet -e "$RUNE_DIR"
+"$RUNE_DIR/.venv/bin/pip" install --quiet "$RUNE_DIR"
 
 chown -R "$RUNE_USER:$RUNE_USER" "$RUNE_DIR"
 

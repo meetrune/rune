@@ -6,7 +6,7 @@
 
 1. **NEVER** generate OBD-II write commands. Allowed modes: **01, 02, 03, 09, 22 ONLY.** (Mode 22 = UDS ReadDataByIdentifier, read-only. Used for Honda proprietary PIDs like CVT fluid temp.)
 2. **NEVER** generate commands using modes 04, 08, 10, 27, 2E, 31, 3E. These are write/control operations that can modify ECU state.
-3. All OBD communication **MUST** go through the `SafeOBDConnection` wrapper in `backend/obd_manager/connection.py`. No direct serial writes, no raw socket sends to the adapter, no bypassing the whitelist.
+3. All OBD communication **MUST** go through the `SafeOBDConnection` wrapper in `pi/backend/obd_manager/connection.py`. No direct serial writes, no raw socket sends to the adapter, no bypassing the whitelist.
 4. If you are **uncertain** whether a command is read-only, **DO NOT SEND IT**. Ask the user first.
 5. `SafeOBDConnection` is the **FIRST code written** for this project. It must exist and pass tests before any other OBD code is written.
 6. **NEVER** suggest clearing DTCs (Mode 04), resetting monitors, or any "reset" operation. Diagnostics are strictly read-only.
@@ -20,9 +20,9 @@ Rune is the car -- a 2026 Honda Accord SE. What we're building is the translatio
 See `PRD.md` for full specifications. See `docs/superpowers/specs/2026-03-24-rune-os-frontend-design.md` for the complete frontend design spec.
 
 ```
-CURRENT PHASE: v1 -- First words (Desktop Dev complete, Pi deployment ready)
-STATUS: Sessions 1-11 complete. 347 tests. Advanced diagnostics dashboard with 19 features: interactive draggable topology (hub-and-spoke, breathing glow lines, glassmorphism nodes), 9 new API endpoints, sensor sparklines, thermal gauges, log viewer, config viewer, manual controls, integration testing. mDNS (rune.local) for MacBook diagnostics access. Branch: feat/rune-os-frontend.
-QUALITY: Production-grade. 347 tests. Mypy strict. Code reviewed. All algorithms research-verified.
+CURRENT PHASE: v1 -- First words (Production-ready, restructured by device)
+STATUS: Sessions 1-12 complete. 352 tests. Codebase restructured: pi/ (backend + deploy + diagnostics), pixel/ (frontend), mac/ (v5+ placeholder). Go-live feature: red button in diagnostics purges simulation data and switches to real OBD. v3 sensor placeholders (BME280, MPU-6050, INMP441) ready for wiring.
+QUALITY: Production-grade. 352 tests. Mypy strict. Code reviewed. All algorithms research-verified.
 ```
 Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).
 
@@ -68,7 +68,7 @@ Rune IS the car. He speaks in first person. He's a brother -- direct, honest, st
 - **Reports (v4):** Jinja2 3.1.6 + matplotlib 3.10.x + WeasyPrint 68.1
 - **Data validation:** pydantic 2.12.5
 - **Data flow:** All sensor data flows through Pi (central hub). WebSocket at 10Hz to phone. Phone is display + secondary sensor source.
-- **Static frontend serving:** `app.mount("/", StaticFiles(directory="frontend/dist", html=True))`
+- **Static frontend serving:** Dual-environment: tries `pi/../pixel/frontend/dist` (dev) then `../frontend/dist` (Pi deployment)
 - **Mac training workstation (v5+):** MacBook Pro M3 Max 36GB. Receives SQLite DB exports from Pi on irregular schedule (weekly/monthly/whenever). Trains personalized LSTM autoencoder via MLX, runs Prophet fuel forecasting, route clustering, seasonal calibration. Outputs deployable artifacts (TFLite model + JSON configs + PDF reports) that go back to Pi. See PRD Section 11 v5 for full spec.
 
 ### Three-device architecture

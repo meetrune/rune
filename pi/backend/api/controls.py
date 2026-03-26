@@ -8,6 +8,7 @@ All actions return structured results with timing information.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -79,6 +80,63 @@ async def recalibrate_health_scorer(scorer: Any) -> dict[str, Any]:
     except Exception as e:
         elapsed = (time.monotonic() - t) * 1000
         logger.error("Health scorer recalibration failed: %s", e)
+        return {
+            "success": False,
+            "error": str(e),
+            "duration_ms": round(elapsed, 2),
+        }
+
+
+async def go_live(
+    db: Any,
+    scorer: Any,
+    go_live_event: asyncio.Event,
+    use_simulator: bool = True,
+) -> dict[str, Any]:
+    """Switch from simulation to real OBD. One-way operation.
+
+    1. Purge all simulated data from the database
+    2. Reset the health scorer so it recalibrates on real data
+    3. Signal the producer loop to swap SimulatedCollector for OBDCollector
+
+    To revert to simulation mode, restart the server with
+    RUNE_USE_SIMULATOR=true.
+    """
+    t = time.monotonic()
+    try:
+        # Guard: cannot go live if already live
+        if not use_simulator:
+            return {
+                "success": False,
+                "error": "Already in live mode. Cannot purge real data.",
+                "duration_ms": 0.0,
+            }
+
+        # Purge all simulated data
+        purged = await db.purge_all()
+
+        # Reset health scorer for fresh calibration on real data
+        scorer.reset_calibration()
+
+        # Signal the producer loop to swap collectors
+        go_live_event.set()
+
+        elapsed = (time.monotonic() - t) * 1000
+        logger.warning(
+            "GO LIVE: purged %s, health scorer reset, collector swap signaled (%.1fms)",
+            purged, elapsed,
+        )
+        return {
+            "success": True,
+            "status": "live",
+            "purged": purged,
+            "health_scorer": "recalibrating",
+            "collector": "swapping_to_obd",
+            "duration_ms": round(elapsed, 2),
+        }
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        logger.error("Go live failed: %s", e)
         return {
             "success": False,
             "error": str(e),

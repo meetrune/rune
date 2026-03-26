@@ -14,9 +14,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.obd_manager.models import VehicleSnapshot, calculate_instant_mpg, maf_to_fuel_rate_lph
-
-LITERS_PER_GALLON = 3.78541
+from backend.obd_manager.models import (
+    LITERS_PER_GALLON,
+    VehicleSnapshot,
+    calculate_instant_mpg,
+    maf_to_fuel_rate_lph,
+)
 
 # Honda L15BE operating temp threshold
 COOLANT_WARM_THRESHOLD_C = 82.0

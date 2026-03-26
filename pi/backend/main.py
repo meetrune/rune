@@ -100,6 +100,25 @@ async def obd_producer_loop(
 
     while True:
         try:
+            # Check if go-live was signaled (swap simulator for real OBD)
+            if hasattr(app, 'state') and hasattr(app.state, 'go_live_event'):
+                if app.state.go_live_event.is_set():
+                    app.state.go_live_event.clear()
+                    logger.warning("Go-live signal received. Swapping to OBDCollector...")
+                    await collector.stop()
+                    new_collector = OBDCollector()
+                    try:
+                        await new_collector.start()
+                    except Exception:
+                        logger.critical("OBDCollector failed to start during go-live", exc_info=True)
+                        # Don't update collector -- let outer except handle retry
+                        raise
+                    collector = new_collector
+                    app.state.collector = collector
+                    settings.use_simulator = False
+                    next_tick = time.monotonic()  # reset drift clock after slow startup
+                    logger.warning("Go-live complete. Now using real OBD connection.")
+
             next_tick += 1.0 / max(effective_ws_hz, 1)
 
             # Collect OBD snapshot
@@ -336,6 +355,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.connection_manager = manager
     app.state.pi_reader = pi_reader
     app.state.thermal_mgr = thermal_mgr
+    app.state.go_live_event = asyncio.Event()
 
     # Start background tasks
     producer_task = asyncio.create_task(
@@ -388,24 +408,17 @@ app.add_middleware(
 )
 
 
+# Path resolution: works in both dev (pi/backend/) and Pi deployment (/opt/rune/backend/)
+_app_root = Path(__file__).parent.parent  # pi/ in dev, /opt/rune/ on Pi
+
 # Serve static frontend files (models, assets)
-_frontend_dir = Path(__file__).parent.parent / "frontend" / "public"
+# Dev: repo-root/pixel/frontend/public, Pi: /opt/rune/frontend/public
+_frontend_dir = _app_root / "frontend" / "public"
+if not _frontend_dir.exists():
+    _frontend_dir = _app_root.parent / "pixel" / "frontend" / "public"
 if _frontend_dir.exists():
     app.mount("/frontend/public", StaticFiles(directory=str(_frontend_dir)), name="frontend-static")
 
-
-@app.get("/debug")
-async def serve_debug() -> FileResponse:
-    """Serve the debug dashboard HTML."""
-    debug_path = Path(__file__).parent.parent / "debug.html"
-    return FileResponse(debug_path, media_type="text/html")
-
-
-@app.get("/preview")
-async def serve_preview() -> FileResponse:
-    """Serve the 3D design exploration page."""
-    preview_path = Path(__file__).parent.parent / "design_exploration.html"
-    return FileResponse(preview_path, media_type="text/html")
 
 
 @app.get("/api/health")
@@ -543,21 +556,21 @@ async def diagnostics() -> JSONResponse:
 @app.get("/diagnostics")
 async def serve_diagnostics() -> FileResponse:
     """Serve the diagnostic dashboard."""
-    diag_path = Path(__file__).parent.parent / "diagnostics.html"
+    diag_path = _app_root / "diagnostics" / "diagnostics.html"
     return FileResponse(diag_path, media_type="text/html")
 
 
 @app.get("/diagnostics.js")
 async def serve_diagnostics_js() -> FileResponse:
     """Serve the diagnostics dashboard JavaScript."""
-    js_path = Path(__file__).parent.parent / "diagnostics.js"
+    js_path = _app_root / "diagnostics" / "diagnostics.js"
     return FileResponse(js_path, media_type="application/javascript")
 
 
 @app.get("/diagnostics-topology.js")
 async def serve_diagnostics_topology_js() -> FileResponse:
     """Serve the interactive topology JavaScript."""
-    js_path = Path(__file__).parent.parent / "diagnostics-topology.js"
+    js_path = _app_root / "diagnostics" / "diagnostics-topology.js"
     return FileResponse(js_path, media_type="application/javascript")
 
 
@@ -741,6 +754,20 @@ async def control_restart_producer() -> JSONResponse:
         }, status_code=500)
 
 
+@app.post("/api/control/go-live")
+async def control_go_live() -> JSONResponse:
+    """Remove all simulation data and switch to real OBD. One-way operation."""
+    from backend.api.controls import go_live
+    result = await go_live(
+        db=app.state.db,
+        scorer=app.state.health_scorer,
+        go_live_event=app.state.go_live_event,
+        use_simulator=settings.use_simulator,
+    )
+    status_code = 200 if result["success"] else 500
+    return JSONResponse(result, status_code=status_code)
+
+
 @app.websocket("/ws/vehicle-data")
 async def vehicle_data_ws(websocket: WebSocket) -> None:
     """WebSocket endpoint for streaming vehicle data to the frontend.
@@ -761,6 +788,9 @@ async def vehicle_data_ws(websocket: WebSocket) -> None:
 
 
 # Serve built frontend from dist/ (must be LAST -- catches all routes)
-_dist_dir = Path(__file__).parent.parent / "frontend" / "dist"
+# Dev: repo-root/pixel/frontend/dist, Pi: /opt/rune/frontend/dist
+_dist_dir = _app_root / "frontend" / "dist"
+if not _dist_dir.exists():
+    _dist_dir = _app_root.parent / "pixel" / "frontend" / "dist"
 if _dist_dir.exists():
     app.mount("/", StaticFiles(directory=str(_dist_dir), html=True), name="frontend-dist")

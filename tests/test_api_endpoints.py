@@ -9,12 +9,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from backend.api.controls import force_checkpoint, recalibrate_health_scorer
-from backend.api.logs import RuneLogBuffer, log_buffer
+from backend.api.controls import force_checkpoint, go_live, recalibrate_health_scorer
+from backend.api.logs import RuneLogBuffer
 from backend.api.system import get_system_info
 from backend.database.db import RuneDatabase
 from backend.health.scorer import HealthScorer
@@ -347,3 +347,49 @@ class TestIntegrationTest:
         for step in result["steps"]:
             assert step["status"] in ("pass", "warn")
             assert step["duration_ms"] >= 0
+
+
+class TestGoLive:
+    """Tests for the go-live (remove simulation) control action."""
+
+    @pytest.mark.anyio
+    async def test_go_live_purges_and_signals(self, db, health_scorer):
+        """go_live should purge DB, reset scorer, and set the event."""
+        # Insert some data first
+        snap = VehicleSnapshot(
+            rpm=700, speed_kph=0, coolant_temp_c=90, engine_load_pct=20,
+            throttle_pct=0, intake_air_temp_c=25, intake_manifold_kpa=30,
+            maf_gps=3.5, stft_pct=0, ltft_pct=0, fuel_level_pct=75,
+            catalyst_temp_c=400, oil_temp_c=85, battery_voltage=14.1,
+        )
+        await db.insert_reading(snap)
+        await db.insert_reading(snap)
+
+        event = asyncio.Event()
+        result = await go_live(db=db, scorer=health_scorer, go_live_event=event, use_simulator=True)
+
+        assert result["success"] is True
+        assert result["status"] == "live"
+        assert result["purged"]["sensor_readings"] == 2
+        assert event.is_set()
+
+        # DB should be empty
+        counts = await db.get_table_counts()
+        assert counts["sensor_readings"] == 0
+
+    @pytest.mark.anyio
+    async def test_go_live_on_empty_db(self, db, health_scorer):
+        """go_live should work fine on an already-empty database."""
+        event = asyncio.Event()
+        result = await go_live(db=db, scorer=health_scorer, go_live_event=event, use_simulator=True)
+        assert result["success"] is True
+        assert result["purged"]["sensor_readings"] == 0
+
+    @pytest.mark.anyio
+    async def test_go_live_blocked_when_already_live(self, db, health_scorer):
+        """go_live should refuse if already in live mode."""
+        event = asyncio.Event()
+        result = await go_live(db=db, scorer=health_scorer, go_live_event=event, use_simulator=False)
+        assert result["success"] is False
+        assert "Already in live mode" in result["error"]
+        assert not event.is_set()

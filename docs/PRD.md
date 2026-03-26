@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Date:** March 22, 2026
 **Author:** Kuladeep Mantri
-**Status:** v1 -- Sessions 1-4 complete (271 tests). Session 5 in progress: React frontend with Rune OS multi-screen architecture.
+**Status:** v1 -- Sessions 1-12 complete (352 tests). Backend fully built: SafeOBDConnection, HondaAccordSimulator, OBDCollector (WiCAN Pro TCP), SQLite WAL database, 3-layer health scoring (thresholds + HalfSpaceTrees + EWMA trends), MAF-based fuel calculator, trip tracking, Witty Pi 4 I2C reader, thermal manager. Frontend: React 19 PWA with 4-screen car OS (Telemetry 3D, Trace Matrix, Trip Summary, Settings). Advanced diagnostics dashboard with 19 features. Codebase restructured by device: pi/, pixel/, mac/. Production-ready with go-live capability.
 **Quality:** Production-grade. NOT an MVP. Built for daily use on a real car.
 
 ---
@@ -777,84 +777,34 @@ The MacBook M3 Max runs a local training application that processes exported SQL
 
 ## 12. Project Structure
 
+Organized by deployment target device. Each top-level folder is one device.
+
 ```
 rune/
-├── backend/
-│   ├── main.py                     # FastAPI entry, WebSocket handler, static file serving
-│   ├── config.py                   # Pydantic Settings, env vars, defaults
-│   ├── obd_manager/
-│   │   ├── __init__.py
-│   │   ├── connection.py           # SafeOBDConnection (FIRST CODE WRITTEN)
-│   │   ├── collector.py            # Async OBD data collector, PID polling loop
-│   │   └── simulator.py            # Mock Honda Accord data with anomaly injection
-│   ├── health/
-│   │   ├── __init__.py
-│   │   ├── scorer.py               # Health scoring: EWMA, Isolation Forest, trend regression
-│   │   ├── rules.py                # Per-subsystem scoring rules
-│   │   └── thresholds.py           # Honda Accord normal/warning/critical ranges
-│   ├── fuel/
-│   │   ├── __init__.py
-│   │   ├── calculator.py           # Instant MPG, trip fuel integration
-│   │   ├── budget.py               # Monthly budget tracker, pace projection
-│   │   ├── routes.py               # GPS route fingerprinting, cost comparison
-│   │   └── fillup.py               # Auto fill-up detection, fuel history logging
-│   ├── vibration/                  # v3
-│   │   ├── __init__.py
-│   │   ├── processor.py            # STFT, CWT, Butterworth, feature extraction
-│   │   └── anomaly.py              # Convolutional autoencoder inference (TFLite)
-│   ├── audio/                      # v3
-│   │   ├── __init__.py
-│   │   ├── capture.py              # INMP441 I2S recording via pyaudio
-│   │   └── classifier.py           # MFCC extraction + CNN classification
-│   ├── coach/                      # v2
-│   │   ├── __init__.py
-│   │   ├── driver_style.py         # Random Forest: Eco/Normal/Aggressive
-│   │   ├── eco_score.py            # Multi-dimensional efficiency scoring
-│   │   └── route_learner.py        # GPS geofencing, braking patterns, route insights
-│   ├── gnn/                        # v4 stretch
-│   │   ├── __init__.py
-│   │   ├── vehicle_graph.py        # 8-node subsystem graph definition
-│   │   └── inference.py            # GCN inference via ONNX/TFLite
-│   ├── reports/                    # v4
-│   │   ├── __init__.py
-│   │   ├── generator.py            # Jinja2 + WeasyPrint PDF generation
-│   │   └── templates/              # HTML report templates
-│   └── database/
-│       ├── __init__.py
-│       └── db.py                   # SQLite WAL: schema, migrations, queries
-├── frontend/                       # React 19 + R3F 9 PWA
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── three/              # R3F components: CarModel, SubsystemGlow, Bloom
-│   │   │   ├── dashboard/          # HealthScore, SubsystemCards, StatusBar
-│   │   │   └── fuel/               # InstantMPG, TripCost, BudgetTracker, FillHistory
-│   │   ├── hooks/
-│   │   │   ├── useWebSocket.ts     # WebSocket connection + reconnect logic
-│   │   │   ├── useSensors.ts       # Web Generic Sensor API (60Hz accel)
-│   │   │   └── useGeolocation.ts   # Web Geolocation API (~1Hz GPS)
-│   │   ├── stores/
-│   │   │   └── vehicleStore.ts     # zustand store: OBD data, health, fuel state
-│   │   ├── App.tsx                 # Root component, layout
-│   │   └── main.tsx                # Entry point
-│   ├── public/
-│   │   ├── models/                 # GLB car model files (Draco compressed)
-│   │   └── manifest.json           # PWA manifest
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── package.json
-├── plugins/                        # v4: community analysis modules
-├── profiles/
-│   └── honda_accord_2026_se.yaml   # Vehicle profile: PIDs, ranges, specs, tank capacity
-├── deploy/
-│   ├── rune.service            # systemd unit for auto-start on Pi boot
-│   └── setup.sh                    # Pi setup script (WiFi AP, deps, OverlayFS)
-└── tests/
-    ├── replay_data/                # Captured real sensor data for regression tests
-    ├── test_safe_obd.py            # SafeOBDConnection whitelist tests
-    ├── test_health_scorer.py       # Health scoring with injected anomalies
-    ├── test_fuel_calculator.py     # MPG calculation, fill-up detection
-    └── test_simulator.py           # Simulator output validation
+  pi/                              # RASPBERRY PI 4B
+    backend/                       # Python FastAPI app
+      main.py                      # Entry point, producer loop, 22+ endpoints
+      config.py                    # Pydantic Settings (RUNE_* env vars)
+      ws_manager.py                # WebSocket connection manager
+      api/                         # controls, logs, system endpoints
+      obd_manager/                 # SafeOBDConnection, DataCollector, Simulator, Models
+      database/                    # SQLite WAL storage
+      fuel/                        # Trip tracking, instant MPG, fill-up detection
+      health/                      # 3-layer scoring (thresholds + HalfSpaceTrees + EWMA)
+      sensors/                     # wittypi.py [BUILT], bme280/mpu6050/inmp441 [v3 placeholders]
+    deploy/                        # setup.sh, systemd, shutdown, wittypi-setup
+    diagnostics/                   # Advanced dashboard (19 features) + go-live button
+
+  pixel/                           # PIXEL 6 PRO
+    frontend/                      # React 19 + Three.js + R3F PWA (4 screens)
+
+  mac/                             # MACBOOK PRO (v5+)
+    README.md                      # MLX training, Prophet forecasting, PDF reports
+
+  docs/                            # PRD, research, hardware checklist
+  tests/                           # 352+ tests (9 test files + replay_data/)
+  pyproject.toml                   # Python config (packages from pi/)
+  CLAUDE.md, README.md, LICENSE
 ```
 
 ---

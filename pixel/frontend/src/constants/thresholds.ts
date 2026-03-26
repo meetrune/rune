@@ -23,10 +23,11 @@ export const SENSOR_THRESHOLDS: Record<string, SensorThreshold> = {
     critical: {},
   },
   COOLANT_TEMP: {
+    // Backend: normal 70-100, warning 40-105, critical 0-110
     label: "Coolant",
     unit: "\u00B0C",
-    warn: { high: 100, low: 60 },
-    critical: { high: 110 },
+    warn: { high: 105, low: 40 },
+    critical: { high: 110, low: 0 },
   },
   ENGINE_LOAD: {
     label: "Load",
@@ -53,10 +54,12 @@ export const SENSOR_THRESHOLDS: Record<string, SensorThreshold> = {
     critical: { low: 8 },
   },
   BATTERY_V: {
+    // Backend: normal 12.0-15.0, warning 11.8-15.2, critical 11.0-16.0
+    // Honda ELD cycles voltage to 12.4-12.9V during cruising -- that is normal
     label: "Volts",
     unit: "V",
-    warn: { low: 12.4, high: 15.0 },
-    critical: { low: 11.8, high: 15.5 },
+    warn: { low: 11.8, high: 15.2 },
+    critical: { low: 11.0, high: 16.0 },
   },
   STFT: {
     label: "STFT",
@@ -65,11 +68,10 @@ export const SENSOR_THRESHOLDS: Record<string, SensorThreshold> = {
     critical: { low: -25, high: 25 },
   },
   LTFT: {
-    // Honda ECU adaptation limit is ~10%. Beyond that, ECU cannot compensate.
-    // Warning at 5%, critical at 10% -- matches backend thresholds.py
+    // Backend: normal +/-5%, warning +/-8%, critical +/-10%
     label: "LTFT",
     unit: "%",
-    warn: { low: -5, high: 5 },
+    warn: { low: -8, high: 8 },
     critical: { low: -10, high: 10 },
   },
   INTAKE_TEMP: {
@@ -85,22 +87,25 @@ export const SENSOR_THRESHOLDS: Record<string, SensorThreshold> = {
     critical: {},
   },
   CATALYST_TEMP: {
+    // Backend: normal 300-800, warning 100-950, critical 0-1050
     label: "Cat",
     unit: "\u00B0C",
-    warn: { high: 800 },
-    critical: { high: 900 },
+    warn: { high: 950 },
+    critical: { high: 1050 },
   },
   OIL_TEMP: {
+    // Backend: normal 80-120, warning 40-130, critical 0-140
     label: "Oil",
     unit: "\u00B0C",
-    warn: { high: 120, low: 50 },
-    critical: { high: 135 },
+    warn: { high: 130, low: 40 },
+    critical: { high: 140, low: 0 },
   },
   CVT_TEMP: {
+    // Backend: normal 50-100, warning 20-115, critical 0-130
     label: "CVT",
     unit: "\u00B0C",
-    warn: { high: 110 },
-    critical: { high: 125 },
+    warn: { high: 115 },
+    critical: { high: 130 },
   },
 };
 

@@ -48,7 +48,73 @@ Rune (the car)
 
 ### Status
 
-Research complete. Hardware ordered ($200.86). Architecture finalized. Giving Rune his voice starts Week 1.
+v1 built. 352 tests. Production-ready. Hardware delivered. Ready to connect.
+
+---
+
+### Project structure
+
+Organized by device. Each folder tells you where its code runs.
+
+```
+pi/           Raspberry Pi 4B -- backend, deploy scripts, diagnostics dashboard
+pixel/        Pixel 6 Pro -- React PWA frontend (4-screen car OS)
+mac/          MacBook Pro -- training workstation (v5+, placeholder)
+tests/        All 352 tests
+docs/         PRD, research, hardware checklist
+```
+
+---
+
+### Setting up
+
+**Pi (first time):**
+```bash
+# 1. Flash Raspberry Pi OS Trixie 64-bit Lite to SD card
+# 2. SSH in, clone the repo
+git clone https://github.com/meetrune/rune.git
+cd rune
+
+# 3. Build the frontend (on your dev machine first)
+cd pixel/frontend && npm ci && npm run build && cd ../..
+
+# 4. Run the setup script (creates user, venv, WiFi AP, systemd service)
+sudo pi/deploy/setup.sh --wifi-pass "your-wifi-password"
+
+# 5. Start Rune
+sudo systemctl start rune
+
+# Dashboard: http://192.168.4.1:8080
+# Diagnostics: http://192.168.4.1:8080/diagnostics
+# From MacBook: http://rune.local:8080
+```
+
+**Witty Pi 4 (power management):**
+```bash
+# Mount on Pi GPIO headers, insert CR2032 battery
+sudo pi/deploy/wittypi-setup.sh
+# Verify: i2cget -y 1 0x08 0x01  (should return Vin integer)
+```
+
+**Pixel 6 Pro:**
+1. Connect to "Rune" WiFi network
+2. Open Chrome, go to `http://192.168.4.1:8080`
+3. Install as PWA (Add to Home Screen)
+
+**Going live (removing simulation):**
+1. Open diagnostics: `http://192.168.4.1:8080/diagnostics`
+2. Scroll to Manual Controls
+3. Click the red "Remove Complete Simulation" button
+4. Confirm -- all fake data is purged, real OBD connection activates
+
+**Local development (Mac):**
+```bash
+cd rune
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+PYTHONPATH=pi uvicorn backend.main:app --host 0.0.0.0 --port 8080
+# Runs with simulator by default (RUNE_USE_SIMULATOR=true)
+```
 
 ---
 

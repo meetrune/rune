@@ -90,8 +90,8 @@ BATTERY_VOLTAGE = RangeThreshold(
 # 25-40% with AC on is expected. Above 50% sustained at idle is unusual.
 ENGINE_LOAD_IDLE = RangeThreshold(
     normal_low=15, normal_high=40,
-    warning_low=15, warning_high=50,
-    critical_low=15, critical_high=60,
+    warning_low=10, warning_high=50,
+    critical_low=5, critical_high=60,
 )
 
 # CVT fluid temp: Honda CVT fluid operates cooler than traditional ATF.
@@ -99,8 +99,8 @@ ENGINE_LOAD_IDLE = RangeThreshold(
 # push 100-115C. Above 130C risks CVT belt/chain damage.
 CVT_FLUID_TEMP = RangeThreshold(
     normal_low=50, normal_high=100,
-    warning_low=50, warning_high=115,
-    critical_low=50, critical_high=130,
+    warning_low=20, warning_high=115,
+    critical_low=0, critical_high=130,
 )
 
 # Catalyst temp: turbo integrated exhaust manifold absorbs heat before the
@@ -109,8 +109,8 @@ CVT_FLUID_TEMP = RangeThreshold(
 # running dumping unburned fuel into the cat).
 CATALYST_TEMP = RangeThreshold(
     normal_low=300, normal_high=800,
-    warning_low=300, warning_high=950,
-    critical_low=300, critical_high=1050,
+    warning_low=100, warning_high=950,
+    critical_low=0, critical_high=1050,
 )
 
 # Short-term fuel trim: +/-10% is normal closed-loop correction.

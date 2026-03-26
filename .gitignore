@@ -11,7 +11,7 @@ build/
 
 # Node
 node_modules/
-frontend/dist/
+pixel/frontend/dist/
 
 # IDE
 .vscode/
@@ -34,9 +34,8 @@ Thumbs.db
 tests/replay_data/*.bin
 
 # Models (allow rune_sedan.glb, ignore others)
-frontend/public/models/*.glb
-!frontend/public/models/rune_sedan.glb
-!frontend/public/models/.gitkeep
+pixel/frontend/public/models/*.glb
+!pixel/frontend/public/models/rune_sedan.glb
+!pixel/frontend/public/models/.gitkeep
 .superpowers/
 .vite/
-frontend/node_modules/

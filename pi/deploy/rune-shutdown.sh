@@ -31,15 +31,9 @@ log "Ignition off detected. Starting graceful shutdown..."
 #    CancelledError handler, which flushes the reading buffer to DB)
 if systemctl is-active --quiet rune; then
     log "Stopping Rune service..."
-    systemctl stop rune --no-block
-    # Wait up to 10s for clean stop
-    for i in $(seq 1 10); do
-        if ! systemctl is-active --quiet rune; then
-            log "Rune service stopped after ${i}s"
-            break
-        fi
-        sleep 1
-    done
+    # systemd handles SIGTERM -> wait -> SIGKILL via TimeoutStopSec=10 in rune.service
+    systemctl stop rune
+    log "Rune service stopped"
 fi
 
 # 2. Force a WAL checkpoint (merge WAL back into main DB)

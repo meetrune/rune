@@ -393,3 +393,23 @@ class RuneDatabase:
         row = await cursor.fetchone()
         count = row[0] if row else 0
         return round(count / window_seconds, 1) if window_seconds > 0 else 0.0
+
+    async def purge_all(self) -> dict[str, int]:
+        """Delete ALL data from all tables. Used by go-live to remove simulation data.
+
+        Returns a dict of table name -> rows deleted.
+        """
+        conn = self._require_conn()
+        tables = ["sensor_readings", "trips", "fillups", "health_scores"]
+        purged: dict[str, int] = {}
+        for table in tables:
+            cursor = await conn.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
+            row = await cursor.fetchone()
+            count = row[0] if row else 0
+            await conn.execute(f"DELETE FROM {table}")  # noqa: S608
+            purged[table] = count
+        await conn.commit()
+        # Reclaim disk space
+        await conn.execute("VACUUM")
+        logger.warning("purge_all: deleted %s", purged)
+        return purged

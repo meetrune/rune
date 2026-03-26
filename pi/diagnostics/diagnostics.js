@@ -821,7 +821,9 @@
     var resultEl = document.getElementById("result-" + action);
     if (!btn) return;
 
-    if (action === "recalibrate" || action === "restart-producer") {
+    if (action === "go-live") {
+      if (!confirm("WARNING: This will DELETE ALL simulated data and switch to real OBD hardware.\n\nThis cannot be undone. Are you sure?")) return;
+    } else if (action === "recalibrate" || action === "restart-producer") {
       var msg = action === "recalibrate" ? "Health scores will show -1 for ~5 minutes. Continue?" : "Producer loop will stop and restart. Continue?";
       if (!confirm(msg)) return;
     }
@@ -832,11 +834,16 @@
     if (resultEl) resultEl.style.display = "none";
 
     fetch(API + "/api/control/" + action, { method: "POST" }).then(function(r) { return r.json(); }).then(function(d) {
-      btn.disabled = false; btn.textContent = origText;
+      if (action === "go-live" && d.success) { btn.disabled = true; btn.textContent = "Live Mode Active"; btn.style.background = "#166534"; } else { btn.disabled = false; btn.textContent = origText; }
       if (resultEl) {
         resultEl.style.display = "block";
         resultEl.className = "control-result " + (d.success ? "success" : "error");
-        resultEl.textContent = d.success ? (d.message || "Success") + " (" + (d.duration_ms || 0).toFixed(1) + "ms)" : "Error: " + (d.error || "Unknown");
+        if (d.success && action === "go-live" && d.purged) {
+          var purgeMsg = "LIVE MODE ACTIVE. Purged: " + Object.keys(d.purged).map(function(k) { return k + "=" + d.purged[k]; }).join(", ") + " (" + (d.duration_ms || 0).toFixed(1) + "ms)";
+          resultEl.textContent = purgeMsg;
+        } else {
+          resultEl.textContent = d.success ? (d.message || "Success") + " (" + (d.duration_ms || 0).toFixed(1) + "ms)" : "Error: " + (d.error || "Unknown");
+        }
       }
     }).catch(function(e) {
       btn.disabled = false; btn.textContent = origText;
@@ -849,6 +856,7 @@
     document.getElementById("btn-checkpoint").addEventListener("click", function() { executeControl("checkpoint"); });
     document.getElementById("btn-recalibrate").addEventListener("click", function() { executeControl("recalibrate"); });
     document.getElementById("btn-restart-producer").addEventListener("click", function() { executeControl("restart-producer"); });
+    document.getElementById("btn-go-live").addEventListener("click", function() { executeControl("go-live"); });
   }
 
   // ---- Integration Test ----
