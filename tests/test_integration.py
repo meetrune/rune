@@ -251,18 +251,19 @@ class TestProducerLoopWiring:
         """ConnectionManager rejects connections above MAX_CONNECTIONS."""
         manager = ConnectionManager()
 
-        # Create mock websockets
-        for i in range(5):
+        # Create mock websockets up to MAX_CONNECTIONS (8)
+        from backend.ws_manager import MAX_CONNECTIONS
+        for i in range(MAX_CONNECTIONS):
             ws = AsyncMock()
             await manager.connect(ws)
 
-        assert manager.client_count == 5
+        assert manager.client_count == MAX_CONNECTIONS
 
-        # 6th should be rejected
-        ws6 = AsyncMock()
-        await manager.connect(ws6)
-        assert manager.client_count == 5  # still 5, not 6
-        ws6.close.assert_called_once()
+        # One more should be rejected
+        ws_extra = AsyncMock()
+        await manager.connect(ws_extra)
+        assert manager.client_count == MAX_CONNECTIONS  # unchanged
+        ws_extra.close.assert_called_once()
 
     async def test_fillup_detection_through_pipeline(self, db, fuel_calc):
         """Fuel level jump > 20% triggers fill-up detection and DB write."""

@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.api.logs import log_buffer
 from backend.config import settings
 from backend.database.db import RuneDatabase
 from backend.fuel.calculator import FuelCalculator
@@ -38,6 +39,10 @@ logging.basicConfig(
     format='{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}',
 )
 logger = logging.getLogger("rune")
+
+# Install ring buffer handler for /api/logs endpoint
+log_buffer.setFormatter(logging.Formatter("%(message)s"))
+logging.getLogger().addHandler(log_buffer)
 
 _start_time: float = 0.0
 
@@ -328,6 +333,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             db, manager, pi_reader, thermal_mgr,
         )
     )
+    app.state.producer_task = producer_task
     maintenance_task = asyncio.create_task(db_maintenance_loop(db))
 
     logger.info(
@@ -530,6 +536,198 @@ async def serve_diagnostics() -> FileResponse:
     return FileResponse(diag_path, media_type="text/html")
 
 
+@app.get("/diagnostics.js")
+async def serve_diagnostics_js() -> FileResponse:
+    """Serve the diagnostics dashboard JavaScript."""
+    js_path = Path(__file__).parent.parent / "diagnostics.js"
+    return FileResponse(js_path, media_type="application/javascript")
+
+
+@app.get("/diagnostics-topology.js")
+async def serve_diagnostics_topology_js() -> FileResponse:
+    """Serve the interactive topology JavaScript."""
+    js_path = Path(__file__).parent.parent / "diagnostics-topology.js"
+    return FileResponse(js_path, media_type="application/javascript")
+
+
+# --- Advanced Diagnostics Endpoints ---
+
+
+@app.get("/api/health-trend")
+async def health_trend(hours: int = Query(default=1, ge=1, le=168)) -> JSONResponse:
+    """Health score trend for sparkline visualization."""
+    db: RuneDatabase = app.state.db
+    scores = await db.get_health_trend(hours=hours)
+    return JSONResponse({"scores": scores, "hours": hours})
+
+
+@app.get("/api/system")
+async def system_info() -> JSONResponse:
+    """System metrics: CPU, RAM, disk, temp, uptime."""
+    from backend.api.system import get_system_info
+    info = await get_system_info()
+    return JSONResponse(info)
+
+
+@app.post("/api/obd/test")
+async def obd_test() -> JSONResponse:
+    """Test OBD connection by generating a snapshot and checking collector state.
+
+    In simulator mode: returns simulated ELM327 version.
+    In live mode: verifies the collector can produce a snapshot (proves TCP
+    connectivity to WiCAN Pro and successful PID polling). Does NOT send
+    raw AT commands -- ATI/ATRV are ELM327 chip commands that bypass the
+    OBD mode whitelist and belong to the connection init sequence, not
+    a diagnostic endpoint.
+    """
+    t = time.monotonic()
+    collector = app.state.collector
+    is_sim = isinstance(collector, SimulatedCollector)
+
+    if is_sim:
+        elapsed = (time.monotonic() - t) * 1000
+        return JSONResponse({
+            "success": True,
+            "response": "ELM327 v2.3 (simulated)",
+            "mode": "simulator",
+            "duration_ms": round(elapsed, 2),
+        })
+
+    # Live mode: verify OBD connection by requesting a snapshot
+    # This proves TCP connectivity + ELM327 init + PID polling works
+    try:
+        snap = await collector.get_snapshot()
+        elapsed = (time.monotonic() - t) * 1000
+        return JSONResponse({
+            "success": True,
+            "response": f"OBD connected. RPM={snap.rpm:.0f}, coolant={snap.coolant_temp_c:.1f}C",
+            "mode": "live",
+            "duration_ms": round(elapsed, 2),
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "mode": "live",
+            "duration_ms": round(elapsed, 2),
+        }, status_code=500)
+
+
+@app.post("/api/test/integration")
+async def integration_test() -> JSONResponse:
+    """Deep integration test: snapshot -> DB -> health -> fuel -> WS check."""
+    from backend.diagnostics import run_integration_test
+    result = await run_integration_test(app.state)
+    status_code = 200 if result["overall"] == "pass" else 500
+    return JSONResponse(result, status_code=status_code)
+
+
+@app.get("/api/logs")
+async def get_logs(
+    lines: int = Query(default=50, ge=1, le=500),
+    level: str = Query(default="DEBUG", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$"),
+) -> JSONResponse:
+    """Recent log entries from the in-memory ring buffer.
+
+    Filterable by minimum log level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+    Returns newest first.
+    """
+    records = log_buffer.get_records(min_level=level, limit=lines)
+    return JSONResponse({
+        "logs": records,
+        "total_buffered": log_buffer.count,
+        "filter_level": level.upper(),
+    })
+
+
+@app.get("/api/config")
+async def get_config() -> JSONResponse:
+    """All RuneSettings values. Read-only, for diagnostics display."""
+    config_dict = settings.model_dump()
+    # Group settings by category for frontend display
+    return JSONResponse({
+        "settings": config_dict,
+        "categories": {
+            "server": ["server_host", "server_port", "log_level"],
+            "obd": [
+                "obd_port", "obd_baudrate", "obd_protocol", "obd_fast",
+                "wican_host", "wican_port", "obd_cmd_timeout",
+                "obd_reconnect_max_backoff", "obd_circuit_breaker_threshold",
+                "obd_circuit_breaker_cooldown", "obd_stale_threshold",
+                "obd_mode22_enabled",
+            ],
+            "vehicle": [
+                "fuel_tank_capacity_gal", "epa_combined_mpg",
+                "gas_price_per_gallon",
+            ],
+            "websocket": ["ws_rate_hz"],
+            "database": ["db_path"],
+            "modes": ["use_simulator"],
+        },
+    })
+
+
+@app.post("/api/control/checkpoint")
+async def control_checkpoint() -> JSONResponse:
+    """Force a WAL checkpoint. Transfers pending writes to main DB file."""
+    from backend.api.controls import force_checkpoint
+    result = await force_checkpoint(app.state.db)
+    status_code = 200 if result["success"] else 500
+    return JSONResponse(result, status_code=status_code)
+
+
+@app.post("/api/control/recalibrate")
+async def control_recalibrate() -> JSONResponse:
+    """Reset health scorer calibration. Scores will show -1 for ~5 minutes."""
+    from backend.api.controls import recalibrate_health_scorer
+    result = await recalibrate_health_scorer(app.state.health_scorer)
+    status_code = 200 if result["success"] else 500
+    return JSONResponse(result, status_code=status_code)
+
+
+@app.post("/api/control/restart-producer")
+async def control_restart_producer() -> JSONResponse:
+    """Restart the OBD producer loop. Stops and re-creates the background task."""
+    t = time.monotonic()
+    try:
+        old_task: asyncio.Task[None] = app.state.producer_task
+        old_task.cancel()
+        try:
+            await old_task
+        except (asyncio.CancelledError, Exception):
+            pass  # old task is gone regardless of how it ended
+
+        # Re-create the producer task with the same components
+        new_task = asyncio.create_task(
+            obd_producer_loop(
+                app.state.collector,
+                app.state.fuel_calc,
+                app.state.fillup_detector,
+                app.state.health_scorer,
+                app.state.db,
+                app.state.connection_manager,
+                app.state.pi_reader,
+                app.state.thermal_mgr,
+            )
+        )
+        app.state.producer_task = new_task
+        elapsed = (time.monotonic() - t) * 1000
+
+        logger.info("Producer loop restarted via manual control in %.1fms", elapsed)
+        return JSONResponse({
+            "success": True,
+            "duration_ms": round(elapsed, 2),
+            "message": "Producer loop restarted. Data collection resumed.",
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        logger.error("Producer restart failed: %s", e)
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "duration_ms": round(elapsed, 2),
+        }, status_code=500)
 
 
 @app.websocket("/ws/vehicle-data")

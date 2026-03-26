@@ -58,7 +58,11 @@ echo ""
 # ── 1. System packages ───────────────────────────
 echo "[1/7] Installing system packages..."
 apt-get update -qq
-apt-get install -y -qq python3 python3-venv python3-pip git
+apt-get install -y -qq python3 python3-venv python3-pip git avahi-daemon
+
+# mDNS: set hostname to "rune" so MacBook can reach us at rune.local
+hostnamectl set-hostname rune
+echo "  mDNS configured: rune.local"
 
 # ── 2. Create rune user ──────────────────────────
 echo "[2/7] Creating rune user..."

@@ -307,6 +307,19 @@ class HealthScorer:
         """0.0 to 1.0 calibration progress."""
         return min(1.0, self._sample_count / self._calibration_threshold)
 
+    def reset_calibration(self) -> None:
+        """Reset calibration state. Scores will return -1 until re-calibrated.
+
+        Used by the /api/control/recalibrate endpoint. The HalfSpaceTrees
+        model is NOT reset -- it keeps learning. Only the calibration gate
+        is reopened so the scorer can re-learn what's "normal" for the
+        current conditions.
+        """
+        self._calibration_complete = False
+        self._sample_count = 0
+        self._consecutive_anomalies = 0
+        logger.info("Health scorer calibration reset")
+
     @property
     def last_anomaly_score(self) -> float:
         return self._last_anomaly_score

@@ -6,7 +6,7 @@
 <title>Rune Diagnostics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -24,6 +24,12 @@ body {
   color: #fff;
   min-height: 100vh;
 }
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
 
 /* ---- Sticky Nav ---- */
 .nav {
@@ -47,1111 +53,468 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #fff;
-  margin-right: 32px;
+  margin-right: 24px;
   white-space: nowrap;
 }
 
-.nav-links {
-  display: flex;
-  gap: 4px;
-}
+.nav-links { display: flex; gap: 4px; overflow-x: auto; }
 
 .nav-link {
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #aaa;
-  text-decoration: none;
-  border-radius: 6px;
-  transition: color 0.15s, background 0.15s;
-  cursor: pointer;
+  padding: 8px 14px; font-size: 13px; font-weight: 500; color: #aaa;
+  text-decoration: none; border-radius: 6px;
+  transition: color 0.25s ease, background 0.25s ease;
+  cursor: pointer; white-space: nowrap;
 }
+.nav-link:hover { color: #fff; background: #1a1a1a; }
+.nav-link.active { color: #fff; background: #1a1a1a; }
 
-.nav-link:hover {
-  color: #fff;
-  background: #1a1a1a;
-}
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+.nav-timestamp { font-size: 13px; color: #666; }
+.nav-latency { font-size: 12px; color: #666; font-family: 'JetBrains Mono', monospace; }
+.nav-latency.good { color: #22c55e; }
+.nav-latency.warn { color: #eab308; }
+.nav-latency.bad { color: #ef4444; }
 
-.nav-link.active {
-  color: #fff;
-  background: #1a1a1a;
-}
-
-.nav-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.nav-timestamp {
-  font-size: 13px;
-  color: #666;
-  white-space: nowrap;
-}
-
-.nav-ws-status {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #444;
-  flex-shrink: 0;
-}
-
+.nav-ws-status { width: 8px; height: 8px; border-radius: 50%; background: #444; flex-shrink: 0; }
 .nav-ws-status.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
 .nav-ws-status.disconnected { background: #ef4444; }
 
 /* ---- Sections ---- */
-.section {
-  width: 100%;
-  padding: 40px 40px 48px;
-  border-bottom: 1px solid #111;
-}
+.section { width: 100%; padding: 40px 40px 48px; border-bottom: 1px solid #111; scroll-margin-top: 64px; }
+.section-header { font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #666; margin-bottom: 24px; }
 
-.section-header {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #666;
-  margin-bottom: 24px;
-}
+/* Status banner also needs scroll offset */
+.status-banner { scroll-margin-top: 64px; }
 
 /* ---- Status Banner ---- */
-.status-banner {
-  padding: 28px 40px;
-  border-bottom: 1px solid #111;
-}
-
-.status-inner {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  width: 100%;
-}
-
-.status-dot-large {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
+.status-banner { padding: 28px 40px; border-bottom: 1px solid #111; }
+.status-inner { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; width: 100%; }
+.status-dot-large { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
 .status-dot-large.pass { background: #22c55e; box-shadow: 0 0 10px #22c55e60; }
 .status-dot-large.warn { background: #eab308; box-shadow: 0 0 10px #eab30860; }
 .status-dot-large.fail { background: #ef4444; box-shadow: 0 0 10px #ef444460; }
-
-.status-text {
-  font-size: 20px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.status-counts {
-  display: flex;
-  gap: 20px;
-  margin-left: auto;
-}
-
-.status-count {
-  font-size: 15px;
-  font-weight: 500;
-}
-
+.status-text { font-size: 20px; font-weight: 600; color: #fff; }
+.status-counts { display: flex; gap: 20px; margin-left: auto; }
+.status-count { font-size: 15px; font-weight: 500; }
 .status-count .num { font-weight: 700; }
 .status-count.pass-count { color: #22c55e; }
-.status-count.warn-count { color: #eab308; }
-.status-count.fail-count { color: #ef4444; }
-
-.status-loading {
-  font-size: 18px;
-  color: #666;
-  font-weight: 500;
-}
+.status-count.warn-count { color: #eab308; cursor: pointer; }
+.status-count.warn-count:hover { text-decoration: underline; }
+.status-count.fail-count { color: #ef4444; cursor: pointer; }
+.status-count.fail-count:hover { text-decoration: underline; }
+.status-text.clickable { cursor: pointer; }
+.status-text.clickable:hover { text-decoration: underline; }
+.status-loading { font-size: 18px; color: #666; font-weight: 500; }
+.status-sparkline { width: 120px; height: 32px; margin-left: 16px; flex-shrink: 0; }
 
 /* ---- Topology SVG ---- */
-.topology-wrapper {
-  width: 100%;
-  overflow-x: auto;
+.topology-wrapper { width: 100%; overflow-x: auto; position: relative; }
+.topology-svg { width: 100%; max-width: 1100px; margin: 0 auto; display: block; }
+
+/* ---- Interactive Topology Nodes (HTML, draggable) ---- */
+.topo-node {
+  position: absolute; width: 14%; min-width: 130px;
+  background: rgba(12, 12, 16, 0.85);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255,255,255,0.08); border-radius: 16px;
+  padding: 14px 16px 12px; cursor: grab; z-index: 1;
+  transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease, border-color 0.3s ease;
+  will-change: transform;
 }
-
-.topology-svg {
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  display: block;
+.topo-node:hover {
+  transform: translateY(-3px) scale(1.01);
 }
-
-.topo-node-rect {
-  rx: 10;
-  ry: 10;
-  stroke-width: 1.5;
+.topo-node:active { cursor: grabbing; transform: scale(1.03); }
+.topo-node-role { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px; font-weight: 500; }
+.topo-node-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topo-node-detail { font-size: 12px; color: #777; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topo-node-badge {
+  display: inline-block; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 10px; border-radius: 10px; background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.25);
+  transition: all 0.3s ease;
 }
+.topo-node-badge.connected { background: rgba(34,197,94,0.12); color: #22c55e; border-color: rgba(34,197,94,0.25); }
+.topo-node-badge.disconnected { background: rgba(239,68,68,0.12); color: #ef4444; border-color: rgba(239,68,68,0.25); }
 
-.topo-node-rect.connected {
-  fill: #0a0a0a;
-  stroke: #22c55e;
-  filter: url(#glow-green);
+/* Throughput tooltip */
+.topo-tooltip {
+  position: absolute; background: #111; border: 1px solid #333; border-radius: 8px;
+  padding: 10px 14px; font-size: 13px; color: #ccc; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s; z-index: 10; line-height: 1.6;
+  font-family: 'JetBrains Mono', monospace;
 }
+.topo-tooltip.visible { opacity: 1; }
+.topo-tooltip .label { color: #888; font-size: 11px; }
+.topo-tooltip .value { color: #fff; font-weight: 500; }
 
-.topo-node-rect.simulated {
-  fill: #0a0a0a;
-  stroke: #eab308;
-  filter: url(#glow-amber);
+/* Detail panel -- fixed right-side overlay */
+.topo-detail-panel {
+  position: fixed; top: 56px; right: 0; bottom: 0; width: 340px;
+  background: rgba(8, 8, 8, 0.98); border-left: 1px solid #1a1a1a;
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto; padding: 24px; z-index: 50;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
 }
-
-.topo-node-rect.disconnected {
-  fill: #0a0a0a;
-  stroke: #ef4444;
-  filter: url(#glow-red);
+.topo-detail-panel.open { transform: translateX(0); }
+.topo-detail-close {
+  position: absolute; top: 16px; right: 16px; width: 32px; height: 32px;
+  background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+  color: #888; font-size: 18px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; transition: all 0.15s; line-height: 1;
 }
-
-.topo-name {
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  fill: #fff;
+.topo-detail-close:hover { color: #fff; border-color: #555; }
+.detail-header { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+.detail-header .dot { width: 10px; height: 10px; border-radius: 50%; }
+.detail-header .dot.green { background: #22c55e; }
+.detail-header .dot.amber { background: #eab308; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.detail-item { background: #111; border-radius: 8px; padding: 12px 14px; }
+.detail-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.detail-value { font-size: 18px; font-weight: 600; color: #fff; font-family: 'JetBrains Mono', monospace; }
+.detail-value.small { font-size: 14px; }
+.detail-btn {
+  margin-top: 16px; padding: 10px 20px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #fff; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: background 0.15s;
 }
-
-.topo-detail {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  fill: #aaa;
-}
-
-.topo-badge {
-  font-family: 'Inter', sans-serif;
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.topo-conn-line {
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.topo-conn-line.connected { stroke: #22c55e; }
-.topo-conn-line.simulated { stroke: #eab308; stroke-dasharray: 6 4; }
-.topo-conn-line.disconnected { stroke: #ef4444; stroke-dasharray: 4 4; }
-
-.topo-conn-label {
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  fill: #888;
-}
-
-@keyframes flow {
-  to { stroke-dashoffset: -20; }
-}
-
-.topo-flow {
-  fill: none;
-  stroke-width: 2;
-  stroke-dasharray: 4 6;
-  animation: flow 1s linear infinite;
-}
-
-.topo-flow.connected { stroke: #22c55e80; }
-.topo-flow.simulated { stroke: #eab30880; }
+.detail-btn:hover { background: #222; }
+.detail-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---- Sensor Grid ---- */
-.sensor-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
+.sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .sensor-cell {
-  background: #0a0a0a;
-  border: 1px solid #1a1a1a;
-  border-radius: 10px;
-  padding: 20px;
-  transition: border-color 0.2s;
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px;
+  padding: 16px 20px 54px; position: relative;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
 }
-
-.sensor-cell:hover {
-  border-color: #333;
-}
-
-.sensor-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #aaa;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
+.sensor-cell:hover { border-color: #2a2a2a; box-shadow: 0 2px 12px rgba(0,0,0,0.3); transform: translateY(-1px); }
+.sensor-label { font-size: 12px; font-weight: 500; color: #aaa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
 .sensor-value {
-  font-size: 40px;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+  font-size: 36px; font-weight: 700; color: #fff; line-height: 1.1;
+  font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; position: relative; z-index: 1;
+}
+.sensor-value.warn { color: #eab308; }
+.sensor-value.critical { color: #ef4444; }
+.sensor-unit { font-size: 14px; font-weight: 500; color: #888; margin-left: 4px; }
+.sensor-no-data { color: #444; }
+.sensor-sparkline {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 44px;
+  opacity: 0.35; border-radius: 0 0 10px 10px;
+  width: 100%;
 }
 
-.sensor-unit {
-  font-size: 16px;
-  font-weight: 500;
-  color: #888;
-  margin-left: 4px;
+/* ---- Thermal Gauge ---- */
+.thermal-gauge-wrapper { display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; }
+.thermal-bar {
+  flex: 1; min-width: 200px; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px; padding: 20px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
+.thermal-bar:hover { border-color: #2a2a2a; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+.thermal-bar-label { font-size: 13px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+.thermal-bar-value { font-size: 36px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-bottom: 12px; }
+.thermal-bar-value.green { color: #22c55e; }
+.thermal-bar-value.yellow { color: #eab308; }
+.thermal-bar-value.orange { color: #f97316; }
+.thermal-bar-value.red { color: #ef4444; }
+.thermal-bar-value.danger { color: #dc2626; }
+.thermal-track { width: 100%; height: 12px; background: #1a1a1a; border-radius: 6px; overflow: hidden; }
+.thermal-fill { height: 100%; border-radius: 6px; transition: width 0.5s, background 0.5s; min-width: 4px; }
+.thermal-bands { display: flex; height: 6px; margin-top: 6px; border-radius: 3px; overflow: hidden; gap: 2px; }
+.thermal-bands > div { flex: 1; border-radius: 3px; opacity: 0.6; }
+.thermal-rate { font-size: 12px; color: #888; margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
 
-.sensor-no-data {
-  color: #444;
-}
+.db-growth-wrapper { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.db-growth-sparkline { width: 160px; height: 48px; border: 1px solid #1a1a1a; border-radius: 6px; background: #050505; }
+.db-stat { text-align: center; min-width: 80px; }
+.db-stat-value { font-size: 20px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #fff; }
+.db-stat-label { font-size: 11px; color: #888; text-transform: uppercase; }
 
 /* ---- Check Categories ---- */
-.check-filters {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
-}
-
+.check-filters { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
 .check-filter-btn {
-  padding: 8px 18px;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: 'Inter', sans-serif;
-  color: #aaa;
-  background: #0a0a0a;
-  border: 1px solid #1a1a1a;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
+  padding: 8px 18px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #aaa; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-.check-filter-btn:hover {
-  color: #fff;
-  border-color: #333;
-}
-
-.check-filter-btn.active {
-  color: #fff;
-  background: #1a1a1a;
-  border-color: #333;
-}
-
-.category-group {
-  margin-bottom: 32px;
-}
-
-.category-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  margin-bottom: 12px;
-  border-bottom: 1px solid #1a1a1a;
-}
-
-.category-name {
-  font-size: 16px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #fff;
-}
-
-.category-count {
-  font-size: 13px;
-  font-weight: 500;
-  color: #888;
-}
-
+.check-filter-btn:hover { color: #fff; border-color: #333; }
+.check-filter-btn.active { color: #fff; background: #1a1a1a; border-color: #333; }
+.category-group { margin-bottom: 32px; }
+.category-header { display: flex; align-items: center; gap: 12px; padding: 12px 0; margin-bottom: 12px; border-bottom: 1px solid #1a1a1a; }
+.category-name { font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #fff; }
+.category-count { font-size: 13px; font-weight: 500; color: #888; }
 .check-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 8px;
-  margin-bottom: 4px;
-  transition: background 0.15s;
+  display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-radius: 10px;
+  margin-bottom: 4px; cursor: pointer; transition: background 0.2s ease, transform 0.15s ease;
 }
-
-.check-item:hover {
-  background: #0a0a0a;
-}
-
-.check-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
+.check-item:hover { background: #0a0a0a; transform: translateX(4px); }
+.check-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
 .check-dot.pass { background: #22c55e; }
 .check-dot.warn { background: #eab308; }
 .check-dot.fail { background: #ef4444; }
 .check-dot.skip { background: #555; }
+.check-info { flex: 1; min-width: 0; }
+.check-name { font-size: 18px; font-weight: 600; color: #fff; line-height: 1.3; }
+.check-message { font-size: 15px; color: #ccc; margin-top: 2px; word-break: break-word; }
+.check-hint { font-size: 14px; color: #eab308; margin-top: 6px; }
+.check-hint.fail-hint { color: #ef4444; }
+.check-detail { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+.check-detail.open { max-height: 300px; margin-top: 12px; }
+.check-detail-inner { background: #111; border-radius: 8px; padding: 14px 16px; font-size: 14px; color: #ccc; line-height: 1.6; }
+.check-detail-inner .step { margin-bottom: 8px; padding-left: 16px; position: relative; }
+.check-detail-inner .step::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: #333; }
+.check-duration { font-size: 13px; color: #555; white-space: nowrap; margin-top: 4px; }
 
-.check-info {
-  flex: 1;
-  min-width: 0;
+/* ---- Trips ---- */
+.trips-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+.trip-card {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px; padding: 16px 20px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; align-items: center;
+  transition: border-color 0.3s ease, transform 0.2s ease;
 }
+.trip-card:hover { border-color: #2a2a2a; transform: translateY(-1px); }
+.trip-stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
+.trip-stat-value { font-size: 20px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.trip-stat-value.good { color: #22c55e; }
+.trip-stat-value.ok { color: #eab308; }
+.trip-stat-value.poor { color: #ef4444; }
 
-.check-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
-  line-height: 1.3;
+/* ---- Log Viewer ---- */
+.log-controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.log-level-btn {
+  padding: 6px 14px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #888; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 6px; cursor: pointer; transition: all 0.15s;
 }
-
-.check-message {
-  font-size: 15px;
-  color: #ccc;
-  margin-top: 2px;
-  word-break: break-word;
+.log-level-btn:hover { color: #fff; border-color: #333; }
+.log-level-btn.active { color: #fff; background: #1a1a1a; border-color: #333; }
+.log-pause-btn {
+  margin-left: auto; padding: 6px 14px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #aaa; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 6px; cursor: pointer;
 }
-
-.check-hint {
-  font-size: 14px;
-  color: #eab308;
-  margin-top: 6px;
+.log-pause-btn.paused { color: #eab308; border-color: #eab308; }
+.log-viewer {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 10px;
+  padding: 16px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7;
 }
+.log-entry { display: flex; gap: 12px; padding: 2px 0; }
+.log-time { color: #555; flex-shrink: 0; }
+.log-level-tag { flex-shrink: 0; font-weight: 500; width: 70px; }
+.log-level-tag.DEBUG { color: #888; }
+.log-level-tag.INFO { color: #3b82f6; }
+.log-level-tag.WARNING { color: #eab308; }
+.log-level-tag.ERROR { color: #ef4444; }
+.log-level-tag.CRITICAL { color: #dc2626; font-weight: 700; }
+.log-logger { color: #666; flex-shrink: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.log-msg { color: #ccc; word-break: break-word; }
 
-.check-hint.fail-hint {
-  color: #ef4444;
+/* ---- Config Viewer ---- */
+.config-group { margin-bottom: 24px; }
+.config-group-header { font-size: 14px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #1a1a1a; }
+.config-table { width: 100%; border-collapse: collapse; }
+.config-table td { padding: 8px 12px; font-size: 14px; border-bottom: 1px solid #0f0f0f; }
+.config-key { color: #aaa; font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 40%; }
+.config-val { color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; }
+
+/* ---- Controls ---- */
+.controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.control-card {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px; padding: 20px;
+  display: flex; flex-direction: column;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
-
-.check-duration {
-  font-size: 13px;
-  color: #555;
-  white-space: nowrap;
-  margin-top: 4px;
+.control-card:hover { border-color: #2a2a2a; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+.control-card-desc { flex: 1; }
+.control-card-title { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+.control-card-desc { font-size: 14px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+.control-btn {
+  padding: 10px 20px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #fff; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); width: 100%;
 }
+.control-btn:hover { background: #222; border-color: #555; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.control-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.control-btn.destructive { border-color: #ef444440; }
+.control-btn.destructive:hover { border-color: #ef4444; background: #1a0a0a; }
+.control-result { margin-top: 12px; font-size: 13px; font-family: 'JetBrains Mono', monospace; padding: 10px 12px; border-radius: 6px; line-height: 1.5; }
+.control-result.success { background: #22c55e10; color: #22c55e; border: 1px solid #22c55e20; }
+.control-result.error { background: #ef444410; color: #ef4444; border: 1px solid #ef444420; }
 
-/* ---- No Data State ---- */
-.no-data-msg {
-  font-size: 16px;
-  color: #555;
-  text-align: center;
-  padding: 48px 0;
-}
+/* ---- Connection Guide ---- */
+.connection-guide { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 10px; padding: 20px; margin-top: 20px; }
+.connection-guide h3 { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 12px; }
+.connection-guide .step-item { font-size: 14px; color: #ccc; margin-bottom: 8px; padding-left: 20px; position: relative; }
+.connection-guide .step-item::before { content: attr(data-num); position: absolute; left: 0; color: #22c55e; font-weight: 600; }
+.connection-guide code { background: #111; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #22c55e; }
 
-/* ---- Footer ---- */
-.footer {
-  padding: 32px 40px;
-  text-align: center;
-  font-size: 13px;
-  color: #444;
-}
+/* ---- Integration Test ---- */
+.integration-steps { display: flex; flex-direction: column; gap: 8px; }
+.integration-step { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #0a0a0a; border-radius: 8px; border: 1px solid #1a1a1a; }
+.integration-step .step-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.integration-step .step-dot.pass { background: #22c55e; }
+.integration-step .step-dot.fail { background: #ef4444; }
+.integration-step .step-dot.warn { background: #eab308; }
+.integration-step .step-name { font-size: 14px; font-weight: 500; color: #fff; flex: 1; }
+.integration-step .step-detail { font-size: 13px; color: #888; }
+.integration-step .step-time { font-size: 12px; color: #555; font-family: 'JetBrains Mono', monospace; }
 
-/* ---- Responsive ---- */
+.no-data-msg { font-size: 16px; color: #555; text-align: center; padding: 48px 0; }
+.footer { padding: 32px 40px; text-align: center; font-size: 13px; color: #444; }
+
 @media (max-width: 900px) {
   .sensor-grid { grid-template-columns: repeat(2, 1fr); }
   .section { padding: 28px 20px 36px; }
   .nav { padding: 0 20px; }
   .status-banner { padding: 20px; }
   .topology-svg { min-width: 700px; }
+  .trip-card { grid-template-columns: 1fr 1fr; }
+  .controls-grid { grid-template-columns: 1fr; }
+  .topo-detail-panel { width: 320px; }
 }
-
 @media (max-width: 500px) {
   .sensor-grid { grid-template-columns: 1fr 1fr; }
-  .sensor-value { font-size: 32px; }
-  .nav-brand { font-size: 13px; margin-right: 16px; }
-  .nav-link { padding: 6px 10px; font-size: 13px; }
-  .status-counts { gap: 12px; }
+  .sensor-value { font-size: 28px; }
+  .nav-brand { font-size: 13px; margin-right: 12px; }
+  .nav-link { padding: 6px 10px; font-size: 12px; }
 }
 </style>
 </head>
 <body>
 
-<!-- Sticky Navigation -->
 <nav class="nav">
-  <div class="nav-brand">Rune Diagnostics</div>
+  <div class="nav-brand">Rune Diagnostics <span style="font-size:10px;font-weight:400;letter-spacing:0.04em;color:#555;margin-left:8px">by Kuladeep Mantri</span></div>
   <div class="nav-links">
     <a class="nav-link active" data-section="overview">Overview</a>
     <a class="nav-link" data-section="topology">Topology</a>
     <a class="nav-link" data-section="sensors">Sensors</a>
+    <a class="nav-link" data-section="thermal">Thermal</a>
     <a class="nav-link" data-section="checks">Checks</a>
+    <a class="nav-link" data-section="trips">Trips</a>
+    <a class="nav-link" data-section="logs">Logs</a>
+    <a class="nav-link" data-section="config">Config</a>
+    <a class="nav-link" data-section="controls">Controls</a>
   </div>
   <div class="nav-right">
+    <span class="nav-latency" id="ws-latency"></span>
     <span class="nav-timestamp" id="nav-timestamp">--</span>
     <div class="nav-ws-status" id="ws-indicator" title="WebSocket disconnected"></div>
   </div>
 </nav>
 
-<!-- Status Banner -->
 <section id="overview" class="status-banner">
-  <div id="status-content">
-    <span class="status-loading">Loading diagnostics...</span>
-  </div>
+  <div id="status-content"><span class="status-loading">Loading diagnostics...</span></div>
 </section>
 
-<!-- System Topology -->
 <section id="topology" class="section">
-  <div class="section-header">System Topology</div>
-  <div class="topology-wrapper">
-    <svg class="topology-svg" viewBox="0 0 1100 320" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="4" result="blur"/>
-          <feFlood flood-color="#22c55e" flood-opacity="0.15" result="color"/>
-          <feComposite in="color" in2="blur" operator="in" result="glow"/>
-          <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="4" result="blur"/>
-          <feFlood flood-color="#eab308" flood-opacity="0.15" result="color"/>
-          <feComposite in="color" in2="blur" operator="in" result="glow"/>
-          <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="4" result="blur"/>
-          <feFlood flood-color="#ef4444" flood-opacity="0.15" result="color"/>
-          <feComposite in="color" in2="blur" operator="in" result="glow"/>
-          <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <marker id="arrow-green" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto">
-          <path d="M0,0 L10,4 L0,8 Z" fill="#22c55e"/>
-        </marker>
-        <marker id="arrow-amber" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto">
-          <path d="M0,0 L10,4 L0,8 Z" fill="#eab308"/>
-        </marker>
-        <marker id="arrow-red" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto">
-          <path d="M0,0 L10,4 L0,8 Z" fill="#ef4444"/>
-        </marker>
-      </defs>
-
-      <!-- Connection lines (behind nodes) -->
-      <!-- Honda -> WiCAN -->
-      <path id="line-honda-wican" class="topo-conn-line simulated" d="M 220,120 C 280,120 300,120 340,120" marker-end="url(#arrow-amber)"/>
-      <path class="topo-flow simulated" d="M 220,120 C 280,120 300,120 340,120"/>
-      <text class="topo-conn-label" x="280" y="108" text-anchor="middle">OBD-II CAN</text>
-
-      <!-- WiCAN -> Pi -->
-      <path id="line-wican-pi" class="topo-conn-line simulated" d="M 530,120 C 590,120 610,120 650,120" marker-end="url(#arrow-amber)"/>
-      <path class="topo-flow simulated" d="M 530,120 C 590,120 610,120 650,120"/>
-      <text class="topo-conn-label" x="590" y="100" text-anchor="middle">ELM327</text>
-      <text class="topo-conn-label" x="590" y="114" text-anchor="middle">TCP:3333</text>
-
-      <!-- Pi -> Pixel -->
-      <path id="line-pi-pixel" class="topo-conn-line simulated" d="M 840,120 C 900,120 920,120 960,120" marker-end="url(#arrow-amber)"/>
-      <path class="topo-flow simulated" d="M 840,120 C 900,120 920,120 960,120"/>
-      <text class="topo-conn-label" x="900" y="100" text-anchor="middle">WebSocket</text>
-      <text class="topo-conn-label" x="900" y="114" text-anchor="middle">10Hz</text>
-
-      <!-- Pi -> Witty Pi (vertical) -->
-      <path id="line-pi-witty" class="topo-conn-line simulated" d="M 745,170 L 745,230" marker-end="url(#arrow-amber)"/>
-      <text class="topo-conn-label" x="762" y="205" text-anchor="start">I2C 0x08</text>
-
-      <!-- Device nodes -->
-      <!-- Honda Accord -->
-      <rect class="topo-node-rect simulated" x="30" y="72" width="190" height="96"/>
-      <text class="topo-name" x="125" y="108" text-anchor="middle">Honda Accord SE</text>
-      <text class="topo-detail" x="125" y="126" text-anchor="middle">2026 L15BE 1.5T CVT</text>
-      <rect x="80" y="136" width="90" height="20" rx="10" fill="#eab30820" stroke="#eab308" stroke-width="1"/>
-      <text class="topo-badge" x="125" y="150" text-anchor="middle" fill="#eab308" id="badge-honda">SIMULATED</text>
-
-      <!-- WiCAN Pro -->
-      <rect class="topo-node-rect simulated" x="340" y="72" width="190" height="96"/>
-      <text class="topo-name" x="435" y="108" text-anchor="middle">WiCAN Pro</text>
-      <text class="topo-detail" x="435" y="126" text-anchor="middle">ESP32-S3 / WiFi STA</text>
-      <rect x="390" y="136" width="90" height="20" rx="10" fill="#eab30820" stroke="#eab308" stroke-width="1"/>
-      <text class="topo-badge" x="435" y="150" text-anchor="middle" fill="#eab308" id="badge-wican">SIMULATED</text>
-
-      <!-- Raspberry Pi 4B -->
-      <rect class="topo-node-rect simulated" x="650" y="72" width="190" height="96"/>
-      <text class="topo-name" x="745" y="108" text-anchor="middle">Raspberry Pi 4B</text>
-      <text class="topo-detail" x="745" y="126" text-anchor="middle">Trixie / Python 3.13</text>
-      <rect x="700" y="136" width="90" height="20" rx="10" fill="#22c55e20" stroke="#22c55e" stroke-width="1"/>
-      <text class="topo-badge" x="745" y="150" text-anchor="middle" fill="#22c55e" id="badge-pi">CONNECTED</text>
-
-      <!-- Pixel 6 Pro -->
-      <rect class="topo-node-rect simulated" x="960" y="72" width="120" height="96"/>
-      <text class="topo-name" x="1020" y="108" text-anchor="middle">Pixel 6 Pro</text>
-      <text class="topo-detail" x="1020" y="126" text-anchor="middle">Display PWA</text>
-      <rect x="978" y="136" width="84" height="20" rx="10" fill="#eab30820" stroke="#eab308" stroke-width="1"/>
-      <text class="topo-badge" x="1020" y="150" text-anchor="middle" fill="#eab308" id="badge-pixel">SIMULATED</text>
-
-      <!-- Witty Pi 4 -->
-      <rect class="topo-node-rect simulated" x="670" y="230" width="150" height="76"/>
-      <text class="topo-name" x="745" y="262" text-anchor="middle">Witty Pi 4</text>
-      <text class="topo-detail" x="745" y="280" text-anchor="middle">12V->5V / RTC</text>
-    </svg>
-  </div>
+  <div class="section-header">System Topology <span style="font-size:11px;color:#444;font-weight:400;letter-spacing:0;text-transform:none">-- drag nodes to rearrange</span></div>
+  <div id="topo-container" style="min-height:420px"></div>
 </section>
 
-<!-- Live Sensors -->
+<!-- Right-side device detail panel (overlay) -->
+<div class="topo-detail-panel" id="device-detail-panel">
+  <button class="topo-detail-close" id="detail-close-btn">&times;</button>
+  <div id="device-detail-content"></div>
+</div>
+
 <section id="sensors" class="section">
   <div class="section-header">Live Sensors</div>
   <div class="sensor-grid" id="sensor-grid"></div>
   <p class="no-data-msg" id="sensor-no-data">Waiting for WebSocket connection...</p>
 </section>
 
-<!-- Diagnostic Checks -->
+<section id="thermal" class="section">
+  <div class="section-header">Thermal Management</div>
+  <div class="thermal-gauge-wrapper">
+    <div class="thermal-bar">
+      <div class="thermal-bar-label">CPU Temperature</div>
+      <div class="thermal-bar-value green" id="therm-cpu-val">--</div>
+      <div class="thermal-track"><div class="thermal-fill" id="therm-cpu-fill" style="width:0%;background:#22c55e"></div></div>
+      <div class="thermal-bands"><div style="background:#22c55e"></div><div style="background:#eab308"></div><div style="background:#f97316"></div><div style="background:#ef4444"></div><div style="background:#dc2626"></div></div>
+      <div class="thermal-rate" id="therm-cpu-rate">Rate: --</div>
+    </div>
+    <div class="thermal-bar">
+      <div class="thermal-bar-label">Armrest Temperature</div>
+      <div class="thermal-bar-value green" id="therm-arm-val">--</div>
+      <div class="thermal-track"><div class="thermal-fill" id="therm-arm-fill" style="width:0%;background:#22c55e"></div></div>
+      <div class="thermal-bands"><div style="background:#22c55e"></div><div style="background:#eab308"></div><div style="background:#f97316"></div><div style="background:#ef4444"></div><div style="background:#dc2626"></div></div>
+      <div class="thermal-rate" id="therm-arm-rate">Rate: --</div>
+    </div>
+    <div class="thermal-bar">
+      <div class="thermal-bar-label">Database Growth</div>
+      <div class="db-growth-wrapper">
+        <div class="db-stat"><div class="db-stat-value" id="db-size-val">--</div><div class="db-stat-label">DB Size</div></div>
+        <canvas class="db-growth-sparkline" id="db-growth-canvas" width="200" height="50"></canvas>
+        <div class="db-stat"><div class="db-stat-value" id="db-wal-val">--</div><div class="db-stat-label">WAL</div></div>
+      </div>
+      <div class="thermal-rate" id="db-rate">Insert rate: --</div>
+    </div>
+  </div>
+</section>
+
 <section id="checks" class="section">
   <div class="section-header">Diagnostic Checks</div>
+  <div style="margin-bottom:24px;display:flex;gap:12px;align-items:center">
+    <button class="detail-btn" id="btn-integration-test">Run Integration Test</button>
+    <span id="integration-status" style="font-size:14px;color:#888"></span>
+  </div>
+  <div class="integration-steps" id="integration-steps" style="margin-bottom:24px;display:none"></div>
   <div class="check-filters" id="check-filters">
     <button class="check-filter-btn active" data-filter="all">All</button>
     <button class="check-filter-btn" data-filter="fail">Failed</button>
     <button class="check-filter-btn" data-filter="warn">Warnings</button>
     <button class="check-filter-btn" data-filter="pass">Passed</button>
   </div>
-  <div id="checks-container">
-    <p class="no-data-msg">Loading checks...</p>
+  <div id="checks-container"><p class="no-data-msg">Loading checks...</p></div>
+</section>
+
+<section id="trips" class="section">
+  <div class="section-header">Trip History</div>
+  <div class="trips-list" id="trips-list"><p class="no-data-msg">Loading trips...</p></div>
+</section>
+
+<section id="logs" class="section">
+  <div class="section-header">Log Viewer</div>
+  <div class="log-controls">
+    <button class="log-level-btn active" data-level="DEBUG">DEBUG</button>
+    <button class="log-level-btn" data-level="INFO">INFO</button>
+    <button class="log-level-btn" data-level="WARNING">WARNING</button>
+    <button class="log-level-btn" data-level="ERROR">ERROR</button>
+    <button class="log-level-btn" data-level="CRITICAL">CRITICAL</button>
+    <button class="log-pause-btn" id="log-pause-btn">Pause</button>
+  </div>
+  <div class="log-viewer" id="log-viewer"><p class="no-data-msg">Loading logs...</p></div>
+</section>
+
+<section id="config" class="section">
+  <div class="section-header">Configuration (Read-Only)</div>
+  <div id="config-container"><p class="no-data-msg">Loading config...</p></div>
+</section>
+
+<section id="controls" class="section">
+  <div class="section-header">Manual Controls</div>
+  <div class="controls-grid">
+    <div class="control-card">
+      <div class="control-card-title">WAL Checkpoint</div>
+      <div class="control-card-desc">Force a WAL checkpoint. Transfers pending writes from the WAL file to the main database. Useful before copying the DB for offline analysis.</div>
+      <button class="control-btn" id="btn-checkpoint">Run Checkpoint</button>
+      <div class="control-result" id="result-checkpoint" style="display:none"></div>
+    </div>
+    <div class="control-card">
+      <div class="control-card-title">Recalibrate Health Scorer</div>
+      <div class="control-card-desc">Reset the health scorer's learned baseline. Scores will return -1 (calibrating) for about 5 minutes while it re-learns what's normal.</div>
+      <button class="control-btn destructive" id="btn-recalibrate">Recalibrate</button>
+      <div class="control-result" id="result-recalibrate" style="display:none"></div>
+    </div>
+    <div class="control-card">
+      <div class="control-card-title">Restart Producer Loop</div>
+      <div class="control-card-desc">Stop and restart the OBD data collection loop. Use if data appears frozen or the producer fell behind.</div>
+      <button class="control-btn destructive" id="btn-restart-producer">Restart Producer</button>
+      <div class="control-result" id="result-restart-producer" style="display:none"></div>
+    </div>
   </div>
 </section>
 
-<footer class="footer">
-  Rune v1 -- 2026 Honda Accord SE -- diagnostics dashboard
-</footer>
+<footer class="footer">Rune v1 -- 2026 Honda Accord SE -- Advanced Diagnostics Dashboard</footer>
 
-<script>
-(function() {
-  "use strict";
-
-  // -- Config --
-  var API_BASE = window.location.origin;
-  var DIAG_URL = API_BASE + "/api/diagnostics";
-  var WS_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") +
-               window.location.host + "/ws/vehicle-data";
-  var REFRESH_MS = 15000;
-  var WS_RECONNECT_MS = 3000;
-
-  // -- Sensor definitions --
-  var SENSOR_DEFS = [
-    { key: "RPM",          label: "RPM",             unit: "rpm", decimals: 0 },
-    { key: "SPEED",        label: "Speed",           unit: "kph", decimals: 0 },
-    { key: "COOLANT_TEMP", label: "Coolant Temp",    unit: "C",   decimals: 1 },
-    { key: "OIL_TEMP",     label: "Oil Temp",        unit: "C",   decimals: 1 },
-    { key: "BATTERY_V",    label: "Battery",         unit: "V",   decimals: 1 },
-    { key: "MAF",          label: "MAF",             unit: "g/s", decimals: 2 },
-    { key: "STFT",         label: "Short Fuel Trim", unit: "%",   decimals: 1 },
-    { key: "LTFT",         label: "Long Fuel Trim",  unit: "%",   decimals: 1 },
-    { key: "FUEL_LEVEL",   label: "Fuel Level",      unit: "%",   decimals: 0 },
-    { key: "ENGINE_LOAD",  label: "Engine Load",     unit: "%",   decimals: 0 },
-    { key: "THROTTLE_POS", label: "Throttle",        unit: "%",   decimals: 0 },
-    { key: "CATALYST_TEMP",label: "Catalyst Temp",   unit: "C",   decimals: 0 },
-    { key: "INTAKE_TEMP",  label: "Intake Temp",     unit: "C",   decimals: 0 },
-    { key: "MAP",          label: "MAP",             unit: "kPa", decimals: 0 },
-    { key: "PI_CPU_TEMP",  label: "Pi CPU Temp",     unit: "C",   decimals: 1 },
-    { key: "ARMREST_TEMP", label: "Armrest Temp",    unit: "C",   decimals: 1 },
-    { key: "VIN_VOLTAGE",  label: "Vin Voltage",     unit: "V",   decimals: 1 },
-    { key: "PI_CURRENT",   label: "Pi Current",      unit: "A",   decimals: 2 }
-  ];
-
-  // -- Error hints for known check names --
-  var ERROR_HINTS = {
-    "FastAPI Server":           "Backend may not be running. Start with: uvicorn backend.main:app",
-    "SQLite Database":          "Database file missing or corrupted. Check db path in config.",
-    "OBD Collector":            "Collector not running. On Mac, ensure use_simulator=True in .env.",
-    "Fuel Calculator":          "Fuel calculator failed to initialize. Check FuelCalculator config.",
-    "Health Scorer":            "Needs ~5 minutes of data to calibrate. Wait or check scorer config.",
-    "Thermal Manager":          "Thermal manager failed. Check ThermalManager initialization.",
-    "Witty Pi Reader":          "I2C not connected. Expected on Mac dev. Works on Pi with I2C wired.",
-    "WebSocket Manager":        "WebSocket manager failed. Check ws_manager.py.",
-    "Snapshot Generation":      "Collector cannot generate snapshots. Check collector startup.",
-    "Fuel Pipeline":            "Fuel calculation pipeline failed. Check FuelCalculator.update().",
-    "Health Pipeline":          "Health scoring pipeline failed. Likely still calibrating.",
-    "DB Write/Read Cycle":      "Cannot write/read database. Check file permissions and disk space.",
-    "setup.sh":                 "Deployment script missing. Should be in deploy/ directory.",
-    "rune.service":             "systemd service file missing. Needed for Pi auto-start.",
-    "rune.env":                 "Production env file missing. Copy from deploy/rune.env.example.",
-    "rune-shutdown.sh":         "Graceful shutdown script missing. Needed for Witty Pi power mgmt.",
-    "wittypi-setup.sh":         "Witty Pi setup script missing. Needed for I2C config on Pi.",
-    "ci.yml":                   "No CI pipeline. Create .github/workflows/ci.yml.",
-    "package.json":             "Frontend dependencies missing. Run: cd frontend && npm init",
-    "Frontend Build (dist/)":   "Frontend not built. Run: cd frontend && npm run build",
-    "Service Worker (sw.js)":   "PWA service worker missing. Build frontend: npm run build",
-    "3D Car Model (accord.glb)":"3D model missing. Place accord.glb in frontend/public/models/",
-    "PWA Manifest":             "manifest.json missing. Needed for PWA install on Pixel."
-  };
-
-  // -- Category order and labels --
-  var CATEGORY_ORDER = ["backend", "sensors", "pipeline", "deploy", "frontend"];
-  var CATEGORY_LABELS = {
-    backend:  "Backend",
-    sensors:  "Sensors",
-    pipeline: "Data Pipeline",
-    deploy:   "Deployment",
-    frontend: "Frontend"
-  };
-
-  // -- State --
-  var currentFilter = "all";
-  var lastChecks = [];
-  var ws = null;
-  var wsReconnectTimer = null;
-
-  // -- DOM refs --
-  var statusContent  = document.getElementById("status-content");
-  var checksContainer= document.getElementById("checks-container");
-  var sensorGrid     = document.getElementById("sensor-grid");
-  var sensorNoData   = document.getElementById("sensor-no-data");
-  var wsIndicator    = document.getElementById("ws-indicator");
-  var navTimestamp   = document.getElementById("nav-timestamp");
-
-  // -- Utility --
-  function formatTime(ts) {
-    var d = new Date(ts * 1000);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  }
-
-  // -- Build sensor grid cells (once, at init) --
-  function buildSensorGrid() {
-    sensorGrid.textContent = "";
-    for (var i = 0; i < SENSOR_DEFS.length; i++) {
-      var def = SENSOR_DEFS[i];
-
-      var cell = document.createElement("div");
-      cell.className = "sensor-cell";
-      cell.id = "sensor-" + def.key;
-
-      var label = document.createElement("div");
-      label.className = "sensor-label";
-      label.textContent = def.label;
-      cell.appendChild(label);
-
-      var valWrap = document.createElement("div");
-
-      var valSpan = document.createElement("span");
-      valSpan.className = "sensor-value sensor-no-data";
-      valSpan.id = "sval-" + def.key;
-      valSpan.textContent = "--";
-      valWrap.appendChild(valSpan);
-
-      var unitSpan = document.createElement("span");
-      unitSpan.className = "sensor-unit";
-      unitSpan.textContent = def.unit;
-      valWrap.appendChild(unitSpan);
-
-      cell.appendChild(valWrap);
-      sensorGrid.appendChild(cell);
-    }
-  }
-
-  // -- Update sensor values from WebSocket message --
-  function updateSensors(data) {
-    if (!data || !data.d) return;
-    sensorNoData.style.display = "none";
-    sensorGrid.style.display = "";
-    var d = data.d;
-    for (var i = 0; i < SENSOR_DEFS.length; i++) {
-      var def = SENSOR_DEFS[i];
-      var valEl = document.getElementById("sval-" + def.key);
-      if (!valEl) continue;
-      var entry = d[def.key];
-      if (entry && entry.v !== undefined && entry.v !== null) {
-        var num = Number(entry.v);
-        valEl.textContent = isNaN(num) ? "--" : num.toFixed(def.decimals);
-        valEl.classList.remove("sensor-no-data");
-      } else {
-        valEl.textContent = "--";
-        valEl.classList.add("sensor-no-data");
-      }
-    }
-  }
-
-  // -- Status Banner --
-  function renderBanner(summary) {
-    statusContent.textContent = "";
-
-    if (!summary) {
-      var loading = document.createElement("span");
-      loading.className = "status-loading";
-      loading.textContent = "Loading diagnostics...";
-      statusContent.appendChild(loading);
-      return;
-    }
-
-    var overallStatus, statusText;
-    if (summary.fail > 0) {
-      overallStatus = "fail";
-      statusText = summary.fail + " check" + (summary.fail === 1 ? "" : "s") + " failed";
-    } else if (summary.warn > 0) {
-      overallStatus = "warn";
-      statusText = summary.warn + " warning" + (summary.warn === 1 ? "" : "s");
-    } else {
-      overallStatus = "pass";
-      statusText = "All systems operational";
-    }
-
-    var wrapper = document.createElement("div");
-    wrapper.className = "status-inner";
-
-    var dot = document.createElement("div");
-    dot.className = "status-dot-large " + overallStatus;
-    wrapper.appendChild(dot);
-
-    var text = document.createElement("span");
-    text.className = "status-text";
-    text.textContent = statusText;
-    wrapper.appendChild(text);
-
-    var counts = document.createElement("div");
-    counts.className = "status-counts";
-
-    // Pass count
-    var passC = document.createElement("span");
-    passC.className = "status-count pass-count";
-    var passNum = document.createElement("span");
-    passNum.className = "num";
-    passNum.textContent = summary.pass;
-    passC.appendChild(passNum);
-    passC.appendChild(document.createTextNode(" passed"));
-    counts.appendChild(passC);
-
-    // Warn count
-    if (summary.warn > 0) {
-      var warnC = document.createElement("span");
-      warnC.className = "status-count warn-count";
-      var warnNum = document.createElement("span");
-      warnNum.className = "num";
-      warnNum.textContent = summary.warn;
-      warnC.appendChild(warnNum);
-      warnC.appendChild(document.createTextNode(" warn"));
-      counts.appendChild(warnC);
-    }
-
-    // Fail count
-    if (summary.fail > 0) {
-      var failC = document.createElement("span");
-      failC.className = "status-count fail-count";
-      var failNum = document.createElement("span");
-      failNum.className = "num";
-      failNum.textContent = summary.fail;
-      failC.appendChild(failNum);
-      failC.appendChild(document.createTextNode(" failed"));
-      counts.appendChild(failC);
-    }
-
-    wrapper.appendChild(counts);
-    statusContent.appendChild(wrapper);
-  }
-
-  // -- Render Checks --
-  function renderChecks(checks, filter) {
-    checksContainer.textContent = "";
-
-    if (!checks || checks.length === 0) {
-      var msg = document.createElement("p");
-      msg.className = "no-data-msg";
-      msg.textContent = "No diagnostic data available.";
-      checksContainer.appendChild(msg);
-      return;
-    }
-
-    // Apply filter
-    var filtered = checks;
-    if (filter !== "all") {
-      filtered = checks.filter(function(c) { return c.status === filter; });
-    }
-
-    if (filtered.length === 0) {
-      var none = document.createElement("p");
-      none.className = "no-data-msg";
-      none.textContent = "No checks match this filter.";
-      checksContainer.appendChild(none);
-      return;
-    }
-
-    // Group by category
-    var groups = {};
-    for (var i = 0; i < filtered.length; i++) {
-      var cat = filtered[i].category || "other";
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(filtered[i]);
-    }
-
-    // Render in defined order
-    for (var ci = 0; ci < CATEGORY_ORDER.length; ci++) {
-      var catKey = CATEGORY_ORDER[ci];
-      if (!groups[catKey]) continue;
-      var catChecks = groups[catKey];
-
-      var group = document.createElement("div");
-      group.className = "category-group";
-
-      // Category header
-      var header = document.createElement("div");
-      header.className = "category-header";
-
-      var catName = document.createElement("span");
-      catName.className = "category-name";
-      catName.textContent = CATEGORY_LABELS[catKey] || catKey;
-      header.appendChild(catName);
-
-      var passCount = catChecks.filter(function(c) { return c.status === "pass"; }).length;
-      var catCount = document.createElement("span");
-      catCount.className = "category-count";
-      catCount.textContent = passCount + "/" + catChecks.length + " passed";
-      header.appendChild(catCount);
-
-      group.appendChild(header);
-
-      // Individual checks
-      for (var j = 0; j < catChecks.length; j++) {
-        var check = catChecks[j];
-
-        var item = document.createElement("div");
-        item.className = "check-item";
-
-        var cdot = document.createElement("div");
-        cdot.className = "check-dot " + check.status;
-        item.appendChild(cdot);
-
-        var info = document.createElement("div");
-        info.className = "check-info";
-
-        var name = document.createElement("div");
-        name.className = "check-name";
-        name.textContent = check.name;
-        info.appendChild(name);
-
-        var message = document.createElement("div");
-        message.className = "check-message";
-        message.textContent = check.message;
-        info.appendChild(message);
-
-        // Actionable hint for warnings/failures
-        if (check.status === "warn" || check.status === "fail") {
-          var hintText = ERROR_HINTS[check.name];
-          if (hintText) {
-            var hint = document.createElement("div");
-            hint.className = check.status === "fail" ? "check-hint fail-hint" : "check-hint";
-            hint.textContent = hintText;
-            info.appendChild(hint);
-          }
-        }
-
-        item.appendChild(info);
-
-        // Duration
-        if (check.duration_ms !== undefined) {
-          var dur = document.createElement("div");
-          dur.className = "check-duration";
-          dur.textContent = check.duration_ms.toFixed(1) + " ms";
-          item.appendChild(dur);
-        }
-
-        group.appendChild(item);
-      }
-
-      checksContainer.appendChild(group);
-    }
-  }
-
-  // -- Update topology SVG based on check results --
-  function updateTopology(checks) {
-    var isSimulator = true;
-    var serverOk = false;
-    var collectorOk = false;
-    var wsOk = false;
-    var wittyOk = false;
-
-    for (var i = 0; i < checks.length; i++) {
-      var c = checks[i];
-      if (c.name === "FastAPI Server") {
-        serverOk = c.status === "pass";
-        if (c.details && c.details.simulator === false) isSimulator = false;
-      }
-      if (c.name === "OBD Collector")     collectorOk = c.status === "pass";
-      if (c.name === "WebSocket Manager") wsOk = c.status === "pass";
-      if (c.name === "Witty Pi Reader")   wittyOk = c.status === "pass";
-    }
-
-    var obdStatus   = isSimulator ? "simulated" : (collectorOk ? "connected" : "disconnected");
-    var piStatus    = serverOk ? "connected" : "disconnected";
-    var pixelStatus = isSimulator ? "simulated" : (wsOk ? "connected" : "disconnected");
-    var wittyStatus = isSimulator ? "simulated" : (wittyOk ? "connected" : "disconnected");
-
-    var nodes = document.querySelectorAll(".topo-node-rect");
-    var lines = document.querySelectorAll(".topo-conn-line");
-    var flows = document.querySelectorAll(".topo-flow");
-
-    function setStatus(el, status) {
-      el.classList.remove("connected", "simulated", "disconnected");
-      el.classList.add(status);
-    }
-
-    function setLineStatus(line, status) {
-      setStatus(line, status);
-      var marker = status === "connected" ? "url(#arrow-green)" :
-                   status === "simulated" ? "url(#arrow-amber)" : "url(#arrow-red)";
-      line.setAttribute("marker-end", marker);
-    }
-
-    // Nodes: honda(0), wican(1), pi(2), pixel(3), witty(4)
-    if (nodes[0]) setStatus(nodes[0], obdStatus);
-    if (nodes[1]) setStatus(nodes[1], obdStatus);
-    if (nodes[2]) setStatus(nodes[2], piStatus);
-    if (nodes[3]) setStatus(nodes[3], pixelStatus);
-    if (nodes[4]) setStatus(nodes[4], wittyStatus);
-
-    // Lines: honda-wican(0), wican-pi(1), pi-pixel(2), pi-witty(3)
-    if (lines[0]) setLineStatus(lines[0], obdStatus);
-    if (lines[1]) setLineStatus(lines[1], obdStatus);
-    if (lines[2]) setLineStatus(lines[2], pixelStatus);
-    if (lines[3]) setLineStatus(lines[3], wittyStatus);
-
-    // Flow animations
-    for (var f = 0; f < flows.length; f++) {
-      flows[f].classList.remove("connected", "simulated");
-      var fStatus = f < 2 ? obdStatus : pixelStatus;
-      if (fStatus !== "disconnected") flows[f].classList.add(fStatus);
-    }
-
-    // Badges
-    function setBadge(id, status) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      var label = status === "connected" ? "CONNECTED" :
-                  status === "simulated" ? "SIMULATED" : "OFFLINE";
-      var color = status === "connected" ? "#22c55e" :
-                  status === "simulated" ? "#eab308" : "#ef4444";
-      el.textContent = label;
-      el.setAttribute("fill", color);
-      var rect = el.previousElementSibling;
-      if (rect && rect.tagName === "rect") {
-        rect.setAttribute("stroke", color);
-        rect.setAttribute("fill", color + "20");
-      }
-    }
-
-    setBadge("badge-honda", obdStatus);
-    setBadge("badge-wican", obdStatus);
-    setBadge("badge-pi",    piStatus);
-    setBadge("badge-pixel", pixelStatus);
-  }
-
-  // -- Fetch diagnostics from API --
-  function fetchDiagnostics() {
-    fetch(DIAG_URL)
-      .then(function(res) {
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        return res.json();
-      })
-      .then(function(data) {
-        lastChecks = data.checks || [];
-        renderBanner(data.summary);
-        renderChecks(lastChecks, currentFilter);
-        updateTopology(lastChecks);
-        if (data.timestamp) {
-          navTimestamp.textContent = "Last check: " + formatTime(data.timestamp);
-        }
-      })
-      .catch(function() {
-        renderBanner(null);
-        checksContainer.textContent = "";
-        var msg = document.createElement("p");
-        msg.className = "no-data-msg";
-        msg.textContent = "Cannot reach backend at " + API_BASE + ". Is the server running?";
-        checksContainer.appendChild(msg);
-      });
-  }
-
-  // -- WebSocket connection with auto-reconnect --
-  function connectWebSocket() {
-    if (ws) {
-      try { ws.close(); } catch(e) {}
-    }
-    try {
-      ws = new WebSocket(WS_URL);
-    } catch(e) {
-      return;
-    }
-
-    ws.onopen = function() {
-      wsIndicator.className = "nav-ws-status connected";
-      wsIndicator.title = "WebSocket connected";
-    };
-
-    ws.onmessage = function(event) {
-      try {
-        var data = JSON.parse(event.data);
-        if (data.type === "trip_ended") return;
-        updateSensors(data);
-      } catch(e) {}
-    };
-
-    ws.onclose = function() {
-      wsIndicator.className = "nav-ws-status disconnected";
-      wsIndicator.title = "WebSocket disconnected";
-      clearTimeout(wsReconnectTimer);
-      wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
-    };
-
-    ws.onerror = function() {
-      wsIndicator.className = "nav-ws-status disconnected";
-      wsIndicator.title = "WebSocket error";
-    };
-  }
-
-  // -- Filter button click handlers --
-  function setupFilters() {
-    var buttons = document.querySelectorAll(".check-filter-btn");
-    for (var i = 0; i < buttons.length; i++) {
-      buttons[i].addEventListener("click", function(e) {
-        var btn = e.currentTarget;
-        for (var j = 0; j < buttons.length; j++) buttons[j].classList.remove("active");
-        btn.classList.add("active");
-        currentFilter = btn.getAttribute("data-filter");
-        renderChecks(lastChecks, currentFilter);
-      });
-    }
-  }
-
-  // -- Nav link click + scroll spy --
-  function setupNav() {
-    var links = document.querySelectorAll(".nav-link");
-
-    for (var i = 0; i < links.length; i++) {
-      links[i].addEventListener("click", function(e) {
-        var sectionId = e.currentTarget.getAttribute("data-section");
-        var section = document.getElementById(sectionId);
-        if (section) {
-          section.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-        for (var j = 0; j < links.length; j++) links[j].classList.remove("active");
-        e.currentTarget.classList.add("active");
-      });
-    }
-
-    // Intersection observer for scroll spy
-    var sections = ["overview", "topology", "sensors", "checks"];
-    var observer = new IntersectionObserver(function(entries) {
-      for (var k = 0; k < entries.length; k++) {
-        if (entries[k].isIntersecting) {
-          var id = entries[k].target.id;
-          for (var j = 0; j < links.length; j++) {
-            links[j].classList.toggle("active",
-              links[j].getAttribute("data-section") === id);
-          }
-        }
-      }
-    }, { rootMargin: "-50% 0px -50% 0px" });
-
-    for (var s = 0; s < sections.length; s++) {
-      var el = document.getElementById(sections[s]);
-      if (el) observer.observe(el);
-    }
-  }
-
-  // -- Init --
-  function init() {
-    buildSensorGrid();
-    sensorGrid.style.display = "none";
-    setupFilters();
-    setupNav();
-    fetchDiagnostics();
-    connectWebSocket();
-    setInterval(fetchDiagnostics, REFRESH_MS);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
-</script>
+<script src="diagnostics-topology.js"></script>
+<script src="diagnostics.js"></script>
 </body>
 </html>

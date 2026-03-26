@@ -340,6 +340,151 @@ async def _check_db_write_read(state: Any) -> CheckResult:
         )
 
 
+async def run_integration_test(app_state: Any) -> dict[str, Any]:
+    """Deep integration test: snapshot -> DB write -> DB read -> verify.
+
+    Tests the full pipeline end-to-end and measures timing for each step.
+    Used by POST /api/test/integration.
+    """
+    steps: list[dict[str, Any]] = []
+
+    # Step 1: Generate a snapshot
+    t = time.monotonic()
+    try:
+        snap = await app_state.collector.get_snapshot()
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Generate snapshot",
+            "status": "pass",
+            "duration_ms": round(elapsed, 2),
+            "detail": f"RPM={snap.rpm:.0f}, speed={snap.speed_kph:.0f}kph",
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Generate snapshot",
+            "status": "fail",
+            "duration_ms": round(elapsed, 2),
+            "detail": str(e),
+        })
+        return {"steps": steps, "overall": "fail"}
+
+    # Step 2: Write to database
+    t = time.monotonic()
+    try:
+        await app_state.db.insert_reading(snap)
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Write to database",
+            "status": "pass",
+            "duration_ms": round(elapsed, 2),
+            "detail": "Single reading inserted",
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Write to database",
+            "status": "fail",
+            "duration_ms": round(elapsed, 2),
+            "detail": str(e),
+        })
+        return {"steps": steps, "overall": "fail"}
+
+    # Step 3: Read back from database
+    t = time.monotonic()
+    try:
+        counts = await app_state.db.get_table_counts()
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Read from database",
+            "status": "pass",
+            "duration_ms": round(elapsed, 2),
+            "detail": f"{counts.get('sensor_readings', 0)} total readings",
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Read from database",
+            "status": "fail",
+            "duration_ms": round(elapsed, 2),
+            "detail": str(e),
+        })
+        return {"steps": steps, "overall": "fail"}
+
+    # Step 4: Health scoring
+    t = time.monotonic()
+    try:
+        health = app_state.health_scorer.score(snap)
+        elapsed = (time.monotonic() - t) * 1000
+        status = "pass" if health.overall != -1 else "warn"
+        detail = f"overall={health.overall:.0f}" if health.overall != -1 else "Calibrating (-1)"
+        steps.append({
+            "name": "Health scoring",
+            "status": status,
+            "duration_ms": round(elapsed, 2),
+            "detail": detail,
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Health scoring",
+            "status": "fail",
+            "duration_ms": round(elapsed, 2),
+            "detail": str(e),
+        })
+
+    # Step 5: Fuel calculator check (read-only -- do NOT call update()
+    # because the producer loop is calling it at 10Hz concurrently and
+    # a duplicate update() would mutate trip state / accumulate distance)
+    t = time.monotonic()
+    try:
+        fc = app_state.fuel_calc
+        trip_active = fc.is_trip_active
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Fuel calculator",
+            "status": "pass",
+            "duration_ms": round(elapsed, 2),
+            "detail": f"trip_active={trip_active}",
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "Fuel calculator",
+            "status": "fail",
+            "duration_ms": round(elapsed, 2),
+            "detail": str(e),
+        })
+
+    # Step 6: WebSocket broadcast check
+    t = time.monotonic()
+    try:
+        ws_clients = app_state.connection_manager.client_count
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "WebSocket check",
+            "status": "pass",
+            "duration_ms": round(elapsed, 2),
+            "detail": f"{ws_clients} client(s) connected",
+        })
+    except Exception as e:
+        elapsed = (time.monotonic() - t) * 1000
+        steps.append({
+            "name": "WebSocket check",
+            "status": "fail",
+            "duration_ms": round(elapsed, 2),
+            "detail": str(e),
+        })
+
+    total_ms = sum(s["duration_ms"] for s in steps)
+    failed = any(s["status"] == "fail" for s in steps)
+    return {
+        "steps": steps,
+        "overall": "fail" if failed else "pass",
+        "total_duration_ms": round(total_ms, 2),
+    }
+
+
 def _check_deploy_files() -> list[CheckResult]:
     """Check all deployment files exist and are valid."""
     results = []

@@ -15,7 +15,7 @@ from fastapi import WebSocket
 logger = logging.getLogger(__name__)
 
 
-MAX_CONNECTIONS = 5  # Pi has limited resources, no need for more
+MAX_CONNECTIONS = 8  # Pi has limited resources: phone + diagnostics + dev browser
 
 
 class ConnectionManager:

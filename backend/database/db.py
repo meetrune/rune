@@ -361,3 +361,35 @@ class RuneDatabase:
             except OSError:
                 pass
         return total
+
+    def get_wal_size_bytes(self) -> int:
+        """Get WAL file size. 0 if WAL doesn't exist or is empty."""
+        try:
+            return os.path.getsize(self._db_path + "-wal")
+        except OSError:
+            return 0
+
+    async def force_checkpoint(self) -> dict[str, int]:
+        """Force a WAL checkpoint (TRUNCATE mode).
+
+        Returns (busy, log_pages, checkpointed_pages).
+        """
+        conn = self._require_conn()
+        cursor = await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        row = await cursor.fetchone()
+        return {
+            "busy": row[0] if row else 0,
+            "log_pages": row[1] if row else 0,
+            "checkpointed_pages": row[2] if row else 0,
+        }
+
+    async def get_insert_rate(self, window_seconds: int = 60) -> float:
+        """Estimate insert rate (readings/sec) over the last N seconds."""
+        conn = self._require_conn()
+        cutoff = _ts_ms() - (window_seconds * 1000)
+        cursor = await conn.execute(
+            "SELECT COUNT(*) FROM sensor_readings WHERE ts > ?", (cutoff,),
+        )
+        row = await cursor.fetchone()
+        count = row[0] if row else 0
+        return round(count / window_seconds, 1) if window_seconds > 0 else 0.0
