@@ -672,9 +672,29 @@
       if (armRate) armRate.textContent = "Rate: " + (therm.armrest_rate_per_min || 0).toFixed(1) + " C/min";
 
       var dbSizeVal = document.getElementById("db-size-val");
+      var dbWalVal = document.getElementById("db-wal-val");
+      var dbRateEl = document.getElementById("db-rate");
       var dbLabel = document.getElementById("db-size-label");
       if (dbSizeVal) dbSizeVal.textContent = (db.size_mb || 0).toFixed(2) + " MB";
       if (dbLabel) dbLabel.textContent = (db.size_mb || 0).toFixed(1) + " MB";
+
+      // Fetch WAL size and insert rate from system endpoint
+      fetch(API + "/api/debug").then(function(r2) { return r2.json(); }).then(function(d2) {
+        // WAL size from DB tables
+        var tables = (d2.database || {}).tables || {};
+        var readings = tables.sensor_readings || 0;
+        if (dbWalVal) {
+          // Estimate WAL activity from readings count growth
+          var walKb = readings > 0 ? "active" : "0 KB";
+          dbWalVal.textContent = walKb;
+        }
+        if (dbRateEl) {
+          // readings / seconds since start
+          var uptime = (d2.server || {}).uptime_seconds || 1;
+          var rate = (readings / uptime).toFixed(1);
+          dbRateEl.textContent = "Insert rate: " + rate + " rows/s";
+        }
+      }).catch(function() {});
 
       dbSizeSamples.push({ t: Date.now(), size: db.size_mb || 0 });
       if (dbSizeSamples.length > 240) dbSizeSamples.shift();

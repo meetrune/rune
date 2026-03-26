@@ -90,6 +90,11 @@ async def obd_producer_loop(
     active_trip_id: int | None = None
     trip_stats_acc: TripStatsAccumulator | None = None
     effective_ws_hz = settings.ws_rate_hz  # can be reduced by thermal manager
+    # Carry forward last Pi sensor values between 1Hz reads
+    last_vin: float | None = None
+    last_armrest: float | None = None
+    last_cpu_temp: float | None = None
+    last_current: float | None = None
 
     logger.info("Producer loop started at %dHz", settings.ws_rate_hz)
 
@@ -103,10 +108,10 @@ async def obd_producer_loop(
             # Read Pi-side sensors once per second (not 10Hz -- I2C is slow)
             if tick_count % settings.ws_rate_hz == 0:
                 pi_snap = pi_reader.read_snapshot()
-                snap.vin_voltage = pi_snap.vin_voltage
-                snap.armrest_temp_c = pi_snap.armrest_temp_c
-                snap.pi_cpu_temp_c = pi_snap.cpu_temp_c
-                snap.pi_current_a = pi_snap.iout_amps
+                last_vin = pi_snap.vin_voltage
+                last_armrest = pi_snap.armrest_temp_c
+                last_cpu_temp = pi_snap.cpu_temp_c
+                last_current = pi_snap.iout_amps
 
                 # Thermal management -- evaluate once per second
                 thermal_state = thermal_mgr.update(
@@ -153,6 +158,12 @@ async def obd_producer_loop(
                     except Exception:
                         logger.critical("Failed to execute thermal shutdown", exc_info=True)
                     return
+
+            # Carry forward Pi sensor values so every WS message includes them
+            snap.vin_voltage = last_vin
+            snap.armrest_temp_c = last_armrest
+            snap.pi_cpu_temp_c = last_cpu_temp
+            snap.pi_current_a = last_current
 
             # Fuel calculation
             fuel_snap, trip_started, trip_ended = fuel_calc.update(snap)
