@@ -59,6 +59,10 @@ def write_parked_schedule(
         logger.error("Sleep time too short: %.1fh (minimum 0.5h)", sleep_hours)
         return False
 
+    # Decompose wake_seconds into M/S (Witty Pi expects S < 60)
+    wake_min = wake_seconds // 60
+    wake_sec = wake_seconds % 60
+
     # Convert sleep_hours to hours and minutes
     total_minutes = int(sleep_hours * 60)
     hours = total_minutes // 60
@@ -67,7 +71,7 @@ def write_parked_schedule(
     schedule_content = (
         f"# Rune parked-mode schedule\n"
         f"# Wake every {sleep_hours:.1f}h for {wake_seconds}s to check thermal + battery\n"
-        f"ON   H0 M0 S{wake_seconds}\n"
+        f"ON   H0 M{wake_min} S{wake_sec}\n"
         f"OFF  H{hours} M{minutes}\n"
     )
 

@@ -176,6 +176,11 @@ class RuneDatabase:
         self._db_path = db_path
         self._conn: aiosqlite.Connection | None = None
 
+    @property
+    def db_path(self) -> str:
+        """Public access to the database file path."""
+        return self._db_path
+
     async def initialize(self) -> None:
         """Open connection, set pragmas, create tables."""
         self._conn = await aiosqlite.connect(self._db_path)
@@ -727,6 +732,15 @@ class RuneDatabase:
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
+
+    async def count_maintenance_by_item(self, item: str) -> int:
+        """Count how many times a specific maintenance item has been done."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT COUNT(*) FROM maintenance_log WHERE item = ?", (item,),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else 0
 
     async def get_cumulative_miles(self) -> float:
         """Get total miles from all completed trips."""

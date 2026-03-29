@@ -305,10 +305,7 @@ class MaintenanceTracker:
 
     async def _load_coolant_count(self, db: RuneDatabase) -> None:
         """Load coolant change count from DB to determine interval."""
-        records = await db.get_all_maintenance()
-        coolant_count = sum(
-            1 for r in records if r["item"] == MaintenanceItem.COOLANT.value
-        )
+        coolant_count = await db.count_maintenance_by_item(MaintenanceItem.COOLANT.value)
         self._coolant_change_count = coolant_count
         logger.debug("Loaded coolant change count from DB: %d", coolant_count)
 

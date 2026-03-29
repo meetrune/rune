@@ -217,12 +217,11 @@ async def obd_producer_loop(
                                 wake_seconds=30,
                                 sleep_hours=settings.thermal_extreme_wake_hours,
                             )
-                            emergency_shutdown(
-                                f"Enclosure at {parked_result.armrest_temp_c or parked_result.cpu_temp_c}C"
-                            )
+                            temp_val = parked_result.armrest_temp_c if parked_result.armrest_temp_c is not None else parked_result.cpu_temp_c
+                            emergency_shutdown(f"Enclosure at {temp_val}C")
                             return
                     except Exception:
-                        logger.debug("Parked thermal check failed", exc_info=True)
+                        logger.warning("Parked thermal check failed", exc_info=True)
 
                 # Thermal shutdown
                 if thermal_state.should_shutdown:
@@ -288,7 +287,7 @@ async def obd_producer_loop(
                         # Clear Witty Pi schedule -- car is running, stay on continuously
                         clear_schedule()
                     except Exception:
-                        logger.debug("Intelligence trip-start hook failed", exc_info=True)
+                        logger.warning("Intelligence trip-start hook failed", exc_info=True)
 
             # Accumulate trip stats every tick
             if trip_stats_acc is not None:
@@ -306,7 +305,7 @@ async def obd_producer_loop(
                     )
                     app.state.cold_start_profiler.on_reading(snap.coolant_temp_c)
                 except Exception:
-                    logger.debug("Intelligence per-tick update failed", exc_info=True)
+                    logger.warning("Intelligence per-tick update failed", exc_info=True)
 
             if trip_ended:
                 try:
@@ -378,7 +377,7 @@ async def obd_producer_loop(
                                     avg_oil_temp_c=snap.oil_temp_c if snap.oil_temp_c > 0 else None,
                                 )
                             except Exception:
-                                logger.debug("Intelligence trip-end hooks failed", exc_info=True)
+                                logger.warning("Intelligence trip-end hooks failed", exc_info=True)
 
                 except Exception:
                     logger.warning("Failed to end trip in DB", exc_info=True)
@@ -533,6 +532,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         alert_queue = AlertQueue(db, rate_limit_seconds=settings.alert_rate_limit_seconds)
         battery_monitor = BatteryMonitor(alert_queue=alert_queue)
         cold_start_profiler = ColdStartProfiler(alert_queue=alert_queue)
+        await cold_start_profiler.load_history(db)
         trip_scorer = TripScorer()
         thermal_guardian = ThermalGuardian()
         maintenance_tracker = MaintenanceTracker()

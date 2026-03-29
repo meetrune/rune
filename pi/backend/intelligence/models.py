@@ -112,7 +112,8 @@ class BatteryState(str, Enum):
     FAIR = "fair"           # 12.2-12.4V resting
     LOW = "low"             # 12.0-12.2V resting
     CRITICAL = "critical"   # < 12.0V resting
-    CHARGING = "charging"   # > 13.5V (engine running)
+    CHARGING = "charging"        # > 13.5V (engine running, healthy alternator)
+    WEAK_CHARGING = "weak_charging"  # engine running but < 13.5V (alternator issue)
     UNKNOWN = "unknown"
 
 

@@ -154,7 +154,7 @@ async def prepare_export(
 
     Raises RuntimeError if insufficient disk space.
     """
-    db_path = db._db_path
+    db_path = db.db_path
     base_dir = _get_export_base_dir(db_path)
     session_id = uuid.uuid4().hex[:16]
     export_dir = os.path.join(base_dir, session_id)

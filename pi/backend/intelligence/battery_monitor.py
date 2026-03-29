@@ -148,7 +148,7 @@ class BatteryMonitor:
             state = BatteryState.CHARGING
         elif engine_running:
             # Engine running but voltage below charging threshold -- weak alternator
-            state = BatteryState.CHARGING
+            state = BatteryState.WEAK_CHARGING
             await self._alert_weak_charging(vin_voltage)
         elif minutes_since_off is not None and minutes_since_off >= _RESTING_DELAY_MIN:
             # True resting voltage -- surface charge has dissipated
