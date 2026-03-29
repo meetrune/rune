@@ -57,6 +57,11 @@ from backend.intelligence.trip_scorer import TripScorer
 from backend.intelligence.thermal_guardian import ThermalGuardian
 from backend.intelligence.maintenance import MaintenanceTracker
 from backend.intelligence.can_decoder import CANDecoder
+from backend.intelligence.wittypi_scheduler import (
+    clear_schedule,
+    emergency_shutdown,
+    write_parked_schedule,
+)
 
 # Structured JSON logging
 logging.basicConfig(
@@ -193,6 +198,32 @@ async def obd_producer_loop(
                     except Exception:
                         logger.debug("Battery monitor update failed", exc_info=True)
 
+                # Intelligence: parked thermal guardian (once per minute when no active trip)
+                if settings.intelligence_enabled and active_trip_id is None and tick_count % (settings.ws_rate_hz * 60) == 0:
+                    try:
+                        guardian: ThermalGuardian = app.state.thermal_guardian
+                        parked_result = await guardian.check_parked_state(
+                            armrest_temp_c=pi_snap.armrest_temp_c,
+                            cpu_temp_c=pi_snap.cpu_temp_c,
+                            vin_voltage=pi_snap.vin_voltage,
+                            alert_queue=app.state.alert_queue,
+                        )
+                        # Emergency shutdown: too hot, shut down immediately
+                        if guardian.should_shutdown:
+                            if reading_buffer:
+                                await db.insert_readings(reading_buffer)
+                                reading_buffer.clear()
+                            write_parked_schedule(
+                                wake_seconds=30,
+                                sleep_hours=settings.thermal_extreme_wake_hours,
+                            )
+                            emergency_shutdown(
+                                f"Enclosure at {parked_result.armrest_temp_c or parked_result.cpu_temp_c}C"
+                            )
+                            return
+                    except Exception:
+                        logger.debug("Parked thermal check failed", exc_info=True)
+
                 # Thermal shutdown
                 if thermal_state.should_shutdown:
                     logger.critical(
@@ -254,6 +285,8 @@ async def obd_producer_loop(
                             coolant_c=snap.coolant_temp_c,
                             ambient_c=snap.intake_air_temp_c,
                         )
+                        # Clear Witty Pi schedule -- car is running, stay on continuously
+                        clear_schedule()
                     except Exception:
                         logger.debug("Intelligence trip-start hook failed", exc_info=True)
 
@@ -328,6 +361,12 @@ async def obd_producer_loop(
                                 # Cold-start record
                                 await app.state.cold_start_profiler.on_trip_end(
                                     trip_id=active_trip_id, db=db,
+                                )
+
+                                # Write Witty Pi parked schedule -- car is off now
+                                write_parked_schedule(
+                                    wake_seconds=30,
+                                    sleep_hours=settings.thermal_normal_wake_hours,
                                 )
 
                                 # Maintenance check
