@@ -101,12 +101,16 @@ rsync -a --delete "$REPO_DIR/pi/backend/" "$RUNE_DIR/backend/"
 rsync -a --delete "$REPO_DIR/pi/diagnostics/" "$RUNE_DIR/diagnostics/"
 echo "  Diagnostics dashboard copied."
 
+# Ensure frontend directories exist (backend can run without frontend)
+mkdir -p "$RUNE_DIR/frontend/dist" "$RUNE_DIR/frontend/public"
+
 # Copy built frontend (must run `npm run build` in pixel/frontend/ first)
 if [[ -d "$REPO_DIR/pixel/frontend/dist" ]]; then
     rsync -a --delete "$REPO_DIR/pixel/frontend/dist/" "$RUNE_DIR/frontend/dist/"
     echo "  Frontend dist copied."
 else
-    echo "  WARNING: pixel/frontend/dist not found. Run 'cd pixel/frontend && npm run build' first."
+    echo "  WARNING: pixel/frontend/dist not found. Backend will run without frontend."
+    echo "  Build later: cd pixel/frontend && npm run build"
 fi
 
 # Copy frontend public assets (3D model, icons)
