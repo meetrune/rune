@@ -99,6 +99,58 @@ CREATE TABLE IF NOT EXISTS can_frames (
 );
 CREATE INDEX IF NOT EXISTS idx_can_ts ON can_frames(ts);
 CREATE INDEX IF NOT EXISTS idx_can_id ON can_frames(can_id);
+
+-- Intelligence Layer tables (added in feat/rune-intelligence)
+
+CREATE TABLE IF NOT EXISTS alert_queue (
+    id              INTEGER PRIMARY KEY,
+    ts              INTEGER NOT NULL,
+    severity        TEXT NOT NULL,
+    category        TEXT NOT NULL,
+    message         TEXT NOT NULL,
+    data            TEXT,
+    synced          INTEGER NOT NULL DEFAULT 0,
+    synced_at       INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_alert_synced ON alert_queue(synced);
+CREATE INDEX IF NOT EXISTS idx_alert_ts ON alert_queue(ts);
+
+CREATE TABLE IF NOT EXISTS sync_state (
+    key             TEXT PRIMARY KEY,
+    value           TEXT NOT NULL,
+    updated_at      INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_log (
+    id              INTEGER PRIMARY KEY,
+    item            TEXT NOT NULL,
+    done_at         INTEGER NOT NULL,
+    odometer_miles  REAL NOT NULL,
+    next_due_miles  REAL NOT NULL,
+    notes           TEXT DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_maint_item ON maintenance_log(item);
+
+CREATE TABLE IF NOT EXISTS can_signals (
+    id              INTEGER PRIMARY KEY,
+    ts              INTEGER NOT NULL,
+    signal_name     TEXT NOT NULL,
+    value           REAL NOT NULL,
+    unit            TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_cansig_ts ON can_signals(ts);
+CREATE INDEX IF NOT EXISTS idx_cansig_name ON can_signals(signal_name);
+
+CREATE TABLE IF NOT EXISTS cold_starts (
+    id              INTEGER PRIMARY KEY,
+    trip_id         INTEGER,
+    ambient_temp_c  REAL,
+    start_coolant_c REAL,
+    target_coolant_c REAL DEFAULT 80.0,
+    warmup_seconds  REAL,
+    ts              INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_coldstart_ts ON cold_starts(ts);
 """
 
 _PRAGMAS = [
@@ -314,7 +366,10 @@ class RuneDatabase:
         """Return row counts for all 4 tables."""
         conn = self._require_conn()
         counts: dict[str, int] = {}
-        for table in ("sensor_readings", "trips", "fillups", "health_scores", "can_frames"):
+        for table in (
+            "sensor_readings", "trips", "fillups", "health_scores", "can_frames",
+            "alert_queue", "sync_state", "maintenance_log", "can_signals", "cold_starts",
+        ):
             cursor = await conn.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
             row = await cursor.fetchone()
             counts[table] = row[0] if row else 0
@@ -466,13 +521,234 @@ class RuneDatabase:
 
     # --- purge ---
 
+    # --- Intelligence Layer: alert_queue ---
+
+    async def insert_alert(
+        self,
+        severity: str,
+        category: str,
+        message: str,
+        data: str | None = None,
+    ) -> int:
+        """Queue an alert for iPhone sync relay."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            """INSERT INTO alert_queue (ts, severity, category, message, data)
+               VALUES (?, ?, ?, ?, ?)""",
+            (_ts_ms(), severity, category, message, data),
+        )
+        await conn.commit()
+        if cursor.lastrowid is None:
+            raise RuntimeError("insert_alert returned no lastrowid -- insert may have silently failed")
+        return cursor.lastrowid
+
+    async def get_unsynced_alerts(self) -> list[dict[str, Any]]:
+        """Get all alerts not yet synced to iPhone."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT * FROM alert_queue WHERE synced = 0 ORDER BY ts ASC",
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def ack_alerts(self, alert_ids: list[int]) -> int:
+        """Mark alerts as synced. Idempotent -- safe to call multiple times."""
+        if not alert_ids:
+            return 0
+        conn = self._require_conn()
+        placeholders = ",".join("?" for _ in alert_ids)
+        now = _ts_ms()
+        cursor = await conn.execute(
+            f"UPDATE alert_queue SET synced = 1, synced_at = ? WHERE id IN ({placeholders})",  # noqa: S608
+            [now, *alert_ids],
+        )
+        await conn.commit()
+        return cursor.rowcount or 0
+
+    # --- Intelligence Layer: sync_state ---
+
+    async def get_sync_value(self, key: str) -> str | None:
+        """Get a sync state value by key."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT value FROM sync_state WHERE key = ?", (key,),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else None
+
+    async def set_sync_value(self, key: str, value: str) -> None:
+        """Set a sync state value (upsert)."""
+        conn = self._require_conn()
+        now = _ts_ms()
+        await conn.execute(
+            """INSERT INTO sync_state (key, value, updated_at) VALUES (?, ?, ?)
+               ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = ?""",
+            (key, value, now, value, now),
+        )
+        await conn.commit()
+
+    # --- Intelligence Layer: delta export ---
+
+    async def get_sync_keys_by_prefix(self, prefix: str) -> list[dict[str, Any]]:
+        """Get all sync_state entries whose key starts with prefix."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT key, value FROM sync_state WHERE key LIKE ?",
+            (f"{prefix}%",),
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def delete_sync_key(self, key: str) -> None:
+        """Delete a sync_state entry by key."""
+        conn = self._require_conn()
+        await conn.execute("DELETE FROM sync_state WHERE key = ?", (key,))
+        await conn.commit()
+
+    async def get_readings_since(self, since_ts_ms: int, limit: int = 50000) -> list[dict[str, Any]]:
+        """Get sensor readings since a timestamp for delta export."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT * FROM sensor_readings WHERE ts > ? ORDER BY ts ASC LIMIT ?",
+            (since_ts_ms, limit),
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_trips_since(self, since_ts_ms: int) -> list[dict[str, Any]]:
+        """Get trips started since a timestamp."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT * FROM trips WHERE start_time > ? ORDER BY start_time ASC",
+            (since_ts_ms,),
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def count_readings_since(self, since_ts_ms: int) -> int:
+        """Count sensor readings since a timestamp."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT COUNT(*) FROM sensor_readings WHERE ts > ?", (since_ts_ms,),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else 0
+
+    # --- Intelligence Layer: can_signals ---
+
+    async def insert_can_signals(self, signals: list[tuple[int, str, float, str]]) -> None:
+        """Batch insert decoded CAN signals.
+
+        Args:
+            signals: list of (timestamp_ms, signal_name, value, unit) tuples.
+        """
+        if not signals:
+            return
+        conn = self._require_conn()
+        await conn.executemany(
+            "INSERT INTO can_signals (ts, signal_name, value, unit) VALUES (?, ?, ?, ?)",
+            signals,
+        )
+        await conn.commit()
+
+    # --- Intelligence Layer: cold_starts ---
+
+    async def insert_cold_start(
+        self,
+        trip_id: int | None,
+        ambient_temp_c: float | None,
+        start_coolant_c: float | None,
+        target_coolant_c: float,
+        warmup_seconds: float,
+    ) -> None:
+        """Record a cold-start warmup observation."""
+        conn = self._require_conn()
+        await conn.execute(
+            """INSERT INTO cold_starts
+               (trip_id, ambient_temp_c, start_coolant_c, target_coolant_c, warmup_seconds, ts)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (trip_id, ambient_temp_c, start_coolant_c, target_coolant_c, warmup_seconds, _ts_ms()),
+        )
+        await conn.commit()
+
+    async def get_cold_starts(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Get cold-start records for warmup model fitting."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            """SELECT * FROM cold_starts
+               WHERE ambient_temp_c IS NOT NULL AND warmup_seconds > 0
+               ORDER BY ts DESC LIMIT ?""",
+            (limit,),
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    # --- Intelligence Layer: maintenance_log ---
+
+    async def insert_maintenance(
+        self,
+        item: str,
+        odometer_miles: float,
+        next_due_miles: float,
+        notes: str = "",
+    ) -> int:
+        """Record a completed maintenance event."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            """INSERT INTO maintenance_log (item, done_at, odometer_miles, next_due_miles, notes)
+               VALUES (?, ?, ?, ?, ?)""",
+            (item, _ts_ms(), odometer_miles, next_due_miles, notes),
+        )
+        await conn.commit()
+        if cursor.lastrowid is None:
+            raise RuntimeError("insert_maintenance returned no lastrowid")
+        return cursor.lastrowid
+
+    async def get_latest_maintenance(self, item: str) -> dict[str, Any] | None:
+        """Get the most recent maintenance record for an item."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT * FROM maintenance_log WHERE item = ? ORDER BY done_at DESC LIMIT 1",
+            (item,),
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def get_all_maintenance(self) -> list[dict[str, Any]]:
+        """Get the latest maintenance record for each item."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            """SELECT m.* FROM maintenance_log m
+               INNER JOIN (
+                   SELECT item, MAX(done_at) as max_done
+                   FROM maintenance_log GROUP BY item
+               ) latest ON m.item = latest.item AND m.done_at = latest.max_done
+               ORDER BY m.item""",
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_cumulative_miles(self) -> float:
+        """Get total miles from all completed trips."""
+        conn = self._require_conn()
+        cursor = await conn.execute(
+            "SELECT COALESCE(SUM(distance_miles), 0) FROM trips WHERE end_time IS NOT NULL",
+        )
+        row = await cursor.fetchone()
+        return float(row[0]) if row else 0.0
+
+    # --- purge (updated to include intelligence tables) ---
+
     async def purge_all(self) -> dict[str, int]:
         """Delete ALL data from all tables. Used by go-live to remove simulation data.
 
         Returns a dict of table name -> rows deleted.
         """
         conn = self._require_conn()
-        tables = ["sensor_readings", "trips", "fillups", "health_scores", "can_frames"]
+        tables = [
+            "sensor_readings", "trips", "fillups", "health_scores", "can_frames",
+            "alert_queue", "sync_state", "maintenance_log", "can_signals", "cold_starts",
+        ]
         purged: dict[str, int] = {}
         for table in tables:
             cursor = await conn.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608

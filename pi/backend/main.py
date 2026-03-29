@@ -8,18 +8,21 @@ and broadcasting to all connected WebSocket clients.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from pathlib import Path
 
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from backend.api.logs import log_buffer
 from backend.config import settings
@@ -34,6 +37,26 @@ from backend.obd_manager.models import FuelSnapshot, HealthSnapshot, VehicleSnap
 from backend.sensors.thermal import ThermalManager
 from backend.sensors.wittypi import SimulatedWittyPiReader, WittyPiReader
 from backend.ws_manager import ConnectionManager
+
+# Resilient export
+from backend.api.export import (
+    cleanup_stale_sessions,
+    complete_export as complete_export_session,
+    get_export_session,
+    prepare_export,
+    stream_export,
+)
+from fastapi.responses import StreamingResponse
+
+# Intelligence Layer
+from backend.intelligence.alert_queue import AlertQueue
+from backend.intelligence import sync_engine
+from backend.intelligence.battery_monitor import BatteryMonitor
+from backend.intelligence.cold_start import ColdStartProfiler
+from backend.intelligence.trip_scorer import TripScorer
+from backend.intelligence.thermal_guardian import ThermalGuardian
+from backend.intelligence.maintenance import MaintenanceTracker
+from backend.intelligence.can_decoder import CANDecoder
 
 # Structured JSON logging
 logging.basicConfig(
@@ -63,6 +86,10 @@ async def db_maintenance_loop(db: RuneDatabase) -> None:
                 "DB maintenance: cleaned %s, size=%.1fMB",
                 result, db_size / 1_048_576,
             )
+            # Clean up stale export sessions (chunks on disk + DB keys)
+            stale = await cleanup_stale_sessions(db)
+            if stale:
+                logger.info("Export cleanup: removed %d stale sessions", stale)
         except asyncio.CancelledError:
             return
         except Exception:
@@ -155,6 +182,17 @@ async def obd_producer_loop(
                 if thermal_state.message:
                     logger.warning("Thermal: %s", thermal_state.message)
 
+                # Intelligence: battery monitor (once per second with Vin reading)
+                if settings.intelligence_enabled and pi_snap.vin_voltage is not None:
+                    try:
+                        engine_running = snap.rpm > 400
+                        await app.state.battery_monitor.update(
+                            vin_voltage=pi_snap.vin_voltage,
+                            engine_running=engine_running,
+                        )
+                    except Exception:
+                        logger.debug("Battery monitor update failed", exc_info=True)
+
                 # Thermal shutdown
                 if thermal_state.should_shutdown:
                     logger.critical(
@@ -208,9 +246,34 @@ async def obd_producer_loop(
                 if fuel_calc.current_trip is not None:
                     fuel_calc.current_trip.trip_id = active_trip_id
 
+                # Intelligence: trip start hooks
+                if settings.intelligence_enabled:
+                    try:
+                        app.state.trip_scorer.start_trip()
+                        app.state.cold_start_profiler.on_trip_start(
+                            coolant_c=snap.coolant_temp_c,
+                            ambient_c=snap.intake_air_temp_c,
+                        )
+                    except Exception:
+                        logger.debug("Intelligence trip-start hook failed", exc_info=True)
+
             # Accumulate trip stats every tick
             if trip_stats_acc is not None:
                 trip_stats_acc.update(snap)
+
+            # Intelligence: per-tick updates (trip scorer, cold start)
+            if settings.intelligence_enabled and active_trip_id is not None:
+                try:
+                    dt = 1.0 / max(effective_ws_hz, 1)
+                    app.state.trip_scorer.update(
+                        throttle_pct=snap.throttle_pct,
+                        speed_kph=snap.speed_kph,
+                        rpm=snap.rpm,
+                        dt_seconds=dt,
+                    )
+                    app.state.cold_start_profiler.on_reading(snap.coolant_temp_c)
+                except Exception:
+                    logger.debug("Intelligence per-tick update failed", exc_info=True)
 
             if trip_ended:
                 try:
@@ -246,6 +309,38 @@ async def obd_producer_loop(
                                 },
                             })
                             await manager.broadcast(trip_event)
+                        # Intelligence: trip-end hooks (scoring, cold start, maintenance)
+                        if settings.intelligence_enabled:
+                            try:
+                                # Trip scoring
+                                trip_distance = summary["distance_miles"]
+                                if avg_mpg and trip_distance > 0.5:
+                                    trip_score = app.state.trip_scorer.score_trip(
+                                        trip_mpg=avg_mpg,
+                                        trip_distance_miles=trip_distance,
+                                    )
+                                    logger.info(
+                                        "Trip score: composite=%d efficiency=%d smoothness=%d idle=%d",
+                                        int(trip_score.composite), int(trip_score.efficiency),
+                                        int(trip_score.smoothness), int(trip_score.idle_ratio),
+                                    )
+
+                                # Cold-start record
+                                await app.state.cold_start_profiler.on_trip_end(
+                                    trip_id=active_trip_id, db=db,
+                                )
+
+                                # Maintenance check
+                                cumulative_miles = await db.get_cumulative_miles()
+                                await app.state.maintenance_tracker.check_maintenance(
+                                    current_odometer_miles=cumulative_miles,
+                                    db=db,
+                                    alert_queue=app.state.alert_queue,
+                                    avg_oil_temp_c=snap.oil_temp_c if snap.oil_temp_c > 0 else None,
+                                )
+                            except Exception:
+                                logger.debug("Intelligence trip-end hooks failed", exc_info=True)
+
                 except Exception:
                     logger.warning("Failed to end trip in DB", exc_info=True)
                 active_trip_id = None
@@ -393,6 +488,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.thermal_mgr = thermal_mgr
     app.state.go_live_event = asyncio.Event()
     app.state.can_listener = can_listener
+
+    # Intelligence Layer
+    if settings.intelligence_enabled:
+        alert_queue = AlertQueue(db, rate_limit_seconds=settings.alert_rate_limit_seconds)
+        battery_monitor = BatteryMonitor(alert_queue=alert_queue)
+        cold_start_profiler = ColdStartProfiler(alert_queue=alert_queue)
+        trip_scorer = TripScorer()
+        thermal_guardian = ThermalGuardian()
+        maintenance_tracker = MaintenanceTracker()
+        can_decoder = CANDecoder()
+        app.state.alert_queue = alert_queue
+        app.state.battery_monitor = battery_monitor
+        app.state.cold_start_profiler = cold_start_profiler
+        app.state.trip_scorer = trip_scorer
+        app.state.thermal_guardian = thermal_guardian
+        app.state.maintenance_tracker = maintenance_tracker
+        app.state.can_decoder = can_decoder
+    else:
+        app.state.alert_queue = None
+        app.state.battery_monitor = None
+        app.state.cold_start_profiler = None
+        app.state.trip_scorer = None
+        app.state.thermal_guardian = None
+        app.state.maintenance_tracker = None
+        app.state.can_decoder = None
 
     # Start background tasks
     producer_task = asyncio.create_task(
@@ -841,6 +961,214 @@ async def export_database() -> FileResponse:
         filename="rune.db",
         media_type="application/x-sqlite3",
     )
+
+
+# --- Resilient Export API (chunked, SHA-verified, resumable) ---
+# Replaces /api/export for large DBs. Pi splits backup into 5MB chunks,
+# verifies each chunk's SHA-256, then streams the reassembled file.
+# If WiFi drops, iPhone re-hits the same session URL -- same bytes, same SHA.
+
+# Concurrency lock: only one export prep at a time
+_export_lock = asyncio.Lock()
+
+
+@app.post("/api/export/prepare")
+async def export_prepare_endpoint(
+    chunk_size_mb: int = Query(default=5, ge=1, le=50),
+) -> JSONResponse:
+    """Create a backup, split into chunks, compute SHAs. Returns session manifest."""
+    if _export_lock.locked():
+        return JSONResponse(
+            {"error": "export already in progress"},
+            status_code=409,
+        )
+    async with _export_lock:
+        db: RuneDatabase = app.state.db
+        try:
+            session = await prepare_export(db, chunk_size_bytes=chunk_size_mb * 1024 * 1024)
+        except RuntimeError as e:
+            return JSONResponse({"error": str(e)}, status_code=507)
+    return JSONResponse(session.model_dump(exclude={"export_dir"}))
+
+
+@app.get("/api/export/status/{session_id}")
+async def export_status_endpoint(session_id: str) -> JSONResponse:
+    """Check if an export session is still valid."""
+    db: RuneDatabase = app.state.db
+    session = await get_export_session(db, session_id)
+    if session is None:
+        return JSONResponse({"valid": False}, status_code=404)
+    return JSONResponse({
+        "valid": True,
+        "session_id": session.session_id,
+        "total_bytes": session.total_bytes,
+        "total_sha256": session.total_sha256,
+        "chunk_count": session.chunk_count,
+        "created_at": session.created_at,
+        "expires_at": session.expires_at,
+    })
+
+
+@app.get("/api/export/stream/{session_id}")
+async def export_stream_endpoint(session_id: str) -> StreamingResponse:
+    """Stream the verified backup file. Idempotent -- same session = same bytes."""
+    db: RuneDatabase = app.state.db
+    session = await get_export_session(db, session_id)
+    if session is None:
+        return JSONResponse(
+            {"error": "session not found or expired, call /api/export/prepare"},
+            status_code=404,
+        )
+    return StreamingResponse(
+        stream_export(session),
+        media_type="application/x-sqlite3",
+        headers={
+            "Content-Length": str(session.total_bytes),
+            "Content-Disposition": 'attachment; filename="rune.db"',
+            "X-Export-SHA256": session.total_sha256,
+            "X-Session-ID": session.session_id,
+        },
+    )
+
+
+@app.post("/api/export/complete/{session_id}")
+async def export_complete_endpoint(session_id: str) -> JSONResponse:
+    """Clean up temp files after successful download."""
+    db: RuneDatabase = app.state.db
+    result = await complete_export_session(db, session_id)
+    status = 200 if result.get("ok") else 404
+    return JSONResponse(result, status_code=status)
+
+
+# --- Intelligence Layer: Sync API ---
+
+
+class SyncAckRequest(BaseModel):
+    """Request body for POST /api/sync/ack."""
+    alert_ids: list[int] = Field(default_factory=list)
+    cursor: str | None = None  # ISO 8601 -- when the iPhone relayed to ntfy
+
+
+@app.get("/api/sync/alerts")
+async def sync_get_alerts() -> JSONResponse:
+    """Return all unsynced alerts for iPhone relay to ntfy.sh."""
+    if not settings.intelligence_enabled:
+        return JSONResponse({"alerts": [], "count": 0, "fetched_at": ""})
+    db: RuneDatabase = app.state.db
+    result = await sync_engine.get_unsynced_alerts(db)
+    return JSONResponse(result)
+
+
+@app.get("/api/sync/delta")
+async def sync_get_delta(
+    since: str = Query(..., description="ISO 8601 timestamp -- fetch data after this point"),
+) -> Response:
+    """Return trip summaries + sensor reading count since a timestamp.
+
+    Includes X-Rune-Checksum header (SHA-256 of JSON body) for integrity verification.
+    """
+    if not settings.intelligence_enabled:
+        return JSONResponse({"error": "intelligence layer disabled"}, status_code=503)
+    db: RuneDatabase = app.state.db
+    try:
+        data = await sync_engine.get_delta(db, since_iso=since)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=422)
+    body = json.dumps(data).encode()
+    checksum = hashlib.sha256(body).hexdigest()
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={"X-Rune-Checksum": checksum},
+    )
+
+
+@app.post("/api/sync/ack")
+async def sync_ack(req: SyncAckRequest) -> JSONResponse:
+    """Mark alerts as synced and advance the sync cursor. Idempotent."""
+    if not settings.intelligence_enabled:
+        return JSONResponse({"error": "intelligence layer disabled"}, status_code=503)
+    db: RuneDatabase = app.state.db
+    result = await sync_engine.ack_sync(db, alert_ids=req.alert_ids, cursor_iso=req.cursor)
+    return JSONResponse(result)
+
+
+@app.get("/api/sync/status")
+async def sync_status() -> JSONResponse:
+    """Pending alerts count, readings since last sync, last sync time."""
+    if not settings.intelligence_enabled:
+        return JSONResponse({"pending_alerts": 0, "last_sync_at": None, "readings_since_sync": 0, "server_time": "", "has_data": False})
+    db: RuneDatabase = app.state.db
+    result = await sync_engine.get_sync_status(db)
+    return JSONResponse(result)
+
+
+# --- Intelligence Layer: Maintenance API ---
+
+
+class MaintenanceDoneRequest(BaseModel):
+    """Request body for POST /api/maintenance/done."""
+    item: str  # MaintenanceItem value (e.g., "oil_change")
+    odometer_miles: float | None = None  # If None, uses cumulative trip miles
+    notes: str = ""
+
+
+@app.get("/api/maintenance/status")
+async def maintenance_status() -> JSONResponse:
+    """Get maintenance status for all tracked items."""
+    if not settings.intelligence_enabled:
+        return JSONResponse({"items": [], "error": "intelligence layer disabled"})
+    db: RuneDatabase = app.state.db
+    tracker: MaintenanceTracker = app.state.maintenance_tracker
+    cumulative_miles = await db.get_cumulative_miles()
+    statuses = await tracker.check_maintenance(
+        current_odometer_miles=cumulative_miles,
+        db=db,
+        alert_queue=app.state.alert_queue,
+    )
+    return JSONResponse({
+        "items": [s.model_dump() for s in statuses],
+        "odometer_miles": round(cumulative_miles, 1),
+    })
+
+
+@app.post("/api/maintenance/done")
+async def maintenance_done(req: MaintenanceDoneRequest) -> JSONResponse:
+    """Mark a maintenance item as completed."""
+    if not settings.intelligence_enabled:
+        return JSONResponse({"error": "intelligence layer disabled"}, status_code=503)
+    db: RuneDatabase = app.state.db
+    tracker: MaintenanceTracker = app.state.maintenance_tracker
+    from backend.intelligence.models import MaintenanceItem
+    try:
+        item = MaintenanceItem(req.item)
+    except ValueError:
+        return JSONResponse({"error": f"Unknown item: {req.item}"}, status_code=422)
+    odometer = req.odometer_miles
+    if odometer is None:
+        odometer = await db.get_cumulative_miles()
+    record = await tracker.mark_done(
+        item=item, odometer_miles=odometer, db=db, notes=req.notes,
+    )
+    return JSONResponse({"ok": True, "record": record.model_dump()})
+
+
+@app.get("/api/intelligence/status")
+async def intelligence_status() -> JSONResponse:
+    """Intelligence layer status overview."""
+    if not settings.intelligence_enabled:
+        return JSONResponse({"enabled": False})
+    result: dict[str, Any] = {"enabled": True}
+    if app.state.battery_monitor:
+        result["battery"] = app.state.battery_monitor.trend.model_dump()
+    if app.state.trip_scorer:
+        result["baseline_mpg"] = app.state.trip_scorer.get_baseline_mpg()
+    if app.state.can_decoder:
+        result["can_decoder"] = app.state.can_decoder.get_stats()
+    if app.state.cold_start_profiler:
+        model = app.state.cold_start_profiler.model
+        result["warmup_model"] = model.model_dump() if model else None
+    return JSONResponse(result)
 
 
 @app.websocket("/ws/vehicle-data")

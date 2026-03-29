@@ -50,6 +50,54 @@ class RuneSettings(BaseSettings):
     use_simulator: bool = True  # True for desktop dev, False on Pi with real OBD
     log_level: str = "INFO"
 
+    # Intelligence Layer
+    intelligence_enabled: bool = True
+    alert_rate_limit_seconds: float = 3600.0  # 1 alert per category per hour
+
+    # DBC CAN decoding
+    can_decode_enabled: bool = True  # decode raw CAN frames via DBC definitions
+
+    # Battery monitoring -- thresholds from Interstate Battery State of Charge chart
+    battery_resting_warn_v: float = 12.2   # 50% SOC
+    battery_resting_critical_v: float = 12.0  # 25% SOC
+    battery_charging_min_v: float = 13.5   # minimum healthy alternator output
+    battery_ewma_alpha: float = 0.1        # smoothing factor for trend
+
+    # Cold-start profiler
+    coldstart_target_coolant_c: float = 80.0  # Honda thermostat opening temp
+    coldstart_min_samples: int = 15           # samples needed before model fitting
+    coldstart_anomaly_threshold: float = 1.3  # 30% deviation triggers alert
+
+    # Trip scoring weights -- efficiency-heavy, aligned with telematics industry
+    trip_score_efficiency_weight: float = 0.5
+    trip_score_smoothness_weight: float = 0.3
+    trip_score_idle_weight: float = 0.2
+    trip_score_hard_accel_threshold: float = 15.0  # %/sec throttle rate-of-change
+    trip_score_hard_brake_threshold: float = 11.3   # km/h per sec (~7 mph/sec, Progressive Snapshot)
+    trip_score_baseline_alpha: float = 0.15         # EWMA for personal MPG baseline
+
+    # Parked thermal guardian
+    thermal_guardian_enabled: bool = True
+    thermal_warm_c: float = 45.0     # start logging
+    thermal_hot_c: float = 60.0      # queue alert, stay off
+    thermal_extreme_c: float = 70.0  # critical alert, extend wake interval
+    thermal_normal_wake_hours: float = 2.0
+    thermal_extreme_wake_hours: float = 4.0
+
+    # Maintenance intervals (miles) -- from 2026 Honda Accord SE owner's manual
+    maint_oil_change_mi: float = 7500.0
+    maint_oil_change_hot_mi: float = 5000.0  # if avg oil temp > 110C
+    maint_air_filter_mi: float = 15000.0
+    maint_cabin_filter_mi: float = 15000.0
+    maint_cvt_fluid_mi: float = 30000.0
+    maint_cvt_fluid_hot_mi: float = 25000.0  # if avg CVT temp > 90C
+    maint_spark_plugs_mi: float = 60000.0
+    maint_coolant_first_mi: float = 60000.0
+    maint_coolant_subsequent_mi: float = 30000.0
+    maint_brake_fluid_mi: float = 36000.0
+    maint_tire_rotation_mi: float = 7500.0
+    maint_alert_ahead_mi: float = 500.0  # alert this many miles before due
+
 
 # Singleton instance -- import this throughout the app
 settings = RuneSettings()
