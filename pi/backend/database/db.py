@@ -14,10 +14,14 @@ Key decisions based on research:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
 from typing import Any
+
+import shutil
+import sqlite3
 
 import aiosqlite
 
@@ -84,6 +88,17 @@ CREATE TABLE IF NOT EXISTS health_scores (
     electrical   REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_health_ts ON health_scores(ts);
+
+CREATE TABLE IF NOT EXISTS can_frames (
+    id              INTEGER PRIMARY KEY,
+    ts              INTEGER NOT NULL,
+    can_id          INTEGER NOT NULL,
+    dlc             INTEGER NOT NULL,
+    data            BLOB NOT NULL,
+    bus             INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_can_ts ON can_frames(ts);
+CREATE INDEX IF NOT EXISTS idx_can_id ON can_frames(can_id);
 """
 
 _PRAGMAS = [
@@ -299,7 +314,7 @@ class RuneDatabase:
         """Return row counts for all 4 tables."""
         conn = self._require_conn()
         counts: dict[str, int] = {}
-        for table in ("sensor_readings", "trips", "fillups", "health_scores"):
+        for table in ("sensor_readings", "trips", "fillups", "health_scores", "can_frames"):
             cursor = await conn.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
             row = await cursor.fetchone()
             counts[table] = row[0] if row else 0
@@ -331,6 +346,12 @@ class RuneDatabase:
             "DELETE FROM health_scores WHERE ts < ?", (cutoff,),
         )
         deleted["health_scores"] = cursor.rowcount or 0
+
+        # Old CAN frames
+        cursor = await conn.execute(
+            "DELETE FROM can_frames WHERE ts < ?", (cutoff,),
+        )
+        deleted["can_frames"] = cursor.rowcount or 0
 
         # Junk trips: completed trips with < 0.01 miles (noise-triggered false starts)
         cursor = await conn.execute(
@@ -394,13 +415,64 @@ class RuneDatabase:
         count = row[0] if row else 0
         return round(count / window_seconds, 1) if window_seconds > 0 else 0.0
 
+    # --- can_frames ---
+
+    async def insert_can_frames(self, frames: list[object]) -> None:
+        """Batch insert raw CAN frames from the CANListener.
+
+        Args:
+            frames: list of CANFrame dataclass instances with
+                    timestamp_ms, can_id, dlc, data (bytes), bus fields.
+        """
+        if not frames:
+            return
+        conn = self._require_conn()
+        rows = [
+            (f.timestamp_ms, f.can_id, f.dlc, f.data, f.bus)  # type: ignore[attr-defined]
+            for f in frames
+        ]
+        await conn.executemany(
+            """INSERT INTO can_frames (ts, can_id, dlc, data, bus)
+               VALUES (?, ?, ?, ?, ?)""",
+            rows,
+        )
+        await conn.commit()
+
+    # --- backup (for /api/export) ---
+
+    async def backup(self, dest_path: str) -> str:
+        """Create a safe SQLite backup for export.
+
+        Uses SQLite's backup API via a separate synchronous connection
+        so the live WAL-mode DB is not locked during the copy.
+        Returns the destination path.
+        """
+        conn = self._require_conn()
+        # Checkpoint WAL first so backup includes latest writes
+        await conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+
+        def _do_backup() -> None:
+            src = sqlite3.connect(self._db_path)
+            dst = sqlite3.connect(dest_path)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+                src.close()
+
+        await asyncio.to_thread(_do_backup)
+        logger.info("Database backup created: %s", dest_path)
+        return dest_path
+
+    # --- purge ---
+
     async def purge_all(self) -> dict[str, int]:
         """Delete ALL data from all tables. Used by go-live to remove simulation data.
 
         Returns a dict of table name -> rows deleted.
         """
         conn = self._require_conn()
-        tables = ["sensor_readings", "trips", "fillups", "health_scores"]
+        tables = ["sensor_readings", "trips", "fillups", "health_scores", "can_frames"]
         purged: dict[str, int] = {}
         for table in tables:
             cursor = await conn.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608

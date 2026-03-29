@@ -142,7 +142,7 @@ If all that works, the Pi is ready. Turn it off and wait for the car.
 **Step 2: Change WiCAN Pro WiFi password (5 min)**
 
 1. On your phone, connect to the WiCAN Pro's default AP (password: `@meatpi#`)
-2. Open browser: `http://192.168.80.1` (WiCAN Pro web UI)
+2. Open browser: `http://192.168.0.10` (WiCAN Pro web UI -- factory-fresh units use this IP; after setup, normal AP mode uses 192.168.80.1)
 3. Go to WiFi settings
 4. Switch from AP mode to **Station mode**
 5. Connect it to the "Rune" network with the passphrase you set
@@ -302,7 +302,7 @@ The OBDCollector polls all 14 PIDs automatically. Check the debug dashboard at `
 ### WiCAN Pro won't connect
 - Check it's in Station mode (not AP mode) and on the "Rune" network
 - Verify TCP: `nc -zv 192.168.4.100 3333` from the Pi
-- Check WiCAN Pro firmware is v4.40+
+- Check WiCAN Pro firmware is latest (check github.com/meatpiHQ/wican-fw/releases)
 - Try power cycling the WiCAN Pro (unplug from Y-splitter, wait 10s, replug)
 
 ### No OBD data after connection

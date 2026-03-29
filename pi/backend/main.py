@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -27,6 +28,7 @@ from backend.fuel.calculator import FuelCalculator
 from backend.fuel.fillup import FillupDetector
 from backend.fuel.trip_stats import TripStatsAccumulator
 from backend.health.scorer import HealthScorer
+from backend.obd_manager.can_listener import CANListener
 from backend.obd_manager.collector import DataCollector, OBDCollector, SimulatedCollector
 from backend.obd_manager.models import FuelSnapshot, HealthSnapshot, VehicleSnapshot, WebSocketMessage
 from backend.sensors.thermal import ThermalManager
@@ -371,6 +373,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     thermal_mgr = ThermalManager()
 
+    # Raw CAN listener (passive, read-only, port 35000)
+    can_listener: CANListener | None = None
+    if settings.can_logging_enabled and not settings.use_simulator:
+        can_listener = CANListener(
+            host=settings.wican_host,
+            port=settings.wican_can_port,
+        )
+        await can_listener.start(db=db)
+
     # Store on app.state for access in route handlers
     app.state.db = db
     app.state.collector = collector
@@ -381,6 +392,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.pi_reader = pi_reader
     app.state.thermal_mgr = thermal_mgr
     app.state.go_live_event = asyncio.Event()
+    app.state.can_listener = can_listener
 
     # Start background tasks
     producer_task = asyncio.create_task(
@@ -393,8 +405,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     maintenance_task = asyncio.create_task(db_maintenance_loop(db))
 
     logger.info(
-        "Rune started: simulator_mode=%s, ws_rate=%dHz, db=%s",
+        "Rune started: simulator_mode=%s, ws_rate=%dHz, db=%s, can_logging=%s",
         settings.use_simulator, settings.ws_rate_hz, settings.db_path,
+        can_listener is not None,
     )
 
     yield
@@ -411,6 +424,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except asyncio.CancelledError:
         pass
 
+    if can_listener is not None:
+        await can_listener.stop()
     await collector.stop()
     await pi_reader.stop()
     await db.close()
@@ -807,6 +822,25 @@ async def control_reset_data() -> JSONResponse:
     )
     status_code = 200 if result["success"] else 500
     return JSONResponse(result, status_code=status_code)
+
+
+@app.get("/api/export")
+async def export_database() -> FileResponse:
+    """Export the full SQLite database for offline analysis.
+
+    Creates a safe backup (does not lock the live DB) and returns it
+    as a downloadable file. Used by the iOS Shortcut to pull raw data
+    for the Mac training pipeline.
+    """
+    import tempfile
+    db: RuneDatabase = app.state.db
+    backup_path = os.path.join(tempfile.gettempdir(), "rune-export.db")
+    await db.backup(backup_path)
+    return FileResponse(
+        backup_path,
+        filename="rune.db",
+        media_type="application/x-sqlite3",
+    )
 
 
 @app.websocket("/ws/vehicle-data")

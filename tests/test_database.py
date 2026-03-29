@@ -277,7 +277,7 @@ class TestPurgeAll:
     async def test_purge_empty_db(self, db: RuneDatabase) -> None:
         result = await db.purge_all()
         assert result == {
-            "sensor_readings": 0, "trips": 0, "fillups": 0, "health_scores": 0,
+            "sensor_readings": 0, "trips": 0, "fillups": 0, "health_scores": 0, "can_frames": 0,
         }
 
     async def test_purge_deletes_all_data(self, db: RuneDatabase) -> None:

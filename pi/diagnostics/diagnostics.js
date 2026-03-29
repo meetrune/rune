@@ -371,7 +371,7 @@
       hdr.appendChild(document.createTextNode("WiCAN Pro"));
       deviceContent.appendChild(hdr);
       var grid = el("div", "detail-grid");
-      [["Protocol", "ELM327 TCP:3333"], ["CAN", "ISO 15765-4 (ATSP6)"], ["Firmware", "v4.40"]].forEach(function(pair) {
+      [["Protocol", "ELM327 TCP:3333"], ["CAN", "ISO 15765-4 (ATSP6)"], ["Firmware", "latest"]].forEach(function(pair) {
         var item = el("div", "detail-item");
         item.appendChild(el("div", "detail-label", pair[0]));
         item.appendChild(el("div", "detail-value small", pair[1]));

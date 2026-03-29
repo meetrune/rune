@@ -71,7 +71,8 @@ Rune is the car. The 2026 Honda Accord SE, Meteorite Gray Metallic. What we're b
 **Target audience:** Enthusiast developers building portfolio projects for automotive tech careers (Tesla, Rivian, Honda R&D, Waymo, Continental/AUMOVIO).
 
 **GitHub:** [meetrune/rune](https://github.com/meetrune/rune)
-**License:** MIT. Open source. Zero cloud dependency. Everything runs locally on a $55 Pi and a spare phone.
+**Portfolio Site:** Separate repo at `/Users/kmantri/workstation/rune-site/` (Next.js, deploys to rune.kuladeepmantri.com via GitHub Pages).
+**License:** Proprietary. All rights reserved. Zero cloud dependency. Everything runs locally on a $55 Pi and a spare phone.
 
 ---
 
@@ -161,7 +162,7 @@ Order #318980. Ships from Mouser warehouse, Mansfield TX. Expected delivery: Mar
 |------|-------|
 | WiCAN Pro OBD-II adapter | $89.00 + $8.00 shipping + $5.34 tax |
 
-**WiCAN Pro specs:** ESP32-S3, WiFi + BLE, raw CAN bus + CAN-FD, dedicated OBD interpreter chip supporting all legislated protocols (ISO 15765-4, SAE J1939, GMLAN, J1850), ELM327/ELM329/STN instruction set emulation, WebSocket communication, sleep mode <3mA, firmware v4.40, open-source firmware (meatpiHQ/wican-fw).
+**WiCAN Pro specs:** ESP32-S3, WiFi + BLE, raw CAN bus + CAN-FD, dedicated OBD interpreter chip supporting all legislated protocols (ISO 15765-4, SAE J1939, GMLAN, J1850), ELM327/ELM329/STN instruction set emulation, WebSocket communication, sleep mode <3mA, open-source firmware ([meatpiHQ/wican-fw](https://github.com/meatpiHQ/wican-fw/releases) -- check for latest version).
 
 **Order 2: Adafruit -- $57.09**
 Order #3653420-7503210349. UPS Ground, ~1 week delivery.
@@ -734,7 +735,7 @@ Page indicator dots at the bottom show which screen is active.
 |------|-------|-------------|
 | 10 | PDF diagnostic reports | Jinja2 HTML templates + matplotlib charts + WeasyPrint PDF. Two-tier: customer-friendly summary (traffic-light per subsystem) + detailed technical section (DTCs, freeze frames, trend charts, spectrograms). |
 | 11 | GNN health graph (stretch) | 8-node graph: Engine, Transmission, Exhaust, Cooling, Fuel, Electrical, Brakes, HVAC. 2-3 layer GCN, 64-dim embeddings. Train on desktop with PyTorch Geometric, export to ONNX/TFLite (~200KB). Graph overlay on 3D model (green/yellow/red nodes, highlighted fault propagation edges). |
-| 12 | Plugin architecture + open source launch | BasePlugin ABC (initialize, process, shutdown). Dynamic discovery via importlib scanning `plugins/` dir. Vehicle profile YAML system (auto-detect via VIN). Circuit breaker for sensor failures. GitHub release: MIT license, README with architecture diagram, hardware BOM, safety section. Demo video (2 min). |
+| 12 | Plugin architecture + open source launch | BasePlugin ABC (initialize, process, shutdown). Dynamic discovery via importlib scanning `plugins/` dir. Vehicle profile YAML system (auto-detect via VIN). Circuit breaker for sensor failures. GitHub release: proprietary license, README with architecture diagram, hardware BOM, safety section. Demo video (2 min). |
 
 ### v5 -- Mac Training Workstation (Post-launch, ongoing)
 

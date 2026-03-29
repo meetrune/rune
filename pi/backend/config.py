@@ -31,6 +31,10 @@ class RuneSettings(BaseSettings):
     obd_stale_threshold: float = 5.0  # seconds before PID considered stale
     obd_mode22_enabled: bool = True  # attempt Mode 22 CVT temp query
 
+    # WiCAN Pro raw CAN listener (port 35000 -- passive read-only)
+    can_logging_enabled: bool = True  # log raw CAN frames alongside OBD PIDs
+    wican_can_port: int = 35000  # raw CAN TCP port on WiCAN Pro
+
     # WebSocket
     ws_rate_hz: int = 10
 

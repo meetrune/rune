@@ -223,7 +223,7 @@ Current dev environment: **Python 3.14** (Mac), will target Pi-compatible Python
 | Component | Key Specs |
 |-----------|-----------|
 | **Pi 4B** | 4GB RAM. Trixie 64-bit Lite. WiFi AP "Rune" at 192.168.4.1. OverlayFS enabled. Python 3.13. |
-| **WiCAN Pro** | ESP32-S3. WiFi station mode on Rune network. Raw CAN + CAN-FD + ELM327/STN emulation. Dedicated OBD interpreter chip. Sleep <3mA. Firmware v4.40. WebSocket communication. **Change default WiFi password** (default: `@meatpi#`). Order #318980. |
+| **WiCAN Pro** | ESP32-S3. WiFi station mode on Rune network. Raw CAN + CAN-FD + ELM327/STN emulation. Dedicated OBD interpreter chip. Sleep <3mA. Check [latest firmware](https://github.com/meatpiHQ/wican-fw/releases). WebSocket communication. **Change default WiFi password** (default: `@meatpi#`). Factory-fresh web UI at `192.168.0.10` (normal AP mode: `192.168.80.1`). Order #318980. |
 | **Pixel 6 Pro** | Google Tensor. 12GB RAM. Mali-G78 MP20 GPU. LSM6DSO IMU (60Hz via web, 400Hz native). 6.7" LTPO OLED. Dedicated spare phone. |
 | **Witty Pi 4** | Adafruit #5704. 6-30V DC input. 12V->5V. RTC (CR2032 backup). Graceful shutdown on ignition off. Uses I2C (GPIO 2/3). |
 | **Sensors (v3)** | AITRIP INMP441 mic (I2S: GPIO 18/19/20), HiLetgo MPU-6050 IMU (I2C addr 0x68), ZHWXFW BME280 (I2C addr 0x76/0x77) |

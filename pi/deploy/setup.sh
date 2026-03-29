@@ -198,6 +198,17 @@ fi
 NAT_EOF
 chmod +x /etc/NetworkManager/dispatcher.d/99-rune-no-nat
 
+# Trixie bug workaround: nmcli may write connection to /run/ instead of /etc/
+# If so, the AP won't survive a reboot. Move it to the persistent location.
+if [ -f "/run/NetworkManager/system-connections/Rune.nmconnection" ] && \
+   [ ! -f "/etc/NetworkManager/system-connections/Rune.nmconnection" ]; then
+    echo "  Fixing Trixie nmcli bug: moving connection to /etc/"
+    cp /run/NetworkManager/system-connections/Rune.nmconnection \
+       /etc/NetworkManager/system-connections/Rune.nmconnection
+    chmod 600 /etc/NetworkManager/system-connections/Rune.nmconnection
+    nmcli con reload
+fi
+
 # Bring up the AP
 nmcli con up Rune || echo "  NOTE: WiFi AP will start on next boot."
 
