@@ -118,16 +118,18 @@ if [[ -d "$REPO_DIR/pixel/frontend/public" ]]; then
     rsync -a "$REPO_DIR/pixel/frontend/public/" "$RUNE_DIR/frontend/public/"
 fi
 
-# Copy pyproject.toml for dependency installation
-cp "$REPO_DIR/pyproject.toml" "$RUNE_DIR/"
-
 # Create venv and install dependencies
 if [[ ! -d "$RUNE_DIR/.venv" ]]; then
     python3 -m venv "$RUNE_DIR/.venv"
     echo "  Created Python venv."
 fi
 "$RUNE_DIR/.venv/bin/pip" install --quiet --upgrade pip
-"$RUNE_DIR/.venv/bin/pip" install --quiet "$RUNE_DIR"
+
+# Install from the repo source (where pyproject.toml and pi/ directory coexist)
+# This is more reliable than installing from /opt/rune where the directory
+# structure differs from the repo layout.
+"$RUNE_DIR/.venv/bin/pip" install --quiet "$REPO_DIR"
+echo "  Python dependencies installed."
 
 chown -R "$RUNE_USER:$RUNE_USER" "$RUNE_DIR"
 
