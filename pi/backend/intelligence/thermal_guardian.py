@@ -69,6 +69,7 @@ class ThermalGuardian:
         self._state: ParkedThermalState = ParkedThermalState.NORMAL
         self._last_check_ts: float | None = None
         self._check_count: int = 0
+        self._should_shutdown: bool = False
 
     async def check_parked_state(
         self,
@@ -106,18 +107,25 @@ class ThermalGuardian:
 
         alerts_queued = 0
 
+        # Effective temp for alert messages (could be proxy from CPU)
+        effective_temp = armrest_temp_c
+        if effective_temp is None and cpu_temp_c is not None:
+            effective_temp = cpu_temp_c - 15.0
+        temp_str = f"{effective_temp:.0f}" if effective_temp is not None else "unknown"
+
         # Queue alerts for dangerous states
         if thermal_state == ParkedThermalState.HOT:
             alert_id = await alert_queue.enqueue(
                 severity=AlertSeverity.WARNING,
                 category=AlertCategory.THERMAL,
                 message=(
-                    f"Armrest enclosure is hot ({armrest_temp_c:.0f}C). "
+                    f"Armrest enclosure is hot ({temp_str}C). "
                     "Electronics at risk. I'm staying off to protect myself."
                 ),
                 data={
                     "armrest_temp_c": armrest_temp_c,
                     "cpu_temp_c": cpu_temp_c,
+                    "effective_temp_c": effective_temp,
                     "state": thermal_state.value,
                 },
             )
@@ -132,17 +140,52 @@ class ThermalGuardian:
                 severity=AlertSeverity.CRITICAL,
                 category=AlertCategory.THERMAL,
                 message=(
-                    f"Armrest enclosure is dangerously hot ({armrest_temp_c:.0f}C). "
+                    f"Armrest enclosure is dangerously hot ({temp_str}C). "
                     "Extending wake interval to reduce heat generation."
                 ),
                 data={
                     "armrest_temp_c": armrest_temp_c,
                     "cpu_temp_c": cpu_temp_c,
+                    "effective_temp_c": effective_temp,
                     "state": thermal_state.value,
                 },
             )
             if alert_id is not None:
                 alerts_queued += 1
+
+        # Emergency shutdown: if CPU is at or above shutdown threshold,
+        # or effective armrest temp exceeds 80C, shut down immediately.
+        # The Pi running adds 3-5W of heat -- staying on makes it worse.
+        should_emergency_shutdown = False
+        if cpu_temp_c is not None and cpu_temp_c >= _CPU_SHUTDOWN_C:
+            logger.critical(
+                "PARKED EMERGENCY SHUTDOWN: CPU=%.1fC >= %.1fC shutdown threshold",
+                cpu_temp_c, _CPU_SHUTDOWN_C,
+            )
+            should_emergency_shutdown = True
+        if effective_temp is not None and effective_temp >= 80.0:
+            logger.critical(
+                "PARKED EMERGENCY SHUTDOWN: enclosure=%.1fC >= 80C",
+                effective_temp,
+            )
+            should_emergency_shutdown = True
+
+        if should_emergency_shutdown:
+            await alert_queue.enqueue(
+                severity=AlertSeverity.CRITICAL,
+                category=AlertCategory.THERMAL,
+                message=(
+                    f"Emergency shutdown -- enclosure at {temp_str}C. "
+                    "Too hot to stay on. I'll check again in 4 hours."
+                ),
+                data={
+                    "armrest_temp_c": armrest_temp_c,
+                    "cpu_temp_c": cpu_temp_c,
+                    "effective_temp_c": effective_temp,
+                    "action": "emergency_shutdown",
+                },
+            )
+            self._should_shutdown = True
 
         # CPU-specific alert: if CPU is near throttle point on wake-up,
         # the enclosure has inadequate cooling
@@ -208,6 +251,11 @@ class ThermalGuardian:
     def get_state(self) -> ParkedThermalState:
         """Return the current parked thermal state."""
         return self._state
+
+    @property
+    def should_shutdown(self) -> bool:
+        """True if emergency shutdown was triggered by extreme heat."""
+        return self._should_shutdown
 
     def _classify_temp(
         self,
