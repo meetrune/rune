@@ -1,0 +1,47 @@
+[Unit]
+Description=Rune -- Car OS backend (FastAPI + OBD-II)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=rune
+Group=rune
+WorkingDirectory=/opt/rune
+EnvironmentFile=/etc/rune/rune.env
+Environment=PYTHONPATH=/opt/rune
+ExecStart=/opt/rune/.venv/bin/uvicorn backend.main:app \
+    --host 0.0.0.0 \
+    --port 8080 \
+    --ws websockets \
+    --log-level warning \
+    --no-access-log
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+# Graceful shutdown: SIGTERM first, SIGKILL after timeout
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/rune
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+
+# Resource limits for Pi 4B (4GB)
+MemoryMax=512M
+CPUQuota=80%
+
+# No WatchdogSec -- uvicorn doesn't call sd_notify().
+# Restart=on-failure + RestartSec=5 handles crash recovery.
+
+[Install]
+WantedBy=multi-user.target

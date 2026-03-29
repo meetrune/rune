@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 
 from backend.fuel.calculator import FuelCalculator
 from backend.fuel.fillup import FillupDetector, FillupEvent
@@ -16,11 +15,12 @@ def _snap(
     maf_gps: float = 2.5,
     fuel_level_pct: float = 75.0,
     timestamp: float | None = None,
+    rpm: float | None = None,
 ) -> VehicleSnapshot:
     """Build a minimal valid VehicleSnapshot."""
     return VehicleSnapshot(
         timestamp=timestamp or time.time(),
-        rpm=700 if speed_kph == 0 else 2000,
+        rpm=rpm if rpm is not None else (700 if speed_kph == 0 else 2000),
         speed_kph=speed_kph,
         coolant_temp_c=90,
         engine_load_pct=20 if speed_kph == 0 else 30,
@@ -105,23 +105,41 @@ class TestTripDetection:
         assert not ended
         assert calc.is_trip_active
 
-    def test_idle_60s_ends_trip(self) -> None:
+    def test_engine_off_ends_trip(self) -> None:
+        """RPM dropping to 0 for 10+ seconds = engine off = trip ends."""
         calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
         t = time.time()
 
-        # Drive for 30 seconds at 100 kph to build real distance (~0.5 miles)
+        # Drive for 30 seconds at 100 kph to build real distance
         for i in range(30):
             calc.update(_snap(speed_kph=100, maf_gps=15.0, timestamp=t + i))
 
-        # Stop for 61 seconds
+        # Engine off (RPM=0) for 11 seconds
         ended_at = None
-        for i in range(30, 92):
-            _, _, ended = calc.update(_snap(speed_kph=0, timestamp=t + i))
+        for i in range(30, 42):
+            _, _, ended = calc.update(_snap(speed_kph=0, rpm=0, timestamp=t + i))
             if ended:
                 ended_at = i
 
         assert ended_at is not None
         assert not calc.is_trip_active
+
+    def test_idle_in_traffic_no_false_end(self) -> None:
+        """Engine running at idle (RPM=700, speed=0) should NOT end trip,
+        even after 60+ seconds. This is the traffic/red light fix."""
+        calc = FuelCalculator(tank_capacity_gal=14.8, gas_price_per_gallon=3.50)
+        t = time.time()
+
+        # Drive
+        for i in range(10):
+            calc.update(_snap(speed_kph=80, maf_gps=12.0, timestamp=t + i))
+
+        # Sit in traffic for 120 seconds, engine running (RPM=700)
+        for i in range(10, 130):
+            _, _, ended = calc.update(_snap(speed_kph=0, rpm=700, timestamp=t + i))
+            assert not ended
+
+        assert calc.is_trip_active
 
     def test_junk_trip_discarded(self) -> None:
         """Trip with < 0.05 miles should be silently discarded, not ended."""
@@ -132,14 +150,14 @@ class TestTripDetection:
         calc.update(_snap(speed_kph=6, timestamp=t))
         calc.update(_snap(speed_kph=6, timestamp=t + 1))
 
-        # Stop for 61 seconds
+        # Engine off (RPM=0) for 12 seconds
         any_ended = False
-        for i in range(2, 63):
-            _, _, ended = calc.update(_snap(speed_kph=0, timestamp=t + i))
+        for i in range(2, 14):
+            _, _, ended = calc.update(_snap(speed_kph=0, rpm=0, timestamp=t + i))
             if ended:
                 any_ended = True
 
-        # Trip should be discarded, not ended
+        # Trip should be discarded, not ended (too short distance)
         assert not any_ended
         assert not calc.is_trip_active
         assert calc.get_completed_trip_summary() is None
@@ -216,9 +234,9 @@ class TestTripSummary:
         for i in range(30):
             calc.update(_snap(speed_kph=100, maf_gps=15.0, timestamp=t + i))
 
-        # Stop for 61s to end trip
-        for i in range(30, 92):
-            calc.update(_snap(speed_kph=0, timestamp=t + i))
+        # Engine off (RPM=0) for 12s to end trip
+        for i in range(30, 42):
+            calc.update(_snap(speed_kph=0, rpm=0, timestamp=t + i))
 
         summary = calc.get_completed_trip_summary()
         assert summary is not None
@@ -266,6 +284,20 @@ def _warmed_detector(
     return det
 
 
+def _trigger_fillup(
+    det: FillupDetector,
+    new_pct: float,
+    miles_since_last_fill: float | None = None,
+) -> FillupEvent | None:
+    """Send enough readings at new_pct to trigger multi-sample confirmation."""
+    event = None
+    for _ in range(4):  # 3 confirmations + 1 for margin
+        event = det.check(_snap(fuel_level_pct=new_pct), miles_since_last_fill=miles_since_last_fill)
+        if event is not None:
+            return event
+    return event
+
+
 class TestFillupStartupProtection:
 
     def test_ignores_first_4_readings(self) -> None:
@@ -286,8 +318,8 @@ class TestFillupStartupProtection:
             det.check(_snap(fuel_level_pct=30.0))
         # Reading 5: still at 30%, establishes baseline post-startup
         det.check(_snap(fuel_level_pct=30.0))
-        # Reading 6: jump to 95%
-        event = det.check(_snap(fuel_level_pct=95.0))
+        # Readings 6+: jump to 95%, confirm with multiple readings
+        event = _trigger_fillup(det, 95.0)
         assert event is not None
 
 
@@ -300,66 +332,66 @@ class TestFillupDetector:
 
     def test_fillup_detected_at_20pct(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=50.0))  # exactly 20%
+        event = _trigger_fillup(det, 50.0)  # exactly 20%
         assert event is not None
         assert isinstance(event, FillupEvent)
 
     def test_fillup_gallons_calculated(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=95.0))  # 65% jump
+        event = _trigger_fillup(det, 95.0)  # 65% jump
         assert event is not None
         # 65% of 14.8 gallons = 9.62
         assert abs(event.estimated_gallons - 9.6) < 0.2
 
     def test_fillup_cost_calculated(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=95.0))
+        event = _trigger_fillup(det, 95.0)
         assert event is not None
         assert event.cost_usd is not None
         assert event.cost_usd > 0
 
     def test_first_fillup_no_mpg(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=95.0))
+        event = _trigger_fillup(det, 95.0)
         assert event is not None
         assert event.mpg_since_last_fill is None  # no miles_since_last_fill passed
 
     def test_fillup_with_mpg(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=280.0)
+        event = _trigger_fillup(det, 95.0, miles_since_last_fill=280.0)
         assert event is not None
         assert event.mpg_since_last_fill is not None
 
     def test_full_tank_message(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=98.0))
+        event = _trigger_fillup(det, 98.0)
         assert event is not None
         assert "Full tank" in event.rune_message
 
     def test_partial_fill_message(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=70.0))  # not full
+        event = _trigger_fillup(det, 70.0)  # not full
         assert event is not None
         assert "Topped off" in event.rune_message
 
     def test_mpg_at_epa_qualifier(self) -> None:
         """MPG near EPA (31) should say 'right where I should be'."""
         det = _warmed_detector(warmup_pct=30.0)
-        event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=300.0)
+        event = _trigger_fillup(det, 95.0, miles_since_last_fill=300.0)
         assert event is not None
         assert "right where I should be" in event.rune_message
 
     def test_mpg_above_epa_qualifier(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
         # 65% of 14.8 = 9.62 gal, 400 miles / 9.62 = ~41.6 MPG -- well above 31
-        event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=400.0)
+        event = _trigger_fillup(det, 95.0, miles_since_last_fill=400.0)
         assert event is not None
         assert "above average" in event.rune_message
 
     def test_mpg_below_epa_qualifier(self) -> None:
         det = _warmed_detector(warmup_pct=30.0)
         # 65% of 14.8 = 9.62 gal, 150 miles / 9.62 = ~15.6 MPG -- well below 31
-        event = det.check(_snap(fuel_level_pct=95.0), miles_since_last_fill=150.0)
+        event = _trigger_fillup(det, 95.0, miles_since_last_fill=150.0)
         assert event is not None
         assert "below average" in event.rune_message
 

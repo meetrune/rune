@@ -3,6 +3,7 @@ requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
+where = ["pi"]
 include = ["backend*"]
 
 [project]
@@ -10,7 +11,7 @@ name = "rune"
 version = "0.1.0"
 description = "The translation layer between Rune and the human who drives him"
 requires-python = ">=3.13"
-license = "MIT"
+license = "Apache-2.0"
 authors = [
     { name = "Kuladeep Mantri" },
 ]
@@ -23,7 +24,6 @@ dependencies = [
     "aiosqlite>=0.22",
     "scikit-learn>=1.8",
     "scipy>=1.17",
-    "pyod>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -48,3 +48,4 @@ follow_imports = "skip"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["pi"]

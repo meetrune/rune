@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rune Setup</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#fafafa;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif;font-size:20px;line-height:1.8}
+a{color:#2563eb}
+
+.wrap{max-width:740px;margin:0 auto;padding:40px 28px 160px}
+
+/* Header */
+.hdr{text-align:center;padding:56px 0 48px}
+.hdr h1{font-size:52px;font-weight:800;letter-spacing:-2px;color:#1a1a1a}
+.hdr p{color:#777;font-size:20px;margin-top:10px;font-weight:400}
+
+/* Safety */
+.safe{border:1px solid #c8e6c9;border-radius:20px;padding:28px;text-align:center;margin-bottom:40px;background:#e8f5e9}
+.safe h3{color:#2e7d32;font-size:16px;letter-spacing:2.5px;text-transform:uppercase;font-weight:800;margin-bottom:8px}
+.safe p{color:#555;font-size:17px}
+
+/* Progress */
+.prog{position:sticky;top:0;z-index:99;background:rgba(250,250,250,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:20px 0 16px;border-bottom:1px solid #e0e0e0;margin-bottom:36px}
+.prog-bar{height:8px;background:#e8e8e8;border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);border-radius:4px;transition:width .5s;width:0%}
+.prog-txt{display:flex;justify-content:space-between;margin-top:12px;font-size:15px;color:#888;font-family:'SF Mono',Menlo,monospace;font-weight:600}
+
+/* Phase pills */
+.pills{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px}
+.pill{padding:12px 20px;border-radius:14px;font-size:16px;font-weight:600;background:#fff;border:2px solid #e0e0e0;color:#888;cursor:pointer;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.pill:hover{border-color:#2563eb;color:#333}
+.pill.dn{background:#e8f5e9;border-color:#a5d6a7;color:#2e7d32}
+
+/* Phase */
+.phase{margin-bottom:56px;scroll-margin-top:100px}
+.ph-hdr{display:flex;align-items:center;gap:18px;margin-bottom:28px}
+.ph-num{width:52px;height:52px;border-radius:16px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;flex-shrink:0}
+.ph-num.dn{background:#e8f5e9;color:#2e7d32}
+.ph-ttl{font-size:30px;font-weight:800;letter-spacing:-.7px;color:#1a1a1a}
+.ph-tm{margin-left:auto;font-size:15px;color:#999;background:#f0f0f0;padding:8px 18px;border-radius:12px;font-weight:600}
+
+/* Step card */
+.steps{display:flex;flex-direction:column;gap:14px}
+.step{background:#fff;border:2px solid #e8e8e8;border-radius:18px;overflow:hidden;transition:all .25s;box-shadow:0 1px 4px rgba(0,0,0,.03)}
+.step.done{border-color:#a5d6a7}
+.step.done .st-ttl{color:#aaa;text-decoration:line-through}
+.step.done .st-desc{color:#bbb}
+.step.done .det-btn{color:#bbb}
+.step.now{border-color:#2563eb;box-shadow:0 0 0 2px #2563eb22,0 8px 32px rgba(37,99,235,.08)}
+.step-top{display:flex;align-items:flex-start;gap:18px;padding:24px 28px;cursor:pointer}
+
+/* Checkbox */
+.cb{width:36px;height:36px;border-radius:11px;border:3px solid #ccc;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:2px}
+.cb:hover{border-color:#2563eb}
+.step.done .cb{background:#2e7d32;border-color:#2e7d32}
+.cb svg{width:20px;height:20px;opacity:0;transition:opacity .2s}
+.step.done .cb svg{opacity:1}
+
+.st-body{flex:1}
+.st-ttl{font-size:21px;font-weight:700;margin-bottom:6px;letter-spacing:-.3px;color:#1a1a1a}
+.st-desc{font-size:17px;color:#666;line-height:1.7}
+
+/* Detail toggle */
+.det-btn{font-size:16px;color:#2563eb;background:none;border:none;cursor:pointer;margin-top:10px;font-weight:700;font-family:inherit;padding:0}
+.det-btn:hover{text-decoration:underline}
+.det{display:none;padding:0 28px 24px 82px}
+.det.open{display:block}
+
+/* Info boxes */
+.inf{padding:18px 22px;border-radius:14px;margin:14px 0;font-size:17px;line-height:1.7;background:#f5f5f5;border-left:4px solid #2563eb}
+.inf.warn{border-left-color:#e53935;background:#fef2f2}
+.inf.ok{border-left-color:#2e7d32;background:#e8f5e9}
+.inf b{display:block;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;color:#333}
+
+/* Code */
+pre{background:#f0f0f0;border:1px solid #ddd;border-radius:14px;padding:20px 22px;margin:14px 0;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:16px;line-height:1.8;color:#333;overflow-x:auto;position:relative;white-space:pre-wrap;word-break:break-all}
+.cp{position:absolute;top:12px;right:14px;background:#fff;border:1px solid #ccc;color:#666;font-size:14px;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600}
+.cp:hover{border-color:#2563eb;color:#333}
+.g{color:#2e7d32}
+.o{color:#2563eb}
+.c{color:#aaa}
+
+/* Next button */
+.next-wrap{position:fixed;bottom:0;left:0;right:0;padding:20px 28px 32px;background:linear-gradient(transparent,#fafafa 40%);z-index:100;display:flex;justify-content:center}
+.next-btn{padding:18px 56px;border-radius:16px;font-size:20px;font-weight:800;border:none;cursor:pointer;transition:all .2s;font-family:inherit;letter-spacing:-.3px;background:#2563eb;color:#fff;box-shadow:0 4px 16px rgba(37,99,235,.25)}
+.next-btn:hover{background:#3b82f6;transform:translateY(-2px);box-shadow:0 6px 24px rgba(37,99,235,.3)}
+.next-btn:active{transform:translateY(0)}
+.next-btn.green{background:#2e7d32;box-shadow:0 4px 16px rgba(46,125,50,.25)}
+
+/* Completion */
+.fin{text-align:center;padding:72px 28px;display:none}
+.fin.show{display:block}
+.fin h2{font-size:40px;font-weight:800;color:#2e7d32;margin-bottom:14px}
+.fin p{color:#777;font-size:20px}
+
+/* Tablet */
+@media(max-width:768px){
+  .wrap{max-width:100%;padding:28px 20px 150px}
+  .hdr h1{font-size:42px}
+  .ph-ttl{font-size:26px}
+}
+/* Phone */
+@media(max-width:500px){
+  .wrap{padding:20px 14px 140px}
+  .hdr{padding:36px 0 32px}
+  .hdr h1{font-size:32px;letter-spacing:-1px}
+  .hdr p{font-size:16px}
+  .safe{padding:20px;border-radius:14px}
+  .safe h3{font-size:14px}
+  .safe p{font-size:15px}
+  .pills{gap:6px}
+  .pill{padding:8px 14px;font-size:14px;border-radius:10px}
+  .ph-hdr{gap:12px;margin-bottom:20px}
+  .ph-num{width:42px;height:42px;font-size:18px;border-radius:12px}
+  .ph-ttl{font-size:22px}
+  .ph-tm{display:none}
+  .steps{gap:10px}
+  .step{border-radius:14px}
+  .step-top{padding:18px 16px;gap:14px}
+  .cb{width:30px;height:30px;border-radius:9px}
+  .cb svg{width:16px;height:16px}
+  .st-ttl{font-size:17px}
+  .st-desc{font-size:15px}
+  .det{padding:0 16px 18px 60px}
+  .det-btn{font-size:14px}
+  .inf{padding:14px 16px;font-size:15px;border-radius:10px}
+  .inf b{font-size:12px}
+  pre{font-size:13.5px;padding:14px 16px;border-radius:10px}
+  .cp{font-size:12px;padding:4px 10px;top:8px;right:8px}
+  .next-wrap{padding:16px 14px 24px}
+  .next-btn{padding:16px 36px;font-size:17px;border-radius:14px;width:100%;max-width:360px}
+  .prog-txt{font-size:13px}
+  .fin h2{font-size:30px}
+  .fin p{font-size:17px}
+}
+/* Very small phone */
+@media(max-width:360px){
+  .hdr h1{font-size:28px}
+  .ph-ttl{font-size:20px}
+  .st-ttl{font-size:16px}
+  .st-desc{font-size:14px}
+  .det{padding:0 14px 16px 48px}
+  pre{font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hdr"><h1>Rune Setup</h1></div>
+<div class="prog"><div class="prog-bar"><div class="prog-fill" id="pf"></div></div><div class="prog-txt"><span id="pl">0/0</span><span id="pp">0%</span></div></div>
+<div class="pills" id="pills"></div>
+<div id="main"></div>
+<div class="fin" id="fin"><h2>Rune is alive.</h2><p>Your car is connected. Data flows. Go drive.</p></div>
+</div>
+<div class="next-wrap"><button class="next-btn" id="nextBtn" onclick="clickNext()">Start</button></div>
+<script>
+var P=[
+{t:"Unbox Everything",tm:"5 min",s:[
+{t:"Open the Raspberry Pi 4B",d:"Find the SD card slot on the bottom edge of the board.",x:'<div class="inf"><b>What this is</b>Your car\'s brain. Sits in the armrest, collects data, serves the dashboard to the Pixel.</div>'},
+{t:"Open the WiCAN Pro",d:"Small black device with an OBD-II connector on one end.",x:'<div class="inf"><b>Two data channels</b>ELM327 (port 3333): 14 parsed OBD values at 10Hz.<br>Raw CAN (port 35000): every signal on the powertrain bus. Both read-only.</div>'},
+{t:"Open the Witty Pi 4",d:"Power management board. Insert the CR2032 battery now.",x:'<div class="inf"><b>Why</b>When you turn off the car, 12V cuts. Witty Pi detects this and gracefully shuts down the Pi instead of hard-crashing.</div>'},
+{t:"Open remaining hardware",d:"Y-splitter, YONHAN 12V plug, Miracase vent mount, Dual-Lock, USB-C cable.",x:'<div class="inf"><b>Reference</b>Y-splitter: splits OBD port for WiCAN + dealer access.<br>YONHAN: 12V armrest outlet to USB power.<br>Miracase: vent phone mount.<br>Dual-Lock: secures Pi in armrest.</div>'}
+]},
+{t:"Flash the Pi",tm:"10 min",s:[
+{t:"Download Raspberry Pi Imager",d:"From raspberrypi.com/software -- install the Mac version.",x:'<div class="inf"><b>Link</b><a href="https://www.raspberrypi.com/software/">raspberrypi.com/software</a></div>'},
+{t:"Insert SD card into your Mac",d:"SD slot or USB adapter. 32GB+ recommended."},
+{t:"Select: Pi 4, OS Lite 64-bit, your SD card",d:"Raspberry Pi OS Lite (64-bit) is the default now -- Trixie / Debian 13.",x:'<div class="inf warn"><b>Important</b>Must be the "Lite" version (no desktop). Make sure Imager is v2.0.6 or newer -- older versions silently fail to apply settings on Trixie.</div>'},
+{t:"Edit OS settings before flashing",d:"Click Next, then Edit Settings.",x:'<pre><button class="cp" onclick="cc(this)">copy</button>Hostname: <span class="o">rune</span>\nUsername: <span class="o">deepu</span>\nPassword: <span class="o">[pick one]</span>\nWiFi SSID: <span class="o">[your apartment WiFi]</span>\nWiFi Pass: <span class="o">[your WiFi password]</span>\nCountry: <span class="o">US</span>\nEnable SSH: <span class="o">yes</span></pre><div class="inf"><b>Why apartment WiFi?</b>Temporary -- just for initial SSH access. Deploy script replaces it with the Rune AP.</div>'},
+{t:"Flash it",d:"Confirm write. Takes 3-5 minutes."},
+{t:"Eject the SD card",d:"Safely eject from Finder."}
+]},
+{t:"Pi First Boot",tm:"20 min",s:[
+{t:"Put SD card in Pi, plug in USB-C power",d:"Any charger works. Green LED flickers = booting. Wait 90 seconds."},
+{t:"Find the Pi on your network",d:"Open Mac Terminal.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">ping</span> rune.local</pre><div class="inf">If it responds, move on. If not, check your router for a device named "rune".</div>'},
+{t:"SSH into the Pi",d:"Connect from Terminal.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">ssh</span> deepu@rune.local</pre><div class="inf">Type "yes" for fingerprint. Enter the password you set.</div>'},
+{t:"Update the OS",d:"Run updates (few minutes).",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">sudo</span> apt-get update && <span class="g">sudo</span> apt-get upgrade -y</pre>'},
+{t:"Clone the Rune repo",d:"Pull the code.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">git</span> clone https://github.com/meetrune/rune.git /tmp/rune-install</pre>'},
+{t:"Run the deploy script",d:"This does everything: WiFi AP, Python, systemd, the works.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">cd</span> /tmp/rune-install\n<span class="g">sudo</span> bash pi/deploy/setup.sh --wifi-pass <span class="o">"YOUR_PASSWORD"</span></pre><div class="inf warn"><b>SSH will drop</b>WiFi switches from your apartment to "Rune" AP. Wait 30s, then join "Rune" WiFi from your Mac.</div><div class="inf"><b>Remember this password</b>You need it for iPhone, Pixel, and WiCAN Pro.</div><div class="inf warn"><b>Trixie note</b>If WiFi AP doesn\'t survive reboot, check if the connection file landed in /etc/NetworkManager/system-connections/ (not /run/). Known Trixie bug -- copy it manually if needed.</div>'},
+{t:"Connect Mac to 'Rune' WiFi",d:"Mac WiFi settings -- join the new Rune network."},
+{t:"SSH in and verify",d:"Test the backend.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">ssh</span> deepu@192.168.4.1\n<span class="g">sudo</span> systemctl start rune\n<span class="g">sudo</span> journalctl -u rune -f</pre><div class="inf ok"><b>Look for</b>"Rune started: simulator_mode=True"</div>'},
+{t:"Open http://192.168.4.1:8080 in browser",d:"You should see the Rune dashboard with simulated data."},
+{t:"Add dnsmasq config",d:"Lets iPhones keep cellular while on Rune WiFi.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">sudo</span> mkdir -p /etc/NetworkManager/dnsmasq-shared.d\n<span class="g">echo</span> <span class="o">"dhcp-option=3"</span> | <span class="g">sudo</span> tee /etc/NetworkManager/dnsmasq-shared.d/no-gateway.conf\n<span class="g">sudo</span> nmcli con down Rune && <span class="g">sudo</span> nmcli con up Rune</pre>'}
+]},
+{t:"Set Up the Pixel",tm:"10 min",s:[
+{t:"Turn on the Pixel 6 Pro",d:"Minimal setup. Skip or add a Google account."},
+{t:"Connect to Rune WiFi",d:"Settings > WiFi > Rune > enter your password."},
+{t:"Open Chrome: http://192.168.4.1:8080",d:"Dashboard should load with sim data."},
+{t:"Add to Home Screen",d:"Chrome 3-dot menu > 'Add to Home screen'. This makes it a fullscreen app.",x:'<div class="inf"><b>Car OS</b>The PWA launches without browser chrome. No address bar. Feels native.</div>'},
+{t:"Launch from home screen",d:"Verify it opens fullscreen in landscape."},
+{t:"Set screen timeout to 30 min",d:"Settings > Display > Screen timeout.",x:'<div class="inf"><b>Stay awake while charging</b>Settings > About Phone > tap Build Number 7x for Developer Options.<br>Then Settings > System > Developer options > Stay awake = ON.</div>'}
+]},
+{t:"iPhone Sync Setup",tm:"5 min",s:[
+{t:"Connect iPhone to Rune WiFi",d:"Connect once to save the network. Verify cellular still works (Google Maps).",x:'<div class="inf"><b>No internet?</b>Re-run the dnsmasq step on the Pi.</div>'},
+{t:"Shortcuts > Automation > + > Wi-Fi",d:"Choose: Rune. Joined. Next > New Blank Automation."},
+{t:"Add: Get Contents of URL",d:"URL: http://192.168.4.1:8080/api/export -- Method: GET"},
+{t:"Add: Format Date",d:"Current Date. Custom format: yyyy-MM-dd_HHmm"},
+{t:"Add: Save File",d:"iCloud Drive > Personal > Rune > data. Filename: rune-[date].db",x:'<div class="inf"><b>Filename</b>Type <code style="color:#2563eb">rune-</code> + insert Formatted Date variable + type <code style="color:#2563eb">.db</code><br>Ask Where to Save: OFF</div>'},
+{t:"Set to silent",d:"Ask Before Running: OFF. Notify When Run: OFF.",x:'<div class="inf ok"><b>Done</b>Every time you get in the car, iPhone silently pulls the full database to iCloud. Mac watcher picks it up automatically.</div><div class="inf warn"><b>iOS 26 note</b>Some iOS 26 renamed this to "Run After Confirmation". If it stops running silently after an update, toggle it off again. If it stops running silently, toggle "Ask Before Running" off again.</div>'}
+]},
+{t:"Install in the Car",tm:"15 min",s:[
+{t:"Clip vent mount",d:"Miracase mount on driver's side leftmost vent."},
+{t:"Find the OBD-II port",d:"Under dash, driver's side, left of steering column.",x:'<div class="inf"><b>2026 Accord</b>Behind a small panel. 16-pin trapezoid. You\'ll feel it before you see it.</div>'},
+{t:"Plug in Y-splitter",d:"Push into OBD port until it clicks."},
+{t:"Plug WiCAN Pro into Port 1",d:"Leave Port 2 empty for dealer scanner."},
+{t:"Turn ignition ON (don't start engine)",d:"Press start twice without brake. WiCAN LED should light up.",x:'<div class="inf"><b>LED</b>Light = powered. No light = reseat Y-splitter.</div>'},
+{t:"Configure WiCAN Pro WiFi",d:"iPhone > join WiCAN_XXXX (pass: @meatpi#). Safari: http://192.168.0.10",x:'<div class="inf"><b>First-time IP is 192.168.0.10</b>Factory-fresh units use this IP. After setup, normal AP mode uses 192.168.80.1.</div><div class="inf"><b>Web UI steps</b>1. Note the MAC address<br>2. WiFi mode: AP+Station<br>3. Station SSID: Rune<br>4. Station Password: [your Rune password]<br>5. Change AP password from @meatpi#<br>6. Check firmware version -- update if not latest<br>7. Save (device reboots)</div>'},
+{t:"Set up power in armrest",d:"YONHAN 12V plug > Witty Pi on Pi GPIO > connect > Dual-Lock to secure.",x:'<div class="inf"><b>Stack order</b>1. YONHAN into armrest outlet<br>2. Witty Pi 4 on Pi GPIO pins<br>3. YONHAN output to Witty Pi input<br>4. Dual-Lock on Pi bottom + armrest<br>5. Press to mount</div><div class="inf ok"><b>Pi boots</b>Green LED flickering. Wait 60 seconds.</div>'},
+{t:"Connect iPhone to Rune WiFi",d:"Should auto-join. Sync shortcut may fire."},
+{t:"SSH in, verify WiCAN joined",d:"Check from iPhone (Termius) or laptop.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">ssh</span> deepu@192.168.4.1\n<span class="g">cat</span> /var/lib/NetworkManager/dnsmasq-wlan0.leases</pre><div class="inf">Should show WiCAN MAC + IP address.</div>'},
+{t:"Add static DHCP leases",d:"Give WiCAN and Pixel fixed IPs.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="c"># Replace MACs from leases file</span>\n<span class="g">sudo</span> bash -c \'cat > /etc/NetworkManager/dnsmasq-shared.d/rune-leases.conf &lt;&lt; EOF\ndhcp-host=<span class="o">WICAN_MAC</span>,wican,192.168.4.100,infinite\ndhcp-host=<span class="o">PIXEL_MAC</span>,pixel,192.168.4.50,infinite\nEOF\'\n<span class="g">sudo</span> nmcli con down Rune && <span class="g">sudo</span> nmcli con up Rune</pre>'}
+]},
+{t:"Go Live",tm:"5 min",s:[
+{t:"Switch to real OBD",d:"Edit env file, restart service.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">sudo</span> nano /etc/rune/rune.env\n\n<span class="c"># Set these:</span>\nRUNE_USE_SIMULATOR=<span class="o">false</span>\nRUNE_WICAN_HOST=<span class="o">192.168.4.100</span>\nRUNE_WICAN_PORT=<span class="o">3333</span>\nRUNE_CAN_LOGGING_ENABLED=<span class="o">true</span>\n\n<span class="c"># Save: Ctrl+O Enter Ctrl+X</span>\n<span class="g">sudo</span> systemctl restart rune</pre>'},
+{t:"Watch logs",d:"Verify connection + data flow.",x:'<pre><button class="cp" onclick="cc(this)">copy</button><span class="g">sudo</span> journalctl -u rune -f</pre><div class="inf ok"><b>Look for</b>"WiCAN Pro connection established"<br>"CAN listener started: 192.168.4.100:35000"</div><div class="inf warn"><b>If it fails</b>Run: nc -zv 192.168.4.100 3333<br>No connection = WiCAN not on Rune WiFi. Redo WiCAN config.</div>'},
+{t:"Mount Pixel, check dashboard",d:"Landscape in vent mount. USB-C power. Open Rune PWA.",x:'<div class="inf ok"><b>Real data</b>RPM ~700 idle. Coolant temp. Battery 13.5-14.8V. Waveforms moving.</div>'},
+{t:"Start the engine",d:"Brake + start. RPM jumps then settles."},
+{t:"Drive around the block",d:"Speed matches speedo. Instant MPG appears. Fuel cost accumulates."},
+{t:"Park and turn off engine",d:"Wait 10 seconds. Trip summary pops up with distance, fuel, cost.",x:'<div class="inf ok"><b>If you see this</b>Rune is fully working end-to-end on your actual car.</div>'}
+]}
+];
+
+// State
+var ck={};
+try{ck=JSON.parse(localStorage.getItem('rune-v3')||'{}')}catch(e){}
+function sv(){localStorage.setItem('rune-v3',JSON.stringify(ck))}
+function id(p,s){return p+'.'+s}
+function tot(){var n=0;P.forEach(function(p){n+=p.s.length});return n}
+function dn(){var n=0;for(var k in ck)if(ck[k])n++;return n}
+function nxt(){
+  for(var p=0;p<P.length;p++)for(var s=0;s<P[p].s.length;s++)if(!ck[id(p,s)])return{p:p,s:s};
+  return null;
+}
+
+function cc(b){
+  var t=b.parentElement.textContent.replace(/^copy\n?/,'').trim();
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){b.textContent='copied';setTimeout(function(){b.textContent='copy'},1500)});
+  }else{
+    var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');b.textContent='copied';setTimeout(function(){b.textContent='copy'},1500)}catch(e){}
+    document.body.removeChild(ta);
+  }
+}
+
+// Track open detail panels across re-renders
+var openPanels={};
+
+function tog(p,s){ck[id(p,s)]=!ck[id(p,s)];sv();draw()}
+function detToggle(p,s,ev){
+  ev.stopPropagation();
+  var k='d-'+id(p,s);
+  openPanels[k]=!openPanels[k];
+  var el=document.getElementById(k);
+  if(el)el.classList.toggle('open',!!openPanels[k]);
+  // Update button label
+  var card=document.getElementById('s-'+id(p,s));
+  if(card){var btn=card.querySelector('.det-btn');if(btn)btn.textContent=openPanels[k]?'hide details':'show details'}
+}
+function go(pi){var el=document.getElementById('p-'+pi);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
+
+function clickNext(){
+  var n=nxt();
+  if(!n)return;
+  ck[id(n.p,n.s)]=true;sv();draw();
+  var n2=nxt();
+  if(n2){
+    var el=document.getElementById('s-'+id(n2.p,n2.s));
+    if(el)setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'})},100);
+  }
+}
+
+function draw(){
+  var n=nxt(),t=tot(),d=dn(),pct=t?Math.round(d/t*100):0;
+  document.getElementById('pf').style.width=pct+'%';
+  document.getElementById('pl').textContent=d+' / '+t;
+  document.getElementById('pp').textContent=pct+'%';
+
+  var btn=document.getElementById('nextBtn');
+  if(!n){btn.textContent='All Done';btn.className='next-btn green'}
+  else{
+    btn.textContent='Mark Done & Next';
+    btn.className='next-btn';
+  }
+
+  document.getElementById('fin').className='fin'+(d===t&&t>0?' show':'');
+
+  // Pills
+  var pills=document.getElementById('pills');
+  pills.textContent='';
+  P.forEach(function(ph,pi){
+    var allDn=ph.s.every(function(_,si){return ck[id(pi,si)]});
+    var b=document.createElement('div');
+    b.className='pill'+(allDn?' dn':'');
+    b.textContent=ph.t;
+    b.onclick=function(){go(pi)};
+    pills.appendChild(b);
+  });
+
+  // Phases
+  var main=document.getElementById('main');
+  main.textContent='';
+  P.forEach(function(ph,pi){
+    var allDn=ph.s.every(function(_,si){return ck[id(pi,si)]});
+    var sec=document.createElement('div');sec.className='phase';sec.id='p-'+pi;
+
+    var hdr=document.createElement('div');hdr.className='ph-hdr';
+    var num=document.createElement('div');num.className='ph-num'+(allDn?' dn':'');num.textContent=allDn?'\u2713':(pi+1);
+    var ttl=document.createElement('div');ttl.className='ph-ttl';ttl.textContent=ph.t;
+    var tm=document.createElement('div');tm.className='ph-tm';tm.textContent=ph.tm;
+    hdr.appendChild(num);hdr.appendChild(ttl);hdr.appendChild(tm);
+    sec.appendChild(hdr);
+
+    var stps=document.createElement('div');stps.className='steps';
+    ph.s.forEach(function(st,si){
+      var sid2=id(pi,si);
+      var isDn=!!ck[sid2];
+      var isNow=n&&n.p===pi&&n.s===si;
+
+      var card=document.createElement('div');
+      card.className='step'+(isDn?' done':'')+(isNow?' now':'');
+      card.id='s-'+sid2;
+
+      var top=document.createElement('div');top.className='step-top';
+      top.onclick=function(){tog(pi,si)};
+
+      var cb=document.createElement('div');cb.className='cb';
+      var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('viewBox','0 0 14 14');
+      var poly=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+      poly.setAttribute('points','2.5 7 5.5 10 11.5 4');
+      poly.setAttribute('fill','none');poly.setAttribute('stroke','white');
+      poly.setAttribute('stroke-width','2.5');poly.setAttribute('stroke-linecap','round');
+      poly.setAttribute('stroke-linejoin','round');
+      svg.appendChild(poly);cb.appendChild(svg);
+
+      var body=document.createElement('div');body.className='st-body';
+      var tl=document.createElement('div');tl.className='st-ttl';tl.textContent=st.t;
+      var ds=document.createElement('div');ds.className='st-desc';ds.textContent=st.d;
+      body.appendChild(tl);body.appendChild(ds);
+
+      if(st.x){
+        var isOpen=!!openPanels['d-'+sid2];
+        var dbtn=document.createElement('button');dbtn.className='det-btn';dbtn.textContent=isOpen?'hide details':'show details';
+        dbtn.onclick=function(ev){detToggle(pi,si,ev)};
+        body.appendChild(dbtn);
+      }
+
+      top.appendChild(cb);top.appendChild(body);card.appendChild(top);
+
+      if(st.x){
+        var dv=document.createElement('div');
+        dv.className='det'+(openPanels['d-'+sid2]?' open':'');
+        dv.id='d-'+sid2;
+        var tmp=document.createElement('template');
+        tmp.innerHTML=st.x;
+        dv.appendChild(tmp.content.cloneNode(true));
+        card.appendChild(dv);
+      }
+
+      stps.appendChild(card);
+    });
+    sec.appendChild(stps);
+    main.appendChild(sec);
+  });
+}
+
+draw();
+
+// Auto-scroll to current step on load
+setTimeout(function(){
+  var n=nxt();
+  if(n){var el=document.getElementById('s-'+id(n.p,n.s));if(el)el.scrollIntoView({behavior:'smooth',block:'center'})}
+},300);
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Rune Mac Watcher -- launchd daemon (macOS Tahoe 26 compatible)
+
+  Watches iCloud Drive > Personal > Rune > data for new .db exports.
+  Uses LaunchDaemon (not LaunchAgent) because macOS Tahoe 26 TCC
+  blocks Python network/file operations from LaunchAgents.
+  Runs as your user via the UserName key.
+
+  INSTALL (macOS Tahoe 26+):
+    mkdir -p ~/Rune/{data,reports,logs}
+    sudo cp com.rune.watcher.plist /Library/LaunchDaemons/
+    sudo launchctl bootstrap system /Library/LaunchDaemons/com.rune.watcher.plist
+
+  UNINSTALL:
+    sudo launchctl bootout system/com.rune.watcher
+    sudo rm /Library/LaunchDaemons/com.rune.watcher.plist
+
+  VERIFY:
+    cat ~/Rune/logs/watcher.log
+
+  NOTE: For older macOS (Sequoia and below), you can still use
+  ~/Library/LaunchAgents/ with launchctl load instead.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.rune.watcher</string>
+
+    <key>UserName</key>
+    <string>kmantri</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/kmantri/workstation/Car-Accord/Project-IrisE/repo-staging/mac/rune-watcher/process_rune.py</string>
+    </array>
+
+    <key>WatchPaths</key>
+    <array>
+        <string>/Users/kmantri/Library/Mobile Documents/com~apple~CloudDocs/Personal/Rune/data</string>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/Users/kmantri/Rune/logs/watcher-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/kmantri/Rune/logs/watcher-stderr.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

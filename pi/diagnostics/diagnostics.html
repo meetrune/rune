@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rune Diagnostics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  background: #000;
+  color: #fff;
+  min-height: 100vh;
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ---- Sticky Nav ---- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid #1a1a1a;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  gap: 8px;
+}
+
+.nav-brand {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  margin-right: 24px;
+  white-space: nowrap;
+}
+
+.nav-links { display: flex; gap: 4px; overflow-x: auto; }
+
+.nav-link {
+  padding: 8px 14px; font-size: 13px; font-weight: 500; color: #aaa;
+  text-decoration: none; border-radius: 6px;
+  transition: color 0.25s ease, background 0.25s ease;
+  cursor: pointer; white-space: nowrap;
+}
+.nav-link:hover { color: #fff; background: #1a1a1a; }
+.nav-link.active { color: #fff; background: #1a1a1a; }
+
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+.nav-timestamp { font-size: 13px; color: #666; }
+.nav-latency { font-size: 12px; color: #666; font-family: 'JetBrains Mono', monospace; }
+.nav-latency.good { color: #22c55e; }
+.nav-latency.warn { color: #eab308; }
+.nav-latency.bad { color: #ef4444; }
+
+.nav-ws-status { width: 8px; height: 8px; border-radius: 50%; background: #444; flex-shrink: 0; }
+.nav-ws-status.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
+.nav-ws-status.disconnected { background: #ef4444; }
+
+/* ---- Sections ---- */
+.section { width: 100%; padding: 40px 40px 48px; border-bottom: 1px solid #111; scroll-margin-top: 64px; }
+.section-header { font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #666; margin-bottom: 24px; }
+
+/* Status banner also needs scroll offset */
+.status-banner { scroll-margin-top: 64px; }
+
+/* ---- Status Banner ---- */
+.status-banner { padding: 28px 40px; border-bottom: 1px solid #111; }
+.status-inner { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; width: 100%; }
+.status-dot-large { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.status-dot-large.pass { background: #22c55e; box-shadow: 0 0 10px #22c55e60; }
+.status-dot-large.warn { background: #eab308; box-shadow: 0 0 10px #eab30860; }
+.status-dot-large.fail { background: #ef4444; box-shadow: 0 0 10px #ef444460; }
+.status-text { font-size: 20px; font-weight: 600; color: #fff; }
+.status-counts { display: flex; gap: 20px; margin-left: auto; }
+.status-count { font-size: 15px; font-weight: 500; }
+.status-count .num { font-weight: 700; }
+.status-count.pass-count { color: #22c55e; }
+.status-count.warn-count { color: #eab308; cursor: pointer; }
+.status-count.warn-count:hover { text-decoration: underline; }
+.status-count.fail-count { color: #ef4444; cursor: pointer; }
+.status-count.fail-count:hover { text-decoration: underline; }
+.status-text.clickable { cursor: pointer; }
+.status-text.clickable:hover { text-decoration: underline; }
+.status-loading { font-size: 18px; color: #666; font-weight: 500; }
+.status-sparkline { width: 120px; height: 32px; margin-left: 16px; flex-shrink: 0; }
+
+/* ---- Topology SVG ---- */
+.topology-wrapper { width: 100%; overflow-x: auto; position: relative; }
+.topology-svg { width: 100%; max-width: 1100px; margin: 0 auto; display: block; }
+
+/* ---- Interactive Topology Nodes (HTML, draggable) ---- */
+.topo-node {
+  position: absolute; width: 14%; min-width: 130px;
+  background: rgba(12, 12, 16, 0.85);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255,255,255,0.08); border-radius: 16px;
+  padding: 14px 16px 12px; cursor: grab; z-index: 1;
+  transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease, border-color 0.3s ease;
+  will-change: transform;
+}
+.topo-node:hover {
+  transform: translateY(-3px) scale(1.01);
+}
+.topo-node:active { cursor: grabbing; transform: scale(1.03); }
+.topo-node-role { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px; font-weight: 500; }
+.topo-node-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topo-node-detail { font-size: 12px; color: #777; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topo-node-badge {
+  display: inline-block; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 10px; border-radius: 10px; background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.25);
+  transition: all 0.3s ease;
+}
+.topo-node-badge.connected { background: rgba(34,197,94,0.12); color: #22c55e; border-color: rgba(34,197,94,0.25); }
+.topo-node-badge.disconnected { background: rgba(239,68,68,0.12); color: #ef4444; border-color: rgba(239,68,68,0.25); }
+
+/* Throughput tooltip */
+.topo-tooltip {
+  position: absolute; background: #111; border: 1px solid #333; border-radius: 8px;
+  padding: 10px 14px; font-size: 13px; color: #ccc; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s; z-index: 10; line-height: 1.6;
+  font-family: 'JetBrains Mono', monospace;
+}
+.topo-tooltip.visible { opacity: 1; }
+.topo-tooltip .label { color: #888; font-size: 11px; }
+.topo-tooltip .value { color: #fff; font-weight: 500; }
+
+/* Detail panel -- fixed right-side overlay */
+.topo-detail-panel {
+  position: fixed; top: 56px; right: 0; bottom: 0; width: 340px;
+  background: rgba(8, 8, 8, 0.98); border-left: 1px solid #1a1a1a;
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto; padding: 24px; z-index: 50;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
+}
+.topo-detail-panel.open { transform: translateX(0); }
+.topo-detail-close {
+  position: absolute; top: 16px; right: 16px; width: 32px; height: 32px;
+  background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+  color: #888; font-size: 18px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; transition: all 0.15s; line-height: 1;
+}
+.topo-detail-close:hover { color: #fff; border-color: #555; }
+.detail-header { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+.detail-header .dot { width: 10px; height: 10px; border-radius: 50%; }
+.detail-header .dot.green { background: #22c55e; }
+.detail-header .dot.amber { background: #eab308; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.detail-item { background: #111; border-radius: 8px; padding: 12px 14px; }
+.detail-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.detail-value { font-size: 18px; font-weight: 600; color: #fff; font-family: 'JetBrains Mono', monospace; }
+.detail-value.small { font-size: 14px; }
+.detail-btn {
+  margin-top: 16px; padding: 10px 20px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #fff; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: background 0.15s;
+}
+.detail-btn:hover { background: #222; }
+.detail-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---- Sensor Grid ---- */
+.sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.sensor-cell {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px;
+  padding: 16px 20px 54px; position: relative;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+.sensor-cell:hover { border-color: #2a2a2a; box-shadow: 0 2px 12px rgba(0,0,0,0.3); transform: translateY(-1px); }
+.sensor-label { font-size: 12px; font-weight: 500; color: #aaa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.sensor-value {
+  font-size: 36px; font-weight: 700; color: #fff; line-height: 1.1;
+  font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; position: relative; z-index: 1;
+}
+.sensor-value.warn { color: #eab308; }
+.sensor-value.critical { color: #ef4444; }
+.sensor-unit { font-size: 14px; font-weight: 500; color: #888; margin-left: 4px; }
+.sensor-no-data { color: #444; }
+.sensor-sparkline {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 44px;
+  opacity: 0.35; border-radius: 0 0 10px 10px;
+  width: 100%;
+}
+
+/* ---- Thermal Gauge ---- */
+.thermal-gauge-wrapper { display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; }
+.thermal-bar {
+  flex: 1; min-width: 200px; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px; padding: 20px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.thermal-bar:hover { border-color: #2a2a2a; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+.thermal-bar-label { font-size: 13px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+.thermal-bar-value { font-size: 36px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-bottom: 12px; }
+.thermal-bar-value.green { color: #22c55e; }
+.thermal-bar-value.yellow { color: #eab308; }
+.thermal-bar-value.orange { color: #f97316; }
+.thermal-bar-value.red { color: #ef4444; }
+.thermal-bar-value.danger { color: #dc2626; }
+.thermal-track { width: 100%; height: 12px; background: #1a1a1a; border-radius: 6px; overflow: hidden; }
+.thermal-fill { height: 100%; border-radius: 6px; transition: width 0.5s, background 0.5s; min-width: 4px; }
+.thermal-bands { display: flex; height: 6px; margin-top: 6px; border-radius: 3px; overflow: hidden; gap: 2px; }
+.thermal-bands > div { flex: 1; border-radius: 3px; opacity: 0.6; }
+.thermal-rate { font-size: 12px; color: #888; margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+.db-growth-wrapper { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.db-growth-sparkline { width: 160px; height: 48px; border: 1px solid #1a1a1a; border-radius: 6px; background: #050505; }
+.db-stat { text-align: center; min-width: 80px; }
+.db-stat-value { font-size: 20px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #fff; }
+.db-stat-label { font-size: 11px; color: #888; text-transform: uppercase; }
+
+/* ---- Check Categories ---- */
+.check-filters { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
+.check-filter-btn {
+  padding: 8px 18px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #aaa; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.check-filter-btn:hover { color: #fff; border-color: #333; }
+.check-filter-btn.active { color: #fff; background: #1a1a1a; border-color: #333; }
+.category-group { margin-bottom: 32px; }
+.category-header { display: flex; align-items: center; gap: 12px; padding: 12px 0; margin-bottom: 12px; border-bottom: 1px solid #1a1a1a; }
+.category-name { font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #fff; }
+.category-count { font-size: 13px; font-weight: 500; color: #888; }
+.check-item {
+  display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-radius: 10px;
+  margin-bottom: 4px; cursor: pointer; transition: background 0.2s ease, transform 0.15s ease;
+}
+.check-item:hover { background: #0a0a0a; transform: translateX(4px); }
+.check-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.check-dot.pass { background: #22c55e; }
+.check-dot.warn { background: #eab308; }
+.check-dot.fail { background: #ef4444; }
+.check-dot.skip { background: #555; }
+.check-info { flex: 1; min-width: 0; }
+.check-name { font-size: 18px; font-weight: 600; color: #fff; line-height: 1.3; }
+.check-message { font-size: 15px; color: #ccc; margin-top: 2px; word-break: break-word; }
+.check-hint { font-size: 14px; color: #eab308; margin-top: 6px; }
+.check-hint.fail-hint { color: #ef4444; }
+.check-detail { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+.check-detail.open { max-height: 300px; margin-top: 12px; }
+.check-detail-inner { background: #111; border-radius: 8px; padding: 14px 16px; font-size: 14px; color: #ccc; line-height: 1.6; }
+.check-detail-inner .step { margin-bottom: 8px; padding-left: 16px; position: relative; }
+.check-detail-inner .step::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: #333; }
+.check-duration { font-size: 13px; color: #555; white-space: nowrap; margin-top: 4px; }
+
+/* ---- Trips ---- */
+.trips-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+.trip-card {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px; padding: 16px 20px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; align-items: center;
+  transition: border-color 0.3s ease, transform 0.2s ease;
+}
+.trip-card:hover { border-color: #2a2a2a; transform: translateY(-1px); }
+.trip-stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
+.trip-stat-value { font-size: 20px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.trip-stat-value.good { color: #22c55e; }
+.trip-stat-value.ok { color: #eab308; }
+.trip-stat-value.poor { color: #ef4444; }
+
+/* ---- Log Viewer ---- */
+.log-controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.log-level-btn {
+  padding: 6px 14px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #888; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+.log-level-btn:hover { color: #fff; border-color: #333; }
+.log-level-btn.active { color: #fff; background: #1a1a1a; border-color: #333; }
+.log-pause-btn {
+  margin-left: auto; padding: 6px 14px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #aaa; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 6px; cursor: pointer;
+}
+.log-pause-btn.paused { color: #eab308; border-color: #eab308; }
+.log-viewer {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 10px;
+  padding: 16px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7;
+}
+.log-entry { display: flex; gap: 12px; padding: 2px 0; }
+.log-time { color: #555; flex-shrink: 0; }
+.log-level-tag { flex-shrink: 0; font-weight: 500; width: 70px; }
+.log-level-tag.DEBUG { color: #888; }
+.log-level-tag.INFO { color: #3b82f6; }
+.log-level-tag.WARNING { color: #eab308; }
+.log-level-tag.ERROR { color: #ef4444; }
+.log-level-tag.CRITICAL { color: #dc2626; font-weight: 700; }
+.log-logger { color: #666; flex-shrink: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.log-msg { color: #ccc; word-break: break-word; }
+
+/* ---- Config Viewer ---- */
+.config-group { margin-bottom: 24px; }
+.config-group-header { font-size: 14px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #1a1a1a; }
+.config-table { width: 100%; border-collapse: collapse; }
+.config-table td { padding: 8px 12px; font-size: 14px; border-bottom: 1px solid #0f0f0f; }
+.config-key { color: #aaa; font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 40%; }
+.config-val { color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; }
+
+/* ---- Controls ---- */
+.controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.control-card {
+  background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 12px; padding: 20px;
+  display: flex; flex-direction: column;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.control-card:hover { border-color: #2a2a2a; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+.control-card-desc { flex: 1; }
+.control-card-title { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+.control-card-desc { font-size: 14px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+.control-btn {
+  padding: 10px 20px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #fff; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); width: 100%;
+}
+.control-btn:hover { background: #222; border-color: #555; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.control-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.control-btn.destructive { border-color: #ef444440; }
+.control-btn.destructive:hover { border-color: #ef4444; background: #1a0a0a; }
+.control-result { margin-top: 12px; font-size: 13px; font-family: 'JetBrains Mono', monospace; padding: 10px 12px; border-radius: 6px; line-height: 1.5; }
+.control-result.success { background: #22c55e10; color: #22c55e; border: 1px solid #22c55e20; }
+.control-result.error { background: #ef444410; color: #ef4444; border: 1px solid #ef444420; }
+
+/* ---- Connection Guide ---- */
+.connection-guide { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 10px; padding: 20px; margin-top: 20px; }
+.connection-guide h3 { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 12px; }
+.connection-guide .step-item { font-size: 14px; color: #ccc; margin-bottom: 8px; padding-left: 20px; position: relative; }
+.connection-guide .step-item::before { content: attr(data-num); position: absolute; left: 0; color: #22c55e; font-weight: 600; }
+.connection-guide code { background: #111; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #22c55e; }
+
+/* ---- Integration Test ---- */
+.integration-steps { display: flex; flex-direction: column; gap: 8px; }
+.integration-step { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #0a0a0a; border-radius: 8px; border: 1px solid #1a1a1a; }
+.integration-step .step-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.integration-step .step-dot.pass { background: #22c55e; }
+.integration-step .step-dot.fail { background: #ef4444; }
+.integration-step .step-dot.warn { background: #eab308; }
+.integration-step .step-name { font-size: 14px; font-weight: 500; color: #fff; flex: 1; }
+.integration-step .step-detail { font-size: 13px; color: #888; }
+.integration-step .step-time { font-size: 12px; color: #555; font-family: 'JetBrains Mono', monospace; }
+
+.no-data-msg { font-size: 16px; color: #555; text-align: center; padding: 48px 0; }
+.footer { padding: 32px 40px; text-align: center; font-size: 13px; color: #444; }
+
+@media (max-width: 900px) {
+  .sensor-grid { grid-template-columns: repeat(2, 1fr); }
+  .section { padding: 28px 20px 36px; }
+  .nav { padding: 0 20px; }
+  .status-banner { padding: 20px; }
+  .topology-svg { min-width: 700px; }
+  .trip-card { grid-template-columns: 1fr 1fr; }
+  .controls-grid { grid-template-columns: 1fr; }
+  .topo-detail-panel { width: 320px; }
+  .topo-node { width: 40% !important; min-width: 120px !important; }
+}
+@media (max-width: 500px) {
+  .sensor-grid { grid-template-columns: 1fr 1fr; }
+  .sensor-value { font-size: 28px; }
+  .nav-brand { font-size: 13px; margin-right: 12px; }
+  .nav-link { padding: 6px 10px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">Rune Diagnostics <span style="font-size:10px;font-weight:400;letter-spacing:0.04em;color:#555;margin-left:8px">by Kuladeep Mantri</span></div>
+  <div class="nav-links">
+    <a class="nav-link active" data-section="overview">Overview</a>
+    <a class="nav-link" data-section="topology">Topology</a>
+    <a class="nav-link" data-section="sensors">Sensors</a>
+    <a class="nav-link" data-section="thermal">Thermal</a>
+    <a class="nav-link" data-section="checks">Checks</a>
+    <a class="nav-link" data-section="trips">Trips</a>
+    <a class="nav-link" data-section="logs">Logs</a>
+    <a class="nav-link" data-section="config">Config</a>
+    <a class="nav-link" data-section="controls">Controls</a>
+  </div>
+  <div class="nav-right">
+    <span class="nav-latency" id="ws-latency"></span>
+    <span class="nav-timestamp" id="nav-timestamp">--</span>
+    <div class="nav-ws-status" id="ws-indicator" title="WebSocket disconnected"></div>
+  </div>
+</nav>
+
+<section id="overview" class="status-banner">
+  <div id="status-content"><span class="status-loading">Loading diagnostics...</span></div>
+</section>
+
+<section id="topology" class="section">
+  <div class="section-header">System Topology <span style="font-size:11px;color:#444;font-weight:400;letter-spacing:0;text-transform:none">-- drag nodes to rearrange</span></div>
+  <div id="topo-container" style="min-height:420px"></div>
+</section>
+
+<!-- Right-side device detail panel (overlay) -->
+<div class="topo-detail-panel" id="device-detail-panel">
+  <button class="topo-detail-close" id="detail-close-btn">&times;</button>
+  <div id="device-detail-content"></div>
+</div>
+
+<section id="sensors" class="section">
+  <div class="section-header">Live Sensors</div>
+  <div class="sensor-grid" id="sensor-grid"></div>
+  <p class="no-data-msg" id="sensor-no-data">Waiting for WebSocket connection...</p>
+</section>
+
+<section id="thermal" class="section">
+  <div class="section-header">Thermal Management</div>
+  <div class="thermal-gauge-wrapper">
+    <div class="thermal-bar">
+      <div class="thermal-bar-label">CPU Temperature</div>
+      <div class="thermal-bar-value green" id="therm-cpu-val">--</div>
+      <div class="thermal-track"><div class="thermal-fill" id="therm-cpu-fill" style="width:0%;background:#22c55e"></div></div>
+      <div class="thermal-bands"><div style="background:#22c55e"></div><div style="background:#eab308"></div><div style="background:#f97316"></div><div style="background:#ef4444"></div><div style="background:#dc2626"></div></div>
+      <div class="thermal-rate" id="therm-cpu-rate">Rate: --</div>
+    </div>
+    <div class="thermal-bar">
+      <div class="thermal-bar-label">Armrest Temperature</div>
+      <div class="thermal-bar-value green" id="therm-arm-val">--</div>
+      <div class="thermal-track"><div class="thermal-fill" id="therm-arm-fill" style="width:0%;background:#22c55e"></div></div>
+      <div class="thermal-bands"><div style="background:#22c55e"></div><div style="background:#eab308"></div><div style="background:#f97316"></div><div style="background:#ef4444"></div><div style="background:#dc2626"></div></div>
+      <div class="thermal-rate" id="therm-arm-rate">Rate: --</div>
+    </div>
+    <div class="thermal-bar">
+      <div class="thermal-bar-label">Database Growth</div>
+      <div class="db-growth-wrapper">
+        <div class="db-stat"><div class="db-stat-value" id="db-size-val">--</div><div class="db-stat-label">DB Size</div></div>
+        <canvas class="db-growth-sparkline" id="db-growth-canvas" width="200" height="50"></canvas>
+        <div class="db-stat"><div class="db-stat-value" id="db-wal-val">--</div><div class="db-stat-label">WAL</div></div>
+      </div>
+      <div class="thermal-rate" id="db-rate">Insert rate: --</div>
+    </div>
+  </div>
+</section>
+
+<section id="checks" class="section">
+  <div class="section-header">Diagnostic Checks</div>
+  <div style="margin-bottom:24px;display:flex;gap:12px;align-items:center">
+    <button class="detail-btn" id="btn-integration-test">Run Integration Test</button>
+    <span id="integration-status" style="font-size:14px;color:#888"></span>
+  </div>
+  <div class="integration-steps" id="integration-steps" style="margin-bottom:24px;display:none"></div>
+  <div class="check-filters" id="check-filters">
+    <button class="check-filter-btn active" data-filter="all">All</button>
+    <button class="check-filter-btn" data-filter="fail">Failed</button>
+    <button class="check-filter-btn" data-filter="warn">Warnings</button>
+    <button class="check-filter-btn" data-filter="pass">Passed</button>
+  </div>
+  <div id="checks-container"><p class="no-data-msg">Loading checks...</p></div>
+</section>
+
+<section id="trips" class="section">
+  <div class="section-header">Trip History</div>
+  <div class="trips-list" id="trips-list"><p class="no-data-msg">Loading trips...</p></div>
+</section>
+
+<section id="logs" class="section">
+  <div class="section-header">Log Viewer</div>
+  <div class="log-controls">
+    <button class="log-level-btn active" data-level="DEBUG">DEBUG</button>
+    <button class="log-level-btn" data-level="INFO">INFO</button>
+    <button class="log-level-btn" data-level="WARNING">WARNING</button>
+    <button class="log-level-btn" data-level="ERROR">ERROR</button>
+    <button class="log-level-btn" data-level="CRITICAL">CRITICAL</button>
+    <button class="log-pause-btn" id="log-pause-btn">Pause</button>
+  </div>
+  <div class="log-viewer" id="log-viewer"><p class="no-data-msg">Loading logs...</p></div>
+</section>
+
+<section id="config" class="section">
+  <div class="section-header">Configuration (Read-Only)</div>
+  <div id="config-container"><p class="no-data-msg">Loading config...</p></div>
+</section>
+
+<section id="controls" class="section">
+  <div class="section-header">Manual Controls</div>
+  <div class="controls-grid">
+    <div class="control-card">
+      <div class="control-card-title">WAL Checkpoint</div>
+      <div class="control-card-desc">Force a WAL checkpoint. Transfers pending writes from the WAL file to the main database. Useful before copying the DB for offline analysis.</div>
+      <button class="control-btn" id="btn-checkpoint">Run Checkpoint</button>
+      <div class="control-result" id="result-checkpoint" style="display:none"></div>
+    </div>
+    <div class="control-card">
+      <div class="control-card-title">Recalibrate Health Scorer</div>
+      <div class="control-card-desc">Reset the health scorer's learned baseline. Scores will return -1 (calibrating) for about 5 minutes while it re-learns what's normal.</div>
+      <button class="control-btn destructive" id="btn-recalibrate">Recalibrate</button>
+      <div class="control-result" id="result-recalibrate" style="display:none"></div>
+    </div>
+    <div class="control-card">
+      <div class="control-card-title">Restart Producer Loop</div>
+      <div class="control-card-desc">Stop and restart the OBD data collection loop. Use if data appears frozen or the producer fell behind.</div>
+      <button class="control-btn destructive" id="btn-restart-producer">Restart Producer</button>
+      <div class="control-result" id="result-restart-producer" style="display:none"></div>
+    </div>
+    <div class="control-card" style="border: 1px solid #f59e0b;">
+      <div class="control-card-title" style="color: #f59e0b;">Reset All Data</div>
+      <div class="control-card-desc">Wipe all stored data (readings, trips, fillups, health scores, logs) and reset health calibration. Works in any mode. Use after hardware testing to start fresh before daily driving. Does not change sim/live mode.</div>
+      <button class="control-btn" id="btn-reset-data" style="background: #f59e0b; color: #000; font-weight: 700;">Reset All Data</button>
+      <div class="control-result" id="result-reset-data" style="display:none"></div>
+    </div>
+    <div class="control-card" style="border: 1px solid #dc2626;">
+      <div class="control-card-title" style="color: #dc2626;">Remove Complete Simulation</div>
+      <div class="control-card-desc">Delete ALL simulated data, clear logs, and switch to real OBD hardware. The producer loop will reconnect to the WiCAN Pro. Only works in simulator mode. Cannot be undone.</div>
+      <button class="control-btn" id="btn-go-live" style="background: #dc2626; color: #fff; font-weight: 700;">Remove Complete Simulation</button>
+      <div class="control-result" id="result-go-live" style="display:none"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">Rune v1 -- 2026 Honda Accord SE -- Advanced Diagnostics Dashboard</footer>
+
+<script src="diagnostics-topology.js"></script>
+<script src="diagnostics.js"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+name: Rune CI
+
+on:
+  push:
+    branches: [main, "feat/*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (lint + type check + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check pi/backend/ tests/
+
+      - name: Type check (mypy)
+        run: mypy pi/backend/ --ignore-missing-imports
+
+      - name: Unit tests
+        run: pytest tests/ -q --tb=short
+        env:
+          RUNE_DB_PATH: /tmp/rune_ci.db
+          RUNE_USE_SIMULATOR: "true"
+
+  frontend:
+    name: Frontend (type check + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pixel/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: pixel/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc)
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build

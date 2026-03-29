@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rune Main Screen Test</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; overflow:hidden;
+    background:#000; color:rgba(255,255,255,0.55);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+  .screen { position:relative; width:100%; height:100%; padding:16px 20px 56px 20px; }
+
+  /* Top-left: Rune label + health */
+  .top-left { position:absolute; top:16px; left:20px; }
+  .rune-label {
+    font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:400;
+    color:rgba(255,255,255,0.12); letter-spacing:0.06em; text-transform:uppercase;
+  }
+  .connection-dots { display:inline-flex; gap:4px; margin-left:10px; vertical-align:middle; }
+  .connection-dots span {
+    width:3px; height:3px; border-radius:50%; background:rgba(255,255,255,0.35);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+  .connection-dots span:nth-child(2) { animation-delay:0.2s; }
+  .connection-dots span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes pulse-dot { 0%,100%{opacity:0.15} 50%{opacity:0.6} }
+
+  .health-score {
+    font-family:'Space Grotesk',sans-serif; font-size:38px; font-weight:700;
+    color:rgba(255,255,255,0.87); line-height:1; margin-top:4px;
+    font-variant-numeric:tabular-nums;
+  }
+  .health-label {
+    font-size:10px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase;
+    color:rgba(255,255,255,0.12); margin-top:2px;
+  }
+
+  /* Top-right: MPG */
+  .top-right { position:absolute; top:16px; right:140px; text-align:right; }
+  .mpg-value {
+    font-family:'Space Grotesk',sans-serif; font-size:30px; font-weight:600;
+    color:rgba(255,255,255,0.87); line-height:1; font-variant-numeric:tabular-nums;
+  }
+  .mpg-label {
+    font-size:10px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase;
+    color:rgba(255,255,255,0.12); margin-top:2px;
+  }
+
+  /* Center: Car */
+  .car-container {
+    position:absolute; top:50%; left:50%; transform:translate(-55%, -50%);
+    width:65%; max-width:720px;
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100%{transform:translate(-55%,-50%) scale(1)} 50%{transform:translate(-55%,-50%) scale(1.006)} }
+
+  .car-container img { width:100%; height:auto; object-fit:contain; }
+
+  /* Zone labels -- simple text ON the car, not boxes */
+  .zone-labels { position:absolute; inset:0; pointer-events:none; }
+  .zone-label {
+    position:absolute; font-family:'Space Grotesk',sans-serif;
+    font-size:11px; font-weight:500; letter-spacing:0.04em;
+    color:rgba(255,255,255,0.12);
+  }
+  .zone-label.warn { color:rgba(251,191,36,0.7); }
+  .zone-label.critical { color:rgba(239,68,68,0.8); }
+
+  /* Right edge: Sensor strip */
+  .sensor-strip {
+    position:absolute; top:16px; right:20px; bottom:56px;
+    width:110px; display:flex; flex-direction:column; justify-content:center; gap:4px;
+  }
+  .sensor-card {
+    display:flex; align-items:center; gap:0;
+    background:rgba(255,255,255,0.03); backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px); border-radius:6px; overflow:hidden;
+    min-height:44px;
+  }
+  .sensor-accent { width:2px; align-self:stretch; background:rgba(255,255,255,0.08); flex-shrink:0; }
+  .sensor-accent.warn { background:rgba(251,191,36,0.7); }
+  .sensor-accent.critical { background:rgba(239,68,68,0.8); }
+  .sensor-content { padding:6px 8px; display:flex; flex-direction:column; gap:1px; }
+  .sensor-value {
+    font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600;
+    color:rgba(255,255,255,0.55); line-height:1.1; font-variant-numeric:tabular-nums;
+  }
+  .sensor-unit { font-size:9px; font-weight:400; color:rgba(255,255,255,0.12); line-height:1; }
+
+  /* Voice text */
+  .voice-text {
+    position:absolute; bottom:70px; left:50%; transform:translateX(-55%);
+    text-align:center; font-size:13px; font-weight:300;
+    color:rgba(255,255,255,0.35); max-width:500px;
+  }
+
+  /* Trip heartbeat */
+  .trip-strip {
+    position:absolute; bottom:48px; left:20px; right:20px; height:30px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .trip-label {
+    font-size:9px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase;
+    color:rgba(255,255,255,0.08); flex-shrink:0;
+  }
+  .trip-line { flex:1; height:1px; background:rgba(255,255,255,0.04); }
+
+  /* Nav bar */
+  .nav-bar {
+    position:absolute; bottom:0; left:0; right:0; height:44px;
+    display:flex; align-items:center; justify-content:center; gap:0;
+    background:rgba(0,0,0,0.90); border-top:1px solid rgba(255,255,255,0.04);
+  }
+  .nav-tab {
+    flex:1; max-width:140px; height:100%; display:flex;
+    align-items:center; justify-content:center; gap:6px;
+    background:none; border:none; cursor:pointer; padding:0;
+    font-family:'Inter',sans-serif; font-size:10px; font-weight:500;
+    letter-spacing:0.06em; text-transform:uppercase;
+    color:rgba(255,255,255,0.12); border-top:1.5px solid transparent;
+  }
+  .nav-tab.active { color:rgba(255,255,255,0.55); border-top-color:rgba(255,255,255,0.55); }
+  .nav-tab svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.5; }
+
+  /* View toggle */
+  .view-toggle {
+    position:absolute; top:8px; right:8px;
+    width:36px; height:36px; border-radius:8px;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .view-toggle svg { width:18px; height:18px; stroke:rgba(255,255,255,0.25); fill:none; stroke-width:1.2; }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- Top-left: Rune + Health -->
+  <div class="top-left">
+    <div>
+      <span class="rune-label">Rune</span>
+      <span class="connection-dots"><span></span><span></span><span></span></span>
+    </div>
+    <div class="health-score">87</div>
+    <div class="health-label">Health</div>
+  </div>
+
+  <!-- Top-right: MPG -->
+  <div class="top-right">
+    <div class="mpg-value">31.2</div>
+    <div class="mpg-label">Instant MPG</div>
+  </div>
+
+  <!-- Center: Car with zone labels -->
+  <div class="car-container">
+    <img src="/accord-hud.png" alt="Honda Accord" draggable="false" />
+
+    <!-- Zone labels overlaid on the car -->
+    <div class="zone-labels">
+      <span class="zone-label" style="top:30%; left:38%;">ENG 93</span>
+      <span class="zone-label" style="top:42%; left:28%;">CVT 88</span>
+      <span class="zone-label critical" style="top:18%; left:30%;">COOL 42</span>
+      <span class="zone-label" style="top:72%; left:55%;">FUEL 100</span>
+      <span class="zone-label" style="top:65%; left:38%;">EXH 95</span>
+      <span class="zone-label" style="top:35%; left:18%;">ELEC 100</span>
+    </div>
+
+    <!-- View toggle -->
+    <div class="view-toggle">
+      <svg viewBox="0 0 24 24"><path d="M5 17h14M6 10l1-5h10l1 5M4 17a2 2 0 012-2h12a2 2 0 012 2v1H4v-1z"/></svg>
+    </div>
+  </div>
+
+  <!-- Sensor strip -->
+  <div class="sensor-strip">
+    <div class="sensor-card"><div class="sensor-accent"></div><div class="sensor-content"><div class="sensor-value">812</div><div class="sensor-unit">RPM</div></div></div>
+    <div class="sensor-card"><div class="sensor-accent"></div><div class="sensor-content"><div class="sensor-value">45</div><div class="sensor-unit">Speed kph</div></div></div>
+    <div class="sensor-card"><div class="sensor-accent critical"></div><div class="sensor-content"><div class="sensor-value" style="color:rgba(239,68,68,0.8)">112</div><div class="sensor-unit">Coolant °C</div></div></div>
+    <div class="sensor-card"><div class="sensor-accent"></div><div class="sensor-content"><div class="sensor-value">14.1</div><div class="sensor-unit">Volts</div></div></div>
+    <div class="sensor-card"><div class="sensor-accent"></div><div class="sensor-content"><div class="sensor-value">75</div><div class="sensor-unit">Tank %</div></div></div>
+  </div>
+
+  <!-- Voice -->
+  <div class="voice-text">Running warmer than I should be. 112 degrees -- not critical, but I don't usually sit here.</div>
+
+  <!-- Trip heartbeat -->
+  <div class="trip-strip">
+    <span class="trip-label">Trip</span>
+    <div class="trip-line"></div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav-bar">
+    <button class="nav-tab active">
+      <svg viewBox="0 0 24 24"><path d="M5 17h14M6 10l1-5h10l1 5M4 17a2 2 0 012-2h12a2 2 0 012 2v1H4v-1z"/><circle cx="7.5" cy="17" r="1"/><circle cx="16.5" cy="17" r="1"/></svg>
+      Rune
+    </button>
+    <button class="nav-tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      Telemetry
+    </button>
+    <button class="nav-tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+  </div>
+
+</div>
+</body>
+</html>

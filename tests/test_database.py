@@ -269,3 +269,42 @@ class TestNotInitialized:
         db = RuneDatabase()
         with pytest.raises(RuntimeError, match="not initialized"):
             db._require_conn()
+
+
+class TestPurgeAll:
+    """Tests for the go-live purge operation."""
+
+    async def test_purge_empty_db(self, db: RuneDatabase) -> None:
+        result = await db.purge_all()
+        assert result == {
+            "sensor_readings": 0, "trips": 0, "fillups": 0, "health_scores": 0, "can_frames": 0,
+        }
+
+    async def test_purge_deletes_all_data(self, db: RuneDatabase) -> None:
+        # Insert some data
+        snap = _make_snap()
+        await db.insert_reading(snap)
+        await db.insert_reading(snap)
+        await db.insert_reading(snap)
+        trip_id = await db.start_trip(int(time.time() * 1000))
+        await db.end_trip(trip_id, int(time.time() * 1000) + 60000, 5.0, 0.2, 0.68, 25.0)
+        health = _make_health()
+        await db.insert_health_score(int(time.time() * 1000), health)
+
+        # Verify data exists
+        counts_before = await db.get_table_counts()
+        assert counts_before["sensor_readings"] == 3
+        assert counts_before["trips"] == 1
+        assert counts_before["health_scores"] == 1
+
+        # Purge
+        result = await db.purge_all()
+        assert result["sensor_readings"] == 3
+        assert result["trips"] == 1
+        assert result["health_scores"] == 1
+
+        # Verify everything is gone
+        counts_after = await db.get_table_counts()
+        assert counts_after["sensor_readings"] == 0
+        assert counts_after["trips"] == 0
+        assert counts_after["health_scores"] == 0

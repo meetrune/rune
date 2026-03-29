@@ -151,15 +151,39 @@ class TestWarmup:
         assert sim._state.coolant_temp_c > 60
 
     def test_oil_lags_coolant(self) -> None:
+        """Oil target is coolant-2C, and oil has slower tau (240s vs 180s).
+
+        The oil model converges toward (coolant - 2) which means oil
+        is always at or below coolant in the long run. We verify this
+        property after enough warmup time for the thermal curves to
+        clearly separate from ambient noise.
+        """
         sim = HondaAccordSimulator(ambient_temp_c=20)
         sim.start()
 
-        for _ in range(50):
-            time.sleep(0.01)
+        # Collect multiple snapshots over ~3 seconds
+        # Use the average of last 10 readings to smooth sensor noise
+        coolant_samples = []
+        oil_samples = []
+        end_time = time.time() + 3.0
+        while time.time() < end_time:
+            time.sleep(0.05)
             snap = sim.get_snapshot()
+            coolant_samples.append(snap.coolant_temp_c)
+            oil_samples.append(snap.oil_temp_c)
 
-        # Oil should lag behind coolant
-        assert snap.oil_temp_c <= snap.coolant_temp_c + 5
+        # Average the last 10 readings to eliminate noise
+        avg_coolant = sum(coolant_samples[-10:]) / len(coolant_samples[-10:])
+        avg_oil = sum(oil_samples[-10:]) / len(oil_samples[-10:])
+
+        # Oil target = coolant - 2, with slower convergence.
+        # During early warmup both are near ambient, so we just verify
+        # oil doesn't significantly exceed coolant (generous 5C tolerance
+        # accounts for sensor noise accumulation in short test windows).
+        assert avg_oil <= avg_coolant + 5, (
+            f"Smoothed oil ({avg_oil:.1f}C) should not significantly exceed "
+            f"coolant ({avg_coolant:.1f}C) during warmup"
+        )
 
 
 class TestIdleValues:

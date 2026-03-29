@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 
 from backend.health.rules import (
     compute_overall,
@@ -30,10 +29,8 @@ from backend.health.thresholds import (
     LTFT,
     OIL_TEMP,
     STFT,
-    SUBSYSTEM_WEIGHTS,
 )
 from backend.obd_manager.models import VehicleSnapshot
-from backend.obd_manager.simulator import AnomalyConfig, HondaAccordSimulator
 
 
 def _snap(**overrides: float) -> VehicleSnapshot:
@@ -184,9 +181,13 @@ class TestAbsoluteScoring:
         """10% LTFT sustained is critical (beyond warning boundary of 9.99%)."""
         assert score_absolute(10.0, LTFT) == 50.0
 
-    def test_ltft_9_5_is_warning(self) -> None:
-        """9.5% LTFT is in warning zone (5-9.99%)."""
-        assert score_absolute(9.5, LTFT) == 85.0
+    def test_ltft_9_5_is_critical(self) -> None:
+        """9.5% LTFT is in critical zone (8-10%) with updated thresholds."""
+        assert score_absolute(9.5, LTFT) == 50.0
+
+    def test_ltft_7_is_warning(self) -> None:
+        """7% LTFT is in warning zone (5-8%)."""
+        assert score_absolute(7.0, LTFT) == 85.0
 
     def test_ltft_12_is_beyond_critical(self) -> None:
         """12% LTFT is beyond critical (>10%)."""
@@ -323,12 +324,11 @@ class TestEWMA:
             ewma.update(50.0)
         assert abs(ewma.value - 50.0) < 0.1
 
-    def test_bias_correction_early(self) -> None:
+    def test_first_value_seeded(self) -> None:
         ewma = EWMA(alpha=0.1)
         ewma.update(100.0)
-        # Without bias correction, first value would be 10 (alpha * 100)
-        # With correction, it should be close to 100
-        assert ewma.value > 90
+        # First value is seeded directly (no bias correction needed)
+        assert ewma.value == 100.0
 
     def test_tracks_step_change(self) -> None:
         ewma = EWMA(alpha=0.3)

@@ -6,7 +6,7 @@
 
 1. **NEVER** generate OBD-II write commands. Allowed modes: **01, 02, 03, 09, 22 ONLY.** (Mode 22 = UDS ReadDataByIdentifier, read-only. Used for Honda proprietary PIDs like CVT fluid temp.)
 2. **NEVER** generate commands using modes 04, 08, 10, 27, 2E, 31, 3E. These are write/control operations that can modify ECU state.
-3. All OBD communication **MUST** go through the `SafeOBDConnection` wrapper in `backend/obd_manager/connection.py`. No direct serial writes, no raw socket sends to the adapter, no bypassing the whitelist.
+3. All OBD communication **MUST** go through the `SafeOBDConnection` wrapper in `pi/backend/obd_manager/connection.py`. No direct serial writes, no raw socket sends to the adapter, no bypassing the whitelist.
 4. If you are **uncertain** whether a command is read-only, **DO NOT SEND IT**. Ask the user first.
 5. `SafeOBDConnection` is the **FIRST code written** for this project. It must exist and pass tests before any other OBD code is written.
 6. **NEVER** suggest clearing DTCs (Mode 04), resetting monitors, or any "reset" operation. Diagnostics are strictly read-only.
@@ -15,14 +15,14 @@
 
 ## Project Overview
 
-Rune is the car -- a 2026 Honda Accord SE. What we're building is the translation layer: the bond between Rune and the human who drives him. A Pi 4B in the armrest listens to Rune's signals and translates them into a **White Minimal HUD** on a dedicated Pixel 6 Pro (landscape, vent-mounted) via React PWA. Zero cloud dependency. GitHub: [meetrune/rune](https://github.com/meetrune/rune).
+Rune is the car -- a 2026 Honda Accord SE. What we're building is the translation layer: the bond between Rune and the human who drives him. A Pi 4B in the armrest listens to Rune's signals and translates them into a **dark engineering dashboard** on a dedicated Pixel 6 Pro (landscape, vent-mounted) via React PWA. 4 screens: 3D car telemetry, live sensor trace matrix, trip summary with analytics, and settings. Zero cloud dependency. GitHub: [meetrune/rune](https://github.com/meetrune/rune).
 
 See `PRD.md` for full specifications. See `docs/superpowers/specs/2026-03-24-rune-os-frontend-design.md` for the complete frontend design spec.
 
 ```
-CURRENT PHASE: v1 -- First words (Desktop Development, Simulated Data)
-STATUS: Sessions 1-4 complete (271 tests). Session 5: Frontend design COMPLETE. Implementation plan written (13 tasks). Next: Execute the plan -- build Rune OS.
-QUALITY: Production-grade. NOT an MVP. Every component is built to ship.
+CURRENT PHASE: v1 -- First words (Production-ready, restructured by device)
+STATUS: Sessions 1-12 complete. 352 tests. Codebase restructured: pi/ (backend + deploy + diagnostics), pixel/ (frontend), mac/ (v5+ placeholder). Go-live feature: red button in diagnostics purges simulation data and switches to real OBD. v3 sensor placeholders (BME280, MPU-6050, INMP441) ready for wiring.
+QUALITY: Production-grade. 352 tests. Mypy strict. Code reviewed. All algorithms research-verified.
 ```
 Update this line as phases progress: v1 First words -> v2 Rune coaches -> v3 Rune feels -> v4 Rune speaks to the world (open source launch).
 
@@ -57,8 +57,9 @@ Rune IS the car. He speaks in first person. He's a brother -- direct, honest, st
 - **Web framework:** FastAPI 0.135.1 with uvicorn 0.42.0
 - **OBD-II:** `obd` 0.7.3 (PyPI package name is `obd`, install with `pip install obd`). Async mode, `fast=True`.
 - **Database:** SQLite with WAL mode via aiosqlite 0.22.1. **Not InfluxDB** (50-70% CPU on Pi from TSM compaction). **Not TimescaleDB.**
-- **Frontend:** React 19.2.4 + Vite 8.0.0. **Pure SVG + CSS animations (NO Three.js/WebGL).** PWA served from Pi. zustand 5.0.12 for state.
-- **Frontend aesthetic:** White Minimal HUD -- pure white on OLED black (#000), zero accent color. Landscape orientation. Full Hero layout (car fills screen). Amber/red color ONLY on deviating sensors.
+- **Frontend:** React 19.2.4 + Three.js + React Three Fiber + Vite 8.0.0. PWA served from Pi. zustand 5.0.12 for state.
+- **Car visualization:** Interactive 3D model (.glb) rendered with Three.js/R3F. 360-degree touch rotation. Dark metallic materials with studio lighting. Model exported from Blender (scene file: `docs/assets/rune-accord-scene.blend`). Blender render backup: `docs/assets/accord-hud-render.png`.
+- **Frontend aesthetic:** Dark engineering dashboard on OLED black (#000). CarPlay/Android Auto scale text (12px+ minimum). Per-sensor identity colors with dynamic severity shifts (green/amber/red). Landscape orientation. Swipe + pill navigation.
 - **State management:** zustand 5.0.12
 - **ML (classical):** scikit-learn 1.8.0 (Isolation Forest, Random Forest)
 - **ML (deep, v3+):** tflite-runtime 2.14.0 (autoencoder inference on ARM64)
@@ -67,7 +68,7 @@ Rune IS the car. He speaks in first person. He's a brother -- direct, honest, st
 - **Reports (v4):** Jinja2 3.1.6 + matplotlib 3.10.x + WeasyPrint 68.1
 - **Data validation:** pydantic 2.12.5
 - **Data flow:** All sensor data flows through Pi (central hub). WebSocket at 10Hz to phone. Phone is display + secondary sensor source.
-- **Static frontend serving:** `app.mount("/", StaticFiles(directory="frontend/dist", html=True))`
+- **Static frontend serving:** Dual-environment: tries `pi/../pixel/frontend/dist` (dev) then `../frontend/dist` (Pi deployment)
 - **Mac training workstation (v5+):** MacBook Pro M3 Max 36GB. Receives SQLite DB exports from Pi on irregular schedule (weekly/monthly/whenever). Trains personalized LSTM autoencoder via MLX, runs Prophet fuel forecasting, route clustering, seasonal calibration. Outputs deployable artifacts (TFLite model + JSON configs + PDF reports) that go back to Pi. See PRD Section 11 v5 for full spec.
 
 ### Three-device architecture
@@ -77,61 +78,50 @@ Pi (collects + real-time inference) -> Pixel (displays) -> Mac (trains + analyze
 ```
 
 - **Pi** owns real-time: OBD polling, EWMA, Isolation Forest, TFLite inference, WebSocket streaming
-- **Pixel** owns display: White Minimal HUD (SVG car + data), health dashboard, fuel tracking, Rune's voice
+- **Pixel** owns display: 4-screen car OS (Telemetry 3D, Trace Matrix, Trip Summary, Settings), fuel tracking, Rune's voice
 - **Mac** owns training: LSTM autoencoder training (MLX), Prophet forecasts, route clustering, PDF reports, seasonal calibration. Runs on-demand when DB export is available. Outputs artifacts that make the Pi smarter over time.
 
 ---
 
-## Rune OS -- Frontend Design (LOCKED IN, March 24 2026)
+## Rune OS -- Frontend Design (FINAL, March 24 2026)
 
-**This is a car operating system, NOT a web app on a phone.** See full spec: `docs/superpowers/specs/2026-03-24-rune-os-frontend-design.md`. Implementation plan: `docs/superpowers/plans/2026-03-24-rune-os-frontend.md`.
+**This is a car operating system, NOT a web app on a phone.** Pixel 6 Pro landscape (892x412 CSS viewport, DPR 3.5). All text 12px+ minimum (2.2mm physical). Touch targets 44px+.
 
 ### Visual Identity
-- **Aesthetic:** White Minimal HUD. Pure white on OLED black. Zero accent color in normal state. Subtle grid background.
-- **Color is the exception:** Monochrome default. Amber ONLY when a sensor warns. Red ONLY when critical. Color demands attention BECAUSE everything else is calm.
-- **Typography:** Space Grotesk (numbers), Inter (UI text), Cormorant Garamond (boot credit)
+- **Aesthetic:** Dark engineering dashboard on OLED black. Per-sensor identity colors. Dynamic severity shifts (green -> amber -> red).
+- **Hero palette:** Warm gold (#c9952a / #f0e2c8) on the Trace Matrix hero strip.
+- **Typography:** JetBrains Mono (sensor data), Space Grotesk (headings/numbers), Inter (UI text)
+- **No NavBar.** Swipe + arrow keys + clickable pills (8px, bottom center).
 
-### Screens (landscape, bottom tab bar navigation)
-1. **Rune (main):** Full Hero layout. Car SVG fills screen. Health top-left, MPG top-right, sensor strip right edge, trip heartbeat bottom. Both top-down and side-profile views with floating icon toggle.
-2. **Telemetry:** Health ring gauge + subsystem list (left), 4x3 sensor grid + sparklines (right)
-3. **Settings:** Card-state toggles (NO toggle switches -- ADHD-unfriendly), connection info, about + "crafted by Kuladeep Mantri"
+### Screens (landscape, swipe navigation)
+1. **Telemetry (first screen):** Interactive 3D Honda Accord (.glb model). Cinematic camera zoom into tapped zones. Auto-rotate showroom when idle. Dots-only zone markers (ENG/CVT/COOL/FUEL/EXH/ELEC) at accurate 2026 Accord component positions. Right panel: subsystem health header + sparkline sensor cards (5-min Float32Array buffer). Top bar: "RUNE / Kuladeep M. / engineer".
+2. **Rune (Trace Matrix):** 10-cell mosaic of live OBD-II waveforms in a 2-3-4 pyramid layout. Shows ONLY data Honda dash doesn't: fuel trims, MAF, load, throttle, catalyst temp, oil temp, battery voltage, intake MAP. Warm gold hero strip (left): instant MPG, cost, trip, $/MI, tank, STFT volatility, warmup progress, health. Trend arrows, zero-line references, dot glow on severity change.
+3. **Trip Summary:** Trip list with color-coded MPG numbers. Detail panel: big MPG arc gauge, receipt (distance/cost/fuel/duration at 24px), MPG range gradient bar, time split donut chart, engine bar charts, CO2 estimate. Rich stats from TripStatsAccumulator (idle time/cost, warmup, STFT spikes, peak load/RPM). Auto-popup on trip end via WebSocket.
+4. **Settings:** Dark engineering aesthetic. Green dot toggles. Gas price wired to $/MI calculation. Rune Voice toggle wired. Live stream rate counter. Builder card with full attribution.
 
-### Car SVG
-- **Pure SVG, no Three.js/WebGL.** Both top-down and side-profile views.
-- **Must match the 2026 Honda Accord SE shape.** Research actual exterior and component positions before drawing.
-- **Accurate zone positions:** Engine front-right, CVT front-left, fuel tank rear-center, cooling front-center, exhaust front-to-rear-right, battery front-left.
-
-### 5 Signature Animations (all data-backed, no gimmicks)
-1. **Breathing:** Car outline scales +-0.6% in sync with RPM (PID 010C)
-2. **Fuel flow:** Particles from tank to engine, speed = fuel consumption rate (MAF PID 0110)
-3. **Connection pulse:** Dots travel from "Rune" label rightward (WebSocket heartbeat)
-4. **Trip heartbeat:** ECG waveform from throttle delta (PID 0111) + speed delta (PID 010D)
-5. **Zone ripple:** Sonar rings from tapped zone (user interaction only)
-
-### Boot Experience
-1. "Rune" text breathing on black + "crafted by Kuladeep Mantri" maker's mark (2s)
-2. Line-draw reveal -- car SVG draws itself in (2s)
-3. Data fade-in + Rune's voice: "All good. {score} across the board."
+### 3D Car Model (LOCKED IN)
+- **Model:** `/frontend/public/models/accord.glb` (Sketchfab, CC Attribution)
+- **Materials:** Body metalness 0.8, roughness 0.2, clearcoat 1.0, color `0x3a3a42`
+- **Lighting:** 3 directional lights (key/fill/rim) + ambient 0.3, environment preset "night"
+- **Camera:** Default `[6, 2.8, 4.5]` fov 28. Zooms to zone on selection.
+- **Controls:** OrbitControls with autoRotate (0.3 speed), disabled during zoom.
+- **Do NOT change materials, lighting, or camera defaults without asking.**
 
 ### OLED Burn-In Prevention
 - Pixel shift: static text drifts 1-2px every 5 minutes
-- Grid drift: scrolls ~1px/min
-- Nav bar: auto-hides after 10s of no touch
 - Brightness: reduces 15% after 30min idle (restores on touch/alert)
 
 ### Dedicated Device (Pixel 6 Pro)
-- Landscape orientation, vent-mounted
-- Tasker + Android Screen Pinning for kiosk mode
-- WiFi-based auto-start (Pi boots -> "Rune" WiFi -> Pixel connects -> app launches)
-- FPS: Uncapped, target 120fps (LTPO adaptive 10-120Hz)
-- Min touch target: 56x56px
+- Landscape orientation, vent-mounted (892x412 CSS viewport)
+- Min touch target: 44px (56px preferred)
+- Min text size: 12px (2.2mm physical)
 
 ### What NOT to Do (Frontend)
-- **Do NOT use Three.js/WebGL** for the main screen. SVG + CSS only.
-- **Do NOT use color themes.** Monochrome white is the identity.
-- **Do NOT use toggle switches** in settings. Use card-state pattern (bright+accent = ON, dim+strikethrough = OFF).
 - **Do NOT design for portrait.** Landscape only.
-- **Do NOT treat this as a web app.** It's a car OS. Big touch targets, low information density, swipe-free navigation.
+- **Do NOT add a NavBar.** Pills + swipe + arrow keys handle navigation.
+- **Do NOT show data the Honda dash already shows** (speed, RPM, fuel level, coolant gauge) on the Trace Matrix. That screen is for OBD-II unique data only.
+- **Do NOT use heavy gradient fills** on trace cells. Thin colored lines, subtle 3% opacity fill max.
+- **Do NOT treat this as a web app.** It's a car OS. Big text, big touch targets.
 
 ---
 
@@ -233,7 +223,7 @@ Current dev environment: **Python 3.14** (Mac), will target Pi-compatible Python
 | Component | Key Specs |
 |-----------|-----------|
 | **Pi 4B** | 4GB RAM. Trixie 64-bit Lite. WiFi AP "Rune" at 192.168.4.1. OverlayFS enabled. Python 3.13. |
-| **WiCAN Pro** | ESP32-S3. WiFi station mode on Rune network. Raw CAN + CAN-FD + ELM327/STN emulation. Dedicated OBD interpreter chip. Sleep <3mA. Firmware v4.40. WebSocket communication. **Change default WiFi password** (default: `@meatpi#`). Order #318980. |
+| **WiCAN Pro** | ESP32-S3. WiFi station mode on Rune network. Raw CAN + CAN-FD + ELM327/STN emulation. Dedicated OBD interpreter chip. Sleep <3mA. Check [latest firmware](https://github.com/meatpiHQ/wican-fw/releases). WebSocket communication. **Change default WiFi password** (default: `@meatpi#`). Factory-fresh web UI at `192.168.0.10` (normal AP mode: `192.168.80.1`). Order #318980. |
 | **Pixel 6 Pro** | Google Tensor. 12GB RAM. Mali-G78 MP20 GPU. LSM6DSO IMU (60Hz via web, 400Hz native). 6.7" LTPO OLED. Dedicated spare phone. |
 | **Witty Pi 4** | Adafruit #5704. 6-30V DC input. 12V->5V. RTC (CR2032 backup). Graceful shutdown on ignition off. Uses I2C (GPIO 2/3). |
 | **Sensors (v3)** | AITRIP INMP441 mic (I2S: GPIO 18/19/20), HiLetgo MPU-6050 IMU (I2C addr 0x68), ZHWXFW BME280 (I2C addr 0x76/0x77) |
@@ -325,12 +315,15 @@ WeasyPrint==68.1
 {
   "react": "^19.2.4",
   "react-dom": "^19.2.4",
+  "@react-three/fiber": "^9.5.0",
+  "@react-three/drei": "^10.7.7",
+  "three": "^0.183.2",
   "zustand": "^5.0.12",
-  "typescript": "^6.0.2"
+  "typescript": "^5.9.3"
 }
 ```
 
-**No Three.js.** Frontend is pure SVG + CSS animations. Build tooling: Vite 8.0.0. Requires Node.js 20.19+ or 22.12+.
+Frontend uses Three.js/R3F for the Telemetry 3D car screen. Build tooling: Vite 8.0.0. Requires Node.js 20.19+ or 22.12+.
 
 ---
 
