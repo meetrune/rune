@@ -256,13 +256,13 @@
     lastWsMessageTime = Date.now();
     connLastSeen["honda-wican"] = lastWsMessageTime;
     connLastSeen["wican-pi"] = lastWsMessageTime;
-    connLastSeen["pi-pixel"] = lastWsMessageTime;
+    connLastSeen["pi-iphone"] = lastWsMessageTime;
   }
 
   // ---- Connection Staleness (1Hz) ----
   function checkConnectionStaleness() {
     var now = Date.now();
-    var ids = ["honda-wican", "wican-pi", "pi-pixel"];
+    var ids = ["honda-wican", "wican-pi", "pi-iphone"];
     for (var i = 0; i < ids.length; i++) {
       var conn = ids[i];
       var line = document.getElementById("line-" + conn);
@@ -426,18 +426,32 @@
       });
       deviceContent.appendChild(grid);
 
-    } else if (device === "pixel") {
+    } else if (device === "iphone") {
       deviceContent.textContent = "";
       var hdr = el("div", "detail-header");
       hdr.appendChild(el("div", "dot amber"));
-      hdr.appendChild(document.createTextNode("Pixel 6 Pro"));
+      hdr.appendChild(document.createTextNode("iPhone"));
       deviceContent.appendChild(hdr);
       var grid = el("div", "detail-grid");
-      var avgLat = wsLatencies.length > 0 ? "~" + Math.round(wsLatencies.reduce(function(a,b){return a+b},0)/wsLatencies.length) + "ms" : "--";
-      [["Role","Display PWA"],["WS Messages", wsMessageCount.toLocaleString()],["WS Data", formatBytes(wsByteCount)],["Avg Latency", avgLat]].forEach(function(p) {
+      [["Role","Sync relay / ntfy"],["Sync","WiFi to Pi"],["Relay","iCloud to Mac"]].forEach(function(p) {
         var item = el("div", "detail-item");
         item.appendChild(el("div", "detail-label", p[0]));
-        item.appendChild(el("div", "detail-value", p[1]));
+        item.appendChild(el("div", "detail-value small", p[1]));
+        grid.appendChild(item);
+      });
+      deviceContent.appendChild(grid);
+
+    } else if (device === "mac") {
+      deviceContent.textContent = "";
+      var hdr = el("div", "detail-header");
+      hdr.appendChild(el("div", "dot amber"));
+      hdr.appendChild(document.createTextNode("MacBook M3 Max"));
+      deviceContent.appendChild(hdr);
+      var grid = el("div", "detail-grid");
+      [["Role","ML training / analysis"],["Chip","Apple M3 Max"],["RAM","36 GB"],["ML","MLX + Prophet"]].forEach(function(p) {
+        var item = el("div", "detail-item");
+        item.appendChild(el("div", "detail-label", p[0]));
+        item.appendChild(el("div", "detail-value small", p[1]));
         grid.appendChild(item);
       });
       deviceContent.appendChild(grid);
@@ -634,18 +648,20 @@
 
     var obdStatus = isSimulator ? "simulated" : (collectorOk ? "connected" : "disconnected");
     var piStatus = isSimulator ? "simulated" : (serverOk ? "connected" : "disconnected");
-    var pixelStatus = isSimulator ? "simulated" : (wsOk ? "connected" : "disconnected");
+    var iphoneStatus = isSimulator ? "simulated" : (wsOk ? "connected" : "disconnected");
 
     window.runeTopology.setNodeStatus("honda", obdStatus);
     window.runeTopology.setNodeStatus("wican", obdStatus);
     window.runeTopology.setNodeStatus("pi", piStatus);
-    window.runeTopology.setNodeStatus("pixel", pixelStatus);
+    window.runeTopology.setNodeStatus("iphone", iphoneStatus);
+    window.runeTopology.setNodeStatus("mac", piStatus);
     window.runeTopology.setNodeStatus("db", piStatus);
     window.runeTopology.setNodeStatus("witty", isSimulator ? "simulated" : "connected");
 
     window.runeTopology.setLineStatus("line-honda-wican", obdStatus);
     window.runeTopology.setLineStatus("line-wican-pi", obdStatus);
-    window.runeTopology.setLineStatus("line-pi-pixel", pixelStatus);
+    window.runeTopology.setLineStatus("line-pi-iphone", iphoneStatus);
+    window.runeTopology.setLineStatus("line-iphone-mac", iphoneStatus);
     window.runeTopology.setLineStatus("line-pi-db", piStatus);
     window.runeTopology.setLineStatus("line-pi-witty", isSimulator ? "simulated" : "connected");
   }
@@ -859,7 +875,6 @@
     document.getElementById("btn-recalibrate").addEventListener("click", function() { executeControl("recalibrate"); });
     document.getElementById("btn-restart-producer").addEventListener("click", function() { executeControl("restart-producer"); });
     document.getElementById("btn-reset-data").addEventListener("click", function() { executeControl("reset-data"); });
-    document.getElementById("btn-go-live").addEventListener("click", function() { executeControl("go-live"); });
   }
 
   // ---- Integration Test ----
@@ -956,7 +971,7 @@
       });
     }
 
-    var sections = ["overview","topology","sensors","thermal","checks","trips","logs","config","controls"];
+    var sections = ["overview","topology","sensors","thermal","checks","sect-intelligence","trips","logs","config","controls"];
     var observer = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {
         if (entry.isIntersecting) {
@@ -967,6 +982,130 @@
     }, { rootMargin: "-50% 0px -50% 0px" });
 
     sections.forEach(function(s) { var e = document.getElementById(s); if (e) observer.observe(e); });
+  }
+
+  // --- Intelligence Layer ---
+
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function loadIntelligence() {
+    fetch(API + "/api/intelligence/status").then(function(r) { return r.json(); }).then(function(d) {
+      if (d.battery) {
+        setText("batt-state", d.battery.state || "unknown");
+        setText("batt-resting", d.battery.resting_voltage_ewma.toFixed(2) + "V");
+        setText("batt-charging", d.battery.charging_voltage_ewma.toFixed(2) + "V");
+        setText("batt-drain", d.battery.drain_rate_v_per_hour.toFixed(4) + " V/hr");
+        setText("batt-samples", String(d.battery.samples));
+        var stateEl = document.getElementById("batt-state");
+        if (stateEl) {
+          var colors = { full: "#22c55e", good: "#22c55e", fair: "#f59e0b", low: "#f59e0b", critical: "#ef4444", charging: "#60a5fa", weak_charging: "#f59e0b", unknown: "#666" };
+          stateEl.style.color = colors[d.battery.state] || "#666";
+        }
+      }
+      setText("drive-baseline", (d.baseline_mpg || 31.0).toFixed(1));
+      if (d.can_decoder) {
+        setText("drive-can", d.can_decoder.known_can_ids + " IDs / " + d.can_decoder.decoded_frames + " frames");
+      }
+      if (d.warmup_model) {
+        setText("drive-warmup", "Fitted (" + d.warmup_model.n_samples + " samples, R\u00B2=" + d.warmup_model.r_squared.toFixed(2) + ")");
+      } else {
+        setText("drive-warmup", "Learning...");
+      }
+      setText("intel-updated", "Updated " + new Date().toLocaleTimeString());
+    }).catch(function() {});
+  }
+
+  function loadSyncStatus() {
+    fetch(API + "/api/sync/status").then(function(r) { return r.json(); }).then(function(d) {
+      setText("sync-pending", String(d.pending_alerts));
+      var pendingEl = document.getElementById("sync-pending");
+      if (pendingEl) pendingEl.style.color = d.pending_alerts > 0 ? "#f59e0b" : "#22c55e";
+      setText("sync-last", d.last_sync_at ? new Date(d.last_sync_at).toLocaleString() : "Never");
+      setText("sync-readings", String(d.readings_since_sync));
+      setText("sync-hasdata", d.has_data ? "Yes" : "No");
+      var hasEl = document.getElementById("sync-hasdata");
+      if (hasEl) hasEl.style.color = d.has_data ? "#f59e0b" : "#22c55e";
+    }).catch(function() {});
+  }
+
+  function loadMaintenance() {
+    fetch(API + "/api/maintenance/status").then(function(r) { return r.json(); }).then(function(d) {
+      var container = document.getElementById("maint-list");
+      if (!container || !d.items) return;
+      container.textContent = "";
+      d.items.forEach(function(item) {
+        var row = document.createElement("div");
+        row.className = "intel-row";
+        var label = document.createElement("span");
+        label.className = "intel-label";
+        label.textContent = item.item.replace(/_/g, " ");
+        var value = document.createElement("span");
+        value.className = "intel-value";
+        var miles = item.miles_remaining;
+        if (miles <= 0) {
+          value.textContent = Math.abs(miles).toFixed(0) + " mi overdue";
+          value.className += " maint-overdue";
+        } else if (miles <= 1000) {
+          value.textContent = miles.toFixed(0) + " mi left";
+          value.className += " maint-soon";
+        } else {
+          value.textContent = miles.toFixed(0) + " mi left";
+          value.className += " maint-due";
+        }
+        row.appendChild(label);
+        row.appendChild(value);
+        container.appendChild(row);
+      });
+    }).catch(function() {});
+  }
+
+  function loadAlerts() {
+    fetch(API + "/api/sync/alerts").then(function(r) { return r.json(); }).then(function(d) {
+      var container = document.getElementById("alert-list");
+      if (!container) return;
+      if (!d.alerts || d.alerts.length === 0) {
+        container.textContent = "";
+        var emptyRow = document.createElement("div");
+        emptyRow.className = "intel-row";
+        var emptyLabel = document.createElement("span");
+        emptyLabel.className = "intel-label";
+        emptyLabel.textContent = "No pending alerts";
+        emptyRow.appendChild(emptyLabel);
+        container.appendChild(emptyRow);
+        return;
+      }
+      container.textContent = "";
+      d.alerts.forEach(function(alert) {
+        var row = document.createElement("div");
+        row.className = "intel-row";
+        row.style.flexDirection = "column";
+        row.style.alignItems = "flex-start";
+        row.style.gap = "4px";
+        var header = document.createElement("div");
+        header.style.display = "flex";
+        header.style.gap = "8px";
+        header.style.alignItems = "center";
+        var badge = document.createElement("span");
+        badge.className = "alert-badge " + alert.severity;
+        badge.textContent = alert.severity;
+        header.appendChild(badge);
+        var cat = document.createElement("span");
+        cat.className = "intel-label";
+        cat.textContent = alert.category;
+        header.appendChild(cat);
+        row.appendChild(header);
+        var msg = document.createElement("div");
+        msg.className = "intel-value";
+        msg.style.fontSize = "13px";
+        msg.style.lineHeight = "1.4";
+        msg.textContent = alert.message;
+        row.appendChild(msg);
+        container.appendChild(row);
+      });
+    }).catch(function() {});
   }
 
   // ---- Init ----
@@ -987,8 +1126,18 @@
     loadLogs();
     loadConfig();
     updateThermalGauges();
+    loadIntelligence();
+    loadSyncStatus();
+    loadMaintenance();
+    loadAlerts();
 
-    setInterval(fetchDiagnostics, DIAG_REFRESH_MS);
+    setInterval(function() {
+      fetchDiagnostics();
+      loadIntelligence();
+      loadSyncStatus();
+      loadMaintenance();
+      loadAlerts();
+    }, DIAG_REFRESH_MS);
     setInterval(loadLogs, LOG_REFRESH_MS);
     setInterval(checkConnectionStaleness, 1000);
     setInterval(updateThermalGauges, DIAG_REFRESH_MS);

@@ -371,10 +371,81 @@ body {
   .topo-node { width: 40% !important; min-width: 120px !important; }
 }
 @media (max-width: 500px) {
-  .sensor-grid { grid-template-columns: 1fr 1fr; }
+  body { font-size: 17px; }
+  .section { padding: 20px 16px 24px; }
+  .sensor-grid { grid-template-columns: 1fr; gap: 10px; }
   .sensor-value { font-size: 28px; }
+  .trip-card { grid-template-columns: 1fr; }
+  .topo-detail-panel { position: fixed; width: 100%; left: 0; bottom: 0; top: auto; max-height: 60vh; border-radius: 16px 16px 0 0; }
+  .topology-svg { display: none; }
+  .control-btn { min-height: 48px; font-size: 15px; }
   .nav-brand { font-size: 13px; margin-right: 12px; }
-  .nav-link { padding: 6px 10px; font-size: 12px; }
+  .nav-link { padding: 8px 12px; font-size: 13px; }
+}
+
+/* ---- Intelligence Section ---- */
+.intel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.intel-card {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 12px;
+  padding: 16px;
+}
+.intel-card-wide {
+  grid-column: span 3;
+}
+.intel-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin-bottom: 12px;
+}
+.intel-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #111;
+}
+.intel-row:last-child { border-bottom: none; }
+.intel-label {
+  font-size: 13px;
+  color: #888;
+}
+.intel-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+}
+.maint-due { color: #22c55e; }
+.maint-soon { color: #f59e0b; }
+.maint-overdue { color: #ef4444; }
+.alert-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.alert-badge.info { background: #1e3a5f; color: #60a5fa; }
+.alert-badge.warning { background: #422006; color: #f59e0b; }
+.alert-badge.critical { background: #450a0a; color: #ef4444; }
+
+@media (max-width: 900px) {
+  .intel-grid { grid-template-columns: repeat(2, 1fr); }
+  .intel-card-wide { grid-column: span 2; }
+}
+@media (max-width: 500px) {
+  .intel-grid { grid-template-columns: 1fr; }
+  .intel-card-wide { grid-column: span 1; }
 }
 </style>
 </head>
@@ -388,6 +459,7 @@ body {
     <a class="nav-link" data-section="sensors">Sensors</a>
     <a class="nav-link" data-section="thermal">Thermal</a>
     <a class="nav-link" data-section="checks">Checks</a>
+    <a href="#sect-intelligence" class="nav-link" data-section="sect-intelligence">Intelligence</a>
     <a class="nav-link" data-section="trips">Trips</a>
     <a class="nav-link" data-section="logs">Logs</a>
     <a class="nav-link" data-section="config">Config</a>
@@ -466,6 +538,55 @@ body {
   <div id="checks-container"><p class="no-data-msg">Loading checks...</p></div>
 </section>
 
+<section id="sect-intelligence" class="section">
+  <div class="section-header">
+    <h2 class="section-title">INTELLIGENCE</h2>
+    <span class="section-subtitle" id="intel-updated"></span>
+  </div>
+  <div class="intel-grid" id="intel-grid">
+    <div class="intel-card" id="intel-battery">
+      <div class="intel-card-title">Battery Health</div>
+      <div class="intel-card-body">
+        <div class="intel-row"><span class="intel-label">State</span><span class="intel-value" id="batt-state">--</span></div>
+        <div class="intel-row"><span class="intel-label">Resting V</span><span class="intel-value" id="batt-resting">--</span></div>
+        <div class="intel-row"><span class="intel-label">Charging V</span><span class="intel-value" id="batt-charging">--</span></div>
+        <div class="intel-row"><span class="intel-label">Drain Rate</span><span class="intel-value" id="batt-drain">--</span></div>
+        <div class="intel-row"><span class="intel-label">Samples</span><span class="intel-value" id="batt-samples">--</span></div>
+      </div>
+    </div>
+    <div class="intel-card" id="intel-sync">
+      <div class="intel-card-title">Sync Status</div>
+      <div class="intel-card-body">
+        <div class="intel-row"><span class="intel-label">Pending Alerts</span><span class="intel-value" id="sync-pending">--</span></div>
+        <div class="intel-row"><span class="intel-label">Last Sync</span><span class="intel-value" id="sync-last">--</span></div>
+        <div class="intel-row"><span class="intel-label">Readings</span><span class="intel-value" id="sync-readings">--</span></div>
+        <div class="intel-row"><span class="intel-label">Has Data</span><span class="intel-value" id="sync-hasdata">--</span></div>
+      </div>
+    </div>
+    <div class="intel-card" id="intel-driving">
+      <div class="intel-card-title">Driving Profile</div>
+      <div class="intel-card-body">
+        <div class="intel-row"><span class="intel-label">Baseline MPG</span><span class="intel-value" id="drive-baseline">--</span></div>
+        <div class="intel-row"><span class="intel-label">EPA Combined</span><span class="intel-value" id="drive-epa">31.0</span></div>
+        <div class="intel-row"><span class="intel-label">CAN IDs Decoded</span><span class="intel-value" id="drive-can">--</span></div>
+        <div class="intel-row"><span class="intel-label">Warmup Model</span><span class="intel-value" id="drive-warmup">--</span></div>
+      </div>
+    </div>
+    <div class="intel-card intel-card-wide" id="intel-maintenance">
+      <div class="intel-card-title">Maintenance</div>
+      <div class="intel-card-body" id="maint-list">
+        <div class="intel-row"><span class="intel-label">Loading...</span></div>
+      </div>
+    </div>
+    <div class="intel-card intel-card-wide" id="intel-alerts">
+      <div class="intel-card-title">Alert Queue</div>
+      <div class="intel-card-body" id="alert-list">
+        <div class="intel-row"><span class="intel-label">No pending alerts</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="trips" class="section">
   <div class="section-header">Trip History</div>
   <div class="trips-list" id="trips-list"><p class="no-data-msg">Loading trips...</p></div>
@@ -515,12 +636,6 @@ body {
       <div class="control-card-desc">Wipe all stored data (readings, trips, fillups, health scores, logs) and reset health calibration. Works in any mode. Use after hardware testing to start fresh before daily driving. Does not change sim/live mode.</div>
       <button class="control-btn" id="btn-reset-data" style="background: #f59e0b; color: #000; font-weight: 700;">Reset All Data</button>
       <div class="control-result" id="result-reset-data" style="display:none"></div>
-    </div>
-    <div class="control-card" style="border: 1px solid #dc2626;">
-      <div class="control-card-title" style="color: #dc2626;">Remove Complete Simulation</div>
-      <div class="control-card-desc">Delete ALL simulated data, clear logs, and switch to real OBD hardware. The producer loop will reconnect to the WiCAN Pro. Only works in simulator mode. Cannot be undone.</div>
-      <button class="control-btn" id="btn-go-live" style="background: #dc2626; color: #fff; font-weight: 700;">Remove Complete Simulation</button>
-      <div class="control-result" id="result-go-live" style="display:none"></div>
     </div>
   </div>
 </section>

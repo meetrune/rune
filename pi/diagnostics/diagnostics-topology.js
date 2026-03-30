@@ -15,12 +15,13 @@
     // Hub-and-spoke layout: data flows left->center->right
     // Left: data sources (Honda + WiCAN stacked vertically)
     // Center: Pi hub (larger, dominant)
-    // Right: output (Pixel)
+    // Right: output (iPhone + Mac)
     // Below center: infrastructure (SQLite + Witty Pi)
     { id: "honda",  label: "Honda Accord SE", detail: "2026 L15BE 1.5T CVT", role: "DATA SOURCE",   pctX: 1,  pctY: 3,  accent: "#a78bfa" },
     { id: "wican",  label: "WiCAN Pro",       detail: "ESP32-S3 / WiFi STA", role: "OBD BRIDGE",    pctX: 1,  pctY: 45, accent: "#f472b6" },
     { id: "pi",     label: "Raspberry Pi 4B", detail: "Trixie / Python 3.13", role: "CENTRAL HUB",  pctX: 35, pctY: 18, accent: "#34d399", isHub: true },
-    { id: "pixel",  label: "Pixel 6 Pro",     detail: "Display PWA",          role: "DISPLAY OUT",   pctX: 72, pctY: 18, accent: "#38bdf8" },
+    { id: "iphone", label: "iPhone",           detail: "Sync relay / ntfy",    role: "DATA RELAY",    pctX: 72, pctY: 3,  accent: "#38bdf8" },
+    { id: "mac",    label: "MacBook M3 Max",  detail: "ML training / analysis", role: "ANALYSIS",    pctX: 72, pctY: 45, accent: "#a78bfa" },
     { id: "db",     label: "SQLite DB",       detail: "WAL mode",             role: "STORAGE",       pctX: 28, pctY: 64, accent: "#fbbf24" },
     { id: "witty",  label: "Witty Pi 4",      detail: "12V-5V / RTC / Sensors", role: "POWER",       pctX: 53, pctY: 64, accent: "#fb923c" },
   ];
@@ -29,7 +30,8 @@
   var CONNECTIONS = [
     { from: "honda", to: "wican", label: "OBD-II CAN",        id: "line-honda-wican" },
     { from: "wican", to: "pi",    label: "ELM327 TCP:3333",   id: "line-wican-pi" },
-    { from: "pi",    to: "pixel", label: "WebSocket 10Hz",    id: "line-pi-pixel" },
+    { from: "pi",    to: "iphone", label: "WiFi sync",          id: "line-pi-iphone" },
+    { from: "iphone", to: "mac",  label: "iCloud",             id: "line-iphone-mac" },
     { from: "pi",    to: "db",    label: "WAL",               id: "line-pi-db" },
     { from: "pi",    to: "witty", label: "I2C 0x08",          id: "line-pi-witty" },
   ];
@@ -187,7 +189,8 @@
         honda: "M5 17a2 2 0 104 0 2 2 0 10-4 0M15 17a2 2 0 104 0 2 2 0 10-4 0M5 15h14l-2-6H7l-2 6z",
         wican: "M12 20h.01M8.53 16.11a6 6 0 016.95 0M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0",
         pi: "M6 6h12v12H6zM9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3",
-        pixel: "M7 2h10a1 1 0 011 1v18a1 1 0 01-1 1H7a1 1 0 01-1-1V3a1 1 0 011-1zM12 18h.01",
+        iphone: "M7 2h10a1 1 0 011 1v18a1 1 0 01-1 1H7a1 1 0 01-1-1V3a1 1 0 011-1zM12 18h.01",
+        mac: "M4 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM8 18h8M12 14v4",
         db: "M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3v10c0 1.66-3.58 3-8 3s-8-1.34-8-3V7zM4 12c0 1.66 3.58 3 8 3s8-1.34 8-3",
         witty: "M13 2L3 14h9l-1 8 10-12h-9l1-8",
       };
@@ -217,7 +220,7 @@
       var badge = document.createElement("div");
       badge.className = "topo-node-badge";
       badge.id = "badge-" + node.id;
-      badge.textContent = "SIMULATED";
+      badge.textContent = "STANDBY";
       badge.style.cssText = "background:" + c + "15;color:" + c + ";border-color:" + c + "40;";
       div.appendChild(badge);
 
@@ -479,7 +482,7 @@
       el.classList.add("status-" + status);
       var badge = document.getElementById("badge-" + nodeId);
       if (badge) {
-        badge.textContent = status === "connected" ? "CONNECTED" : status === "simulated" ? "SIMULATED" : "OFFLINE";
+        badge.textContent = status === "connected" ? "CONNECTED" : status === "simulated" ? "STANDBY" : "OFFLINE";
         badge.className = "topo-node-badge " + status;
       }
     },

@@ -625,6 +625,21 @@ if _frontend_dir.exists():
 
 
 
+# Root URL redirects to diagnostics -- so just typing 192.168.4.1:8080 works
+@app.get("/")
+async def root_redirect():
+    """Redirect to diagnostics dashboard."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/diagnostics")
+
+
+@app.get("/d")
+async def short_redirect():
+    """Short alias for diagnostics -- 192.168.4.1:8080/d"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/diagnostics")
+
+
 @app.get("/api/health")
 async def health_check() -> JSONResponse:
     """Server health check."""
