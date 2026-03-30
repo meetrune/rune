@@ -183,9 +183,14 @@ async def obd_producer_loop(
                         thermal_state.overall_status.value, effective_ws_hz,
                     )
 
-                # Log thermal warnings
+                # Log thermal warnings (debounced: once per 5 minutes max)
+                # Without debounce, this spams 86,400 lines/day and wears SD card
                 if thermal_state.message:
-                    logger.warning("Thermal: %s", thermal_state.message)
+                    _now_mono = time.monotonic()
+                    if not hasattr(obd_producer_loop, '_last_thermal_log') or \
+                       _now_mono - obd_producer_loop._last_thermal_log > 300:
+                        logger.warning("Thermal: %s", thermal_state.message)
+                        obd_producer_loop._last_thermal_log = _now_mono
 
                 # Intelligence: battery monitor (once per second with Vin reading)
                 if settings.intelligence_enabled and pi_snap.vin_voltage is not None:
